@@ -51,8 +51,8 @@ const data = {
       icon: <ListIcon />,
     },
     {
-      title: "Analytics",
-      url: "#",
+      title: "Products",
+      url: "/admin/products",
       icon: <ChartBarIcon />,
     },
     {
