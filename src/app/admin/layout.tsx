@@ -1,12 +1,32 @@
-import { AppSidebar } from "@/components/app-sidebar";
-import { SiteHeader } from "@/components/site-header";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/app-sidebar"
+import { SiteHeader } from "@/components/site-header"
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import { createClient } from "@/lib/supabase/server"
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode
 }) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const { data: profile } = user
+    ? await supabase
+        .from("users")
+        .select("name, email, role")
+        .eq("auth_id", user.id)
+        .single()
+    : { data: null }
+
+  const sidebarUser = {
+    name: profile?.name ?? user?.email ?? "User",
+    email: profile?.email ?? user?.email ?? "",
+    avatar: "/avatars/shadcn.jpg",
+  }
+
   return (
     <SidebarProvider
       style={
@@ -16,7 +36,7 @@ export default function AdminLayout({
         } as React.CSSProperties
       }
     >
-      <AppSidebar variant="inset" />
+      <AppSidebar variant="inset" user={sidebarUser} />
       <SidebarInset>
         <SiteHeader />
         <div className="flex flex-1 flex-col">
@@ -28,5 +48,5 @@ export default function AdminLayout({
         </div>
       </SidebarInset>
     </SidebarProvider>
-  );
+  )
 }
