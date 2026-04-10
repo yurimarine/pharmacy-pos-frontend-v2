@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
@@ -12,6 +13,10 @@ export default async function AdminLayout({
   const {
     data: { user },
   } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect("/auth/login")
+  }
 
   const { data: profile } = user
     ? await supabase
