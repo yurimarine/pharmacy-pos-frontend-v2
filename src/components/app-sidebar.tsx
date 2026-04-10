@@ -21,6 +21,7 @@ import {
   ListIcon,
   ChartBarIcon,
   FolderIcon,
+  TruckIcon,
   UsersIcon,
   Settings2Icon,
   CircleHelpIcon,
@@ -53,6 +54,11 @@ const navMain = [
     icon: <FolderIcon />,
   },
   {
+    title: "Suppliers",
+    url: "/admin/suppliers",
+    icon: <TruckIcon />,
+  },
+  {
     title: "Team",
     url: "#",
     icon: <UsersIcon />,
@@ -83,7 +89,7 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
   const resolvedUser = user ?? {
     name: "User",
     email: "",
-    avatar: "/avatars/shadcn.jpg",
+    avatar: "",
   }
 
   return (

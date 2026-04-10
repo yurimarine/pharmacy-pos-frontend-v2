@@ -24,7 +24,7 @@ export default async function AdminLayout({
   const sidebarUser = {
     name: profile?.name ?? user?.email ?? "User",
     email: profile?.email ?? user?.email ?? "",
-    avatar: "/avatars/shadcn.jpg",
+    avatar: "",
   }
 
   return (
