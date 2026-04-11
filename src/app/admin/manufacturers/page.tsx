@@ -1,6 +1,5 @@
 import { getManufacturers } from "./actions"
 import { ManufacturersTable } from "@/components/manufacturers/ManufacturersTable"
-import { Button } from "@/components/ui/button"
 import type { Manufacturer } from "@/types/manufacturer"
 
 export default async function ManufacturersPage() {
@@ -15,14 +14,11 @@ export default async function ManufacturersPage() {
 
   return (
     <div className="flex flex-col gap-6 px-4 lg:px-6">
-      <div className="flex items-center justify-between">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold tracking-tight">Manufacturers</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage your pharmacy product manufacturers
-          </p>
-        </div>
-        <Button>+ Add Manufacturer</Button>
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-bold tracking-tight">Manufacturers</h1>
+        <p className="text-sm text-muted-foreground">
+          Manage your pharmacy product manufacturers
+        </p>
       </div>
 
       {fetchError ? (

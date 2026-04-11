@@ -1,6 +1,5 @@
 import { getSuppliers } from "./actions"
 import { SuppliersTable } from "@/components/suppliers/SuppliersTable"
-import { Button } from "@/components/ui/button"
 import type { Supplier } from "@/types/supplier"
 
 export default async function SuppliersPage() {
@@ -15,14 +14,11 @@ export default async function SuppliersPage() {
 
   return (
     <div className="flex flex-col gap-6 px-4 lg:px-6">
-      <div className="flex items-center justify-between">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold tracking-tight">Suppliers</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage your pharmacy suppliers
-          </p>
-        </div>
-        <Button>+ Add Supplier</Button>
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-bold tracking-tight">Suppliers</h1>
+        <p className="text-sm text-muted-foreground">
+          Manage your pharmacy suppliers
+        </p>
       </div>
 
       {fetchError ? (
