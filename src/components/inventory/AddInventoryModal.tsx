@@ -136,11 +136,17 @@ export function AddInventoryModal({
                     <SelectValue placeholder="Select product" />
                   </SelectTrigger>
                   <SelectContent>
-                    {products.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.name}
-                      </SelectItem>
-                    ))}
+                    {products.length === 0 ? (
+                      <p className="py-4 text-center text-sm text-muted-foreground">
+                        No products found.
+                      </p>
+                    ) : (
+                      products.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               )}
@@ -166,11 +172,17 @@ export function AddInventoryModal({
                     <SelectValue placeholder="Select pharmacy" />
                   </SelectTrigger>
                   <SelectContent>
-                    {pharmacies.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.name}
-                      </SelectItem>
-                    ))}
+                    {pharmacies.length === 0 ? (
+                      <p className="py-4 text-center text-sm text-muted-foreground">
+                        No pharmacies found.
+                      </p>
+                    ) : (
+                      pharmacies.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               )}

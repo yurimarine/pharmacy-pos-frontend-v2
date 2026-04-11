@@ -210,11 +210,17 @@ export function AddProductModal({ open, onOpenChange }: AddProductModalProps) {
                     <SelectValue placeholder="Select supplier" />
                   </SelectTrigger>
                   <SelectContent>
-                    {suppliers.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.name}
-                      </SelectItem>
-                    ))}
+                    {suppliers.length === 0 ? (
+                      <p className="py-4 text-center text-sm text-muted-foreground">
+                        No suppliers found.
+                      </p>
+                    ) : (
+                      suppliers.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.name}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               )}
@@ -236,11 +242,17 @@ export function AddProductModal({ open, onOpenChange }: AddProductModalProps) {
                     <SelectValue placeholder="Select manufacturer" />
                   </SelectTrigger>
                   <SelectContent>
-                    {manufacturers.map((m) => (
-                      <SelectItem key={m.id} value={m.id}>
-                        {m.name}
-                      </SelectItem>
-                    ))}
+                    {manufacturers.length === 0 ? (
+                      <p className="py-4 text-center text-sm text-muted-foreground">
+                        No manufacturers found.
+                      </p>
+                    ) : (
+                      manufacturers.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.name}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               )}
