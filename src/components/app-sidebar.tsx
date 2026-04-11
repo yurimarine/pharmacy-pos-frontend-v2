@@ -23,6 +23,7 @@ import {
   FolderIcon,
   TruckIcon,
   FactoryIcon,
+  StoreIcon,
   UsersIcon,
   Settings2Icon,
   CircleHelpIcon,
@@ -58,6 +59,11 @@ const navMain = [
     title: "Manufacturers",
     url: "/admin/manufacturers",
     icon: <FactoryIcon />,
+  },
+  {
+    title: "Pharmacies",
+    url: "/admin/pharmacies",
+    icon: <StoreIcon />,
   },
 ];
 
