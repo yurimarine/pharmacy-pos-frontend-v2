@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import { AddSupplierModal } from "@/components/suppliers/AddSupplierModal"
 import {
   flexRender,
   getCoreRowModel,
@@ -45,6 +46,7 @@ function formatDate(dateStr: string) {
 }
 
 export function SuppliersTable({ suppliers }: { suppliers: Supplier[] }) {
+  const [open, setOpen] = useState(false)
   const [globalFilter, setGlobalFilter] = useState("")
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
 
@@ -146,6 +148,7 @@ export function SuppliersTable({ suppliers }: { suppliers: Supplier[] }) {
           onChange={(e) => setGlobalFilter(e.target.value)}
           className="max-w-xs"
         />
+        <div className="flex items-center gap-2">
         <DropdownMenu>
           <DropdownMenuTrigger
             render={<Button variant="outline" size="sm" />}
@@ -169,6 +172,10 @@ export function SuppliersTable({ suppliers }: { suppliers: Supplier[] }) {
               ))}
           </DropdownMenuContent>
         </DropdownMenu>
+        <Button size="sm" onClick={() => setOpen(true)}>
+          + Add Supplier
+        </Button>
+        </div>
       </div>
 
       {/* Count */}
@@ -222,6 +229,8 @@ export function SuppliersTable({ suppliers }: { suppliers: Supplier[] }) {
           </TableBody>
         </Table>
       </div>
+
+      <AddSupplierModal open={open} onOpenChange={setOpen} />
 
       {/* Pagination */}
       {pageCount > 1 && (
