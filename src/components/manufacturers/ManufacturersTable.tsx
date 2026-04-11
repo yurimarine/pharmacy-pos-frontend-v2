@@ -15,6 +15,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   SlidersHorizontalIcon,
+  PlusIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -35,6 +36,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import type { Manufacturer } from "@/types/manufacturer"
+import { AddManufacturerModal } from "./AddManufacturerModal"
+import { EditManufacturerModal } from "./EditManufacturerModal"
+import { DeleteManufacturerDialog } from "./DeleteManufacturerDialog"
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("en-US", {
@@ -51,6 +55,10 @@ export function ManufacturersTable({
 }) {
   const [globalFilter, setGlobalFilter] = useState("")
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
+  const [addOpen, setAddOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [selectedManufacturer, setSelectedManufacturer] = useState<Manufacturer | null>(null)
 
   const columns = useMemo<ColumnDef<Manufacturer>[]>(
     () => [
@@ -70,7 +78,7 @@ export function ManufacturersTable({
         id: "actions",
         header: "",
         enableHiding: false,
-        cell: () => (
+        cell: ({ row }) => (
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
@@ -84,9 +92,24 @@ export function ManufacturersTable({
               <EllipsisVerticalIcon className="size-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem>Edit</DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  setSelectedManufacturer(row.original)
+                  setEditOpen(true)
+                }}
+              >
+                Edit
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive">Delete</DropdownMenuItem>
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={() => {
+                  setSelectedManufacturer(row.original)
+                  setDeleteOpen(true)
+                }}
+              >
+                Delete
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         ),
@@ -130,29 +153,35 @@ export function ManufacturersTable({
           onChange={(e) => setGlobalFilter(e.target.value)}
           className="max-w-xs"
         />
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={<Button variant="outline" size="sm" />}
-          >
-            <SlidersHorizontalIcon />
-            Columns
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44">
-            {table
-              .getAllColumns()
-              .filter((col) => col.getCanHide())
-              .map((col) => (
-                <DropdownMenuCheckboxItem
-                  key={col.id}
-                  className="capitalize"
-                  checked={col.getIsVisible()}
-                  onCheckedChange={(value) => col.toggleVisibility(!!value)}
-                >
-                  {col.id.replace(/_/g, " ")}
-                </DropdownMenuCheckboxItem>
-              ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={<Button variant="outline" size="sm" />}
+            >
+              <SlidersHorizontalIcon />
+              Columns
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              {table
+                .getAllColumns()
+                .filter((col) => col.getCanHide())
+                .map((col) => (
+                  <DropdownMenuCheckboxItem
+                    key={col.id}
+                    className="capitalize"
+                    checked={col.getIsVisible()}
+                    onCheckedChange={(value) => col.toggleVisibility(!!value)}
+                  >
+                    {col.id.replace(/_/g, " ")}
+                  </DropdownMenuCheckboxItem>
+                ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button size="sm" onClick={() => setAddOpen(true)}>
+            <PlusIcon />
+            Add Manufacturer
+          </Button>
+        </div>
       </div>
 
       {/* Count */}
@@ -236,6 +265,19 @@ export function ManufacturersTable({
           </div>
         </div>
       )}
+
+      <AddManufacturerModal open={addOpen} onOpenChange={setAddOpen} />
+      <EditManufacturerModal
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        manufacturer={selectedManufacturer}
+      />
+      <DeleteManufacturerDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        manufacturerId={selectedManufacturer?.id ?? null}
+        manufacturerName={selectedManufacturer?.name ?? ""}
+      />
     </div>
   )
 }
