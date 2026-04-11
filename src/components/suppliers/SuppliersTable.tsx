@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { AddSupplierModal } from "@/components/suppliers/AddSupplierModal"
 import {
   flexRender,
   getCoreRowModel,
@@ -36,6 +35,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import type { Supplier } from "@/types/supplier"
+import { AddSupplierModal } from "@/components/suppliers/AddSupplierModal"
+import { EditSupplierModal } from "@/components/suppliers/EditSupplierModal"
+import { DeleteSupplierDialog } from "@/components/suppliers/DeleteSupplierDialog"
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("en-US", {
@@ -46,7 +48,10 @@ function formatDate(dateStr: string) {
 }
 
 export function SuppliersTable({ suppliers }: { suppliers: Supplier[] }) {
-  const [open, setOpen] = useState(false)
+  const [addOpen, setAddOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null)
   const [globalFilter, setGlobalFilter] = useState("")
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
 
@@ -88,7 +93,7 @@ export function SuppliersTable({ suppliers }: { suppliers: Supplier[] }) {
         id: "actions",
         header: "",
         enableHiding: false,
-        cell: () => (
+        cell: ({ row }) => (
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
@@ -102,9 +107,24 @@ export function SuppliersTable({ suppliers }: { suppliers: Supplier[] }) {
               <EllipsisVerticalIcon className="size-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem>Edit</DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  setSelectedSupplier(row.original)
+                  setEditOpen(true)
+                }}
+              >
+                Edit
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive">Delete</DropdownMenuItem>
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={() => {
+                  setSelectedSupplier(row.original)
+                  setDeleteOpen(true)
+                }}
+              >
+                Delete
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         ),
@@ -149,32 +169,32 @@ export function SuppliersTable({ suppliers }: { suppliers: Supplier[] }) {
           className="max-w-xs"
         />
         <div className="flex items-center gap-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={<Button variant="outline" size="sm" />}
-          >
-            <SlidersHorizontalIcon />
-            Columns
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44">
-            {table
-              .getAllColumns()
-              .filter((col) => col.getCanHide())
-              .map((col) => (
-                <DropdownMenuCheckboxItem
-                  key={col.id}
-                  className="capitalize"
-                  checked={col.getIsVisible()}
-                  onCheckedChange={(value) => col.toggleVisibility(!!value)}
-                >
-                  {col.id.replace(/_/g, " ")}
-                </DropdownMenuCheckboxItem>
-              ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <Button size="sm" onClick={() => setOpen(true)}>
-          + Add Supplier
-        </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={<Button variant="outline" size="sm" />}
+            >
+              <SlidersHorizontalIcon />
+              Columns
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              {table
+                .getAllColumns()
+                .filter((col) => col.getCanHide())
+                .map((col) => (
+                  <DropdownMenuCheckboxItem
+                    key={col.id}
+                    className="capitalize"
+                    checked={col.getIsVisible()}
+                    onCheckedChange={(value) => col.toggleVisibility(!!value)}
+                  >
+                    {col.id.replace(/_/g, " ")}
+                  </DropdownMenuCheckboxItem>
+                ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button size="sm" onClick={() => setAddOpen(true)}>
+            + Add Supplier
+          </Button>
         </div>
       </div>
 
@@ -230,8 +250,6 @@ export function SuppliersTable({ suppliers }: { suppliers: Supplier[] }) {
         </Table>
       </div>
 
-      <AddSupplierModal open={open} onOpenChange={setOpen} />
-
       {/* Pagination */}
       {pageCount > 1 && (
         <div className="flex items-center justify-between">
@@ -260,6 +278,19 @@ export function SuppliersTable({ suppliers }: { suppliers: Supplier[] }) {
           </div>
         </div>
       )}
+
+      <AddSupplierModal open={addOpen} onOpenChange={setAddOpen} />
+      <EditSupplierModal
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        supplier={selectedSupplier}
+      />
+      <DeleteSupplierDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        supplierId={selectedSupplier?.id ?? null}
+        supplierName={selectedSupplier?.name ?? ""}
+      />
     </div>
   )
 }
