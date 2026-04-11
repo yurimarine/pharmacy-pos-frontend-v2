@@ -1,12 +1,12 @@
-"use client"
+"use client";
 
-import * as React from "react"
+import * as React from "react";
 
-import Link from "next/link"
-import { NavDocuments } from "@/components/nav-documents"
-import { NavMain } from "@/components/nav-main"
-import { NavSecondary } from "@/components/nav-secondary"
-import { NavUser } from "@/components/nav-user"
+import Link from "next/link";
+import { NavDocuments } from "@/components/nav-documents";
+import { NavMain } from "@/components/nav-main";
+import { NavSecondary } from "@/components/nav-secondary";
+import { NavUser } from "@/components/nav-user";
 import {
   Sidebar,
   SidebarContent,
@@ -15,13 +15,14 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
 import {
   LayoutDashboardIcon,
   ListIcon,
   ChartBarIcon,
   FolderIcon,
   TruckIcon,
+  FactoryIcon,
   UsersIcon,
   Settings2Icon,
   CircleHelpIcon,
@@ -30,7 +31,7 @@ import {
   FileChartColumnIcon,
   FileIcon,
   CommandIcon,
-} from "lucide-react"
+} from "lucide-react";
 
 const navMain = [
   {
@@ -49,48 +50,43 @@ const navMain = [
     icon: <ChartBarIcon />,
   },
   {
-    title: "Projects",
-    url: "#",
-    icon: <FolderIcon />,
-  },
-  {
     title: "Suppliers",
     url: "/admin/suppliers",
     icon: <TruckIcon />,
   },
   {
-    title: "Team",
-    url: "#",
-    icon: <UsersIcon />,
+    title: "Manufacturers",
+    url: "/admin/manufacturers",
+    icon: <FactoryIcon />,
   },
-]
+];
 
 const navSecondary = [
   { title: "Settings", url: "#", icon: <Settings2Icon /> },
   { title: "Get Help", url: "#", icon: <CircleHelpIcon /> },
   { title: "Search", url: "#", icon: <SearchIcon /> },
-]
+];
 
 const documents = [
   { name: "Data Library", url: "#", icon: <DatabaseIcon /> },
   { name: "Reports", url: "#", icon: <FileChartColumnIcon /> },
   { name: "Word Assistant", url: "#", icon: <FileIcon /> },
-]
+];
 
 type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
   user?: {
-    name: string
-    email: string
-    avatar: string
-  }
-}
+    name: string;
+    email: string;
+    avatar: string;
+  };
+};
 
 export function AppSidebar({ user, ...props }: AppSidebarProps) {
   const resolvedUser = user ?? {
     name: "User",
     email: "",
     avatar: "",
-  }
+  };
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
@@ -116,5 +112,5 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
         <NavUser user={resolvedUser} />
       </SidebarFooter>
     </Sidebar>
-  )
+  );
 }
