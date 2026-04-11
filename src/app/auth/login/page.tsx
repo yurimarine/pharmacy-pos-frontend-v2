@@ -1,6 +1,16 @@
+import { redirect } from "next/navigation"
+import { createClient } from "@/lib/supabase/server"
 import { LoginForm } from "@/components/login-form"
 
-export default function Page() {
+export default async function Page() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (user) {
+    redirect("/admin/dashboard")
+  }
   return (
     <div className="flex min-h-svh w-full flex-col items-center justify-center gap-6 p-6 md:p-10">
       <div className="flex flex-col items-center gap-1">

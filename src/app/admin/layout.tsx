@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
@@ -13,6 +14,10 @@ export default async function AdminLayout({
     data: { user },
   } = await supabase.auth.getUser()
 
+  if (!user) {
+    redirect("/auth/login")
+  }
+
   const { data: profile } = user
     ? await supabase
         .from("users")
@@ -24,7 +29,7 @@ export default async function AdminLayout({
   const sidebarUser = {
     name: profile?.name ?? user?.email ?? "User",
     email: profile?.email ?? user?.email ?? "",
-    avatar: "/avatars/shadcn.jpg",
+    avatar: "",
   }
 
   return (
