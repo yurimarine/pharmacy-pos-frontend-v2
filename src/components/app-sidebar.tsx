@@ -104,7 +104,7 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
               render={<Link href="/admin/dashboard" />}
             >
               <CommandIcon className="size-5!" />
-              <span className="text-base font-semibold">PharmaCare POS</span>
+              <span className="text-base font-semibold">PharmaMed POS</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
