@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import {
   flexRender,
   getCoreRowModel,
@@ -36,95 +37,94 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import type { Inventory } from "@/types/inventory"
-import { getStockStatus } from "@/lib/inventory-utils"
-import { getInventory } from "@/app/admin/inventory/actions"
-import { AddInventoryModal } from "./AddInventoryModal"
-import { EditInventoryModal } from "./EditInventoryModal"
-import { DeactivateInventoryDialog } from "./DeactivateInventoryDialog"
+import type { Batch } from "@/types/batch"
+import { getBatches } from "@/app/admin/batches/actions"
+import { CreateBatchModal } from "./CreateBatchModal"
+import { CancelBatchDialog } from "./CancelBatchDialog"
 
-function formatPrice(value: number) {
-  return `₱${value.toFixed(2)}`
+function formatDateTime(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString("en-US", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
 }
 
-function StockBadge({
-  quantity,
-  threshold,
-}: {
-  quantity: number
-  threshold: number
-}) {
-  const status = getStockStatus(quantity, threshold)
-  if (status === "in_stock") {
-    return <Badge variant="default">In Stock</Badge>
+function TypeBadge({ type }: { type: string }) {
+  if (type === "stock_in") {
+    return <Badge variant="default">Stock In</Badge>
   }
-  if (status === "out_of_stock") {
-    return <Badge variant="destructive">Out of Stock</Badge>
-  }
-  // low_stock — amber styling
   return (
-    <Badge className="bg-amber-100 text-amber-800 border-transparent hover:bg-amber-100">
-      Low Stock
+    <Badge className="border-transparent bg-orange-100 text-orange-800 hover:bg-orange-100">
+      Stock Out
     </Badge>
   )
 }
 
-type InventoryTableProps = {
-  inventory: Inventory[]
+function StatusBadge({ status }: { status: string }) {
+  if (status === "completed") {
+    return (
+      <Badge className="border-transparent bg-green-100 text-green-800 hover:bg-green-100">
+        Completed
+      </Badge>
+    )
+  }
+  if (status === "cancelled") {
+    return (
+      <Badge variant="outline" className="text-muted-foreground">
+        Cancelled
+      </Badge>
+    )
+  }
+  return <Badge variant="outline">Draft</Badge>
+}
+
+type BatchesTableProps = {
+  batches: Batch[]
   pharmacies: { id: string; name: string }[]
 }
 
-export function InventoryTable({ inventory, pharmacies }: InventoryTableProps) {
+export function BatchesTable({ batches, pharmacies }: BatchesTableProps) {
+  const router = useRouter()
   const [globalFilter, setGlobalFilter] = useState("")
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
-  const [addOpen, setAddOpen] = useState(false)
-  const [editOpen, setEditOpen] = useState(false)
-  const [deactivateOpen, setDeactivateOpen] = useState(false)
-  const [selectedEntry, setSelectedEntry] = useState<Inventory | null>(null)
-  const [filteredInventory, setFilteredInventory] = useState(inventory)
-  const [selectedPharmacy, setSelectedPharmacy] = useState<string>("all")
+  const [createOpen, setCreateOpen] = useState(false)
+  const [cancelOpen, setCancelOpen] = useState(false)
+  const [selectedBatch, setSelectedBatch] = useState<Batch | null>(null)
+  const [showCancelled, setShowCancelled] = useState(false)
+  const [batchList, setBatchList] = useState(batches)
   const [, startTransition] = useTransition()
 
-  const handlePharmacyChange = (pharmacyId: string | null) => {
-    if (!pharmacyId) return
-    setSelectedPharmacy(pharmacyId)
+  const handleToggleCancelled = () => {
+    const next = !showCancelled
+    setShowCancelled(next)
     startTransition(async () => {
       try {
-        const data = await getInventory(
-          pharmacyId === "all" ? undefined : pharmacyId
-        )
-        setFilteredInventory(data)
+        const data = await getBatches(next)
+        setBatchList(data)
       } catch {
-        // keep existing data on error
+        // keep existing data
       }
     })
   }
 
-  const columns = useMemo<ColumnDef<Inventory>[]>(
+  const columns = useMemo<ColumnDef<Batch>[]>(
     () => [
       {
-        id: "product_name",
-        header: "Product Name",
+        accessorKey: "batch_number",
+        header: "Batch Number",
         cell: ({ row }) => (
-          <span className="font-medium">{row.original.products?.name}</span>
+          <span className="font-medium font-mono">
+            {row.getValue("batch_number")}
+          </span>
         ),
       },
       {
-        id: "generic_name",
-        header: "Generic Name",
-        cell: ({ row }) => row.original.products?.generic_name ?? "—",
-      },
-      {
-        id: "category",
-        header: "Category",
-        cell: ({ row }) => row.original.products?.category ?? "—",
+        accessorKey: "type",
+        header: "Type",
+        cell: ({ row }) => <TypeBadge type={row.getValue("type")} />,
       },
       {
         id: "pharmacy",
@@ -132,26 +132,27 @@ export function InventoryTable({ inventory, pharmacies }: InventoryTableProps) {
         cell: ({ row }) => row.original.pharmacies?.name ?? "—",
       },
       {
-        accessorKey: "quantity",
-        header: "Quantity",
-        cell: ({ row }) => (
-          <span className="tabular-nums">{row.getValue("quantity")}</span>
-        ),
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => <StatusBadge status={row.getValue("status")} />,
       },
       {
-        id: "stock_status",
-        header: "Stock Status",
-        cell: ({ row }) => (
-          <StockBadge
-            quantity={row.original.quantity}
-            threshold={row.original.low_stock_threshold}
-          />
-        ),
+        id: "items",
+        header: "Items",
+        cell: ({ row }) => {
+          const count = row.original.batch_items?.[0]?.count ?? 0
+          return <span className="tabular-nums">{count}</span>
+        },
       },
       {
-        accessorKey: "selling_price",
-        header: "Selling Price",
-        cell: ({ row }) => formatPrice(row.getValue("selling_price")),
+        id: "created_by",
+        header: "Created By",
+        cell: ({ row }) => row.original.users?.name ?? "—",
+      },
+      {
+        accessorKey: "created_at",
+        header: "Created At",
+        cell: ({ row }) => formatDateTime(row.getValue("created_at")),
       },
       {
         id: "actions",
@@ -172,33 +173,36 @@ export function InventoryTable({ inventory, pharmacies }: InventoryTableProps) {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem
-                onClick={() => {
-                  setSelectedEntry(row.original)
-                  setEditOpen(true)
-                }}
+                onClick={() =>
+                  router.push(`/admin/batches/${row.original.id}`)
+                }
               >
-                Edit
+                View
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                variant="destructive"
-                onClick={() => {
-                  setSelectedEntry(row.original)
-                  setDeactivateOpen(true)
-                }}
-              >
-                Deactivate
-              </DropdownMenuItem>
+              {row.original.status === "draft" && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={() => {
+                      setSelectedBatch(row.original)
+                      setCancelOpen(true)
+                    }}
+                  >
+                    Cancel
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         ),
       },
     ],
-    []
+    [router]
   )
 
   const table = useReactTable({
-    data: filteredInventory,
+    data: batchList,
     columns,
     state: {
       globalFilter,
@@ -207,16 +211,16 @@ export function InventoryTable({ inventory, pharmacies }: InventoryTableProps) {
     onGlobalFilterChange: setGlobalFilter,
     onColumnVisibilityChange: setColumnVisibility,
     globalFilterFn: (row, _columnId, filterValue) => {
-      const name = String(
-        row.original.products?.name ?? ""
+      const batchNumber = String(
+        row.getValue("batch_number") ?? ""
       ).toLowerCase()
-      return name.includes(String(filterValue).toLowerCase())
+      return batchNumber.includes(String(filterValue).toLowerCase())
     },
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     initialState: {
-      pagination: { pageSize: 8 },
+      pagination: { pageSize: 10 },
     },
   })
 
@@ -229,27 +233,19 @@ export function InventoryTable({ inventory, pharmacies }: InventoryTableProps) {
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-4">
         <Input
-          placeholder="Search by product name…"
+          placeholder="Search by batch number…"
           value={globalFilter}
           onChange={(e) => setGlobalFilter(e.target.value)}
           className="max-w-xs"
         />
         <div className="flex items-center gap-2">
-          {/* Pharmacy filter */}
-          <Select value={selectedPharmacy} onValueChange={handlePharmacyChange}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="All Pharmacies" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Pharmacies</SelectItem>
-              {pharmacies.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleToggleCancelled}
+          >
+            {showCancelled ? "Hide Cancelled" : "Show Cancelled"}
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger
               render={<Button variant="outline" size="sm" />}
@@ -273,18 +269,16 @@ export function InventoryTable({ inventory, pharmacies }: InventoryTableProps) {
                 ))}
             </DropdownMenuContent>
           </DropdownMenu>
-
-          <Button size="sm" onClick={() => setAddOpen(true)}>
+          <Button size="sm" onClick={() => setCreateOpen(true)}>
             <PlusIcon />
-            Add Stock Entry
+            New Batch
           </Button>
         </div>
       </div>
 
       {/* Count */}
       <p className="text-sm text-muted-foreground">
-        {filteredCount}{" "}
-        {filteredCount === 1 ? "inventory entry" : "inventory entries"} found
+        {filteredCount} {filteredCount === 1 ? "batch" : "batches"} found
       </p>
 
       {/* Table */}
@@ -326,7 +320,7 @@ export function InventoryTable({ inventory, pharmacies }: InventoryTableProps) {
                   colSpan={columns.length}
                   className="h-32 text-center text-muted-foreground"
                 >
-                  No inventory entries found.
+                  No batches found.
                 </TableCell>
               </TableRow>
             )}
@@ -363,21 +357,24 @@ export function InventoryTable({ inventory, pharmacies }: InventoryTableProps) {
         </div>
       )}
 
-      <AddInventoryModal
-        open={addOpen}
-        onOpenChange={setAddOpen}
+      <CreateBatchModal
+        open={createOpen}
+        onOpenChange={setCreateOpen}
         pharmacies={pharmacies}
+        onCreated={(batch) => router.push(`/admin/batches/${batch.id}`)}
       />
-      <EditInventoryModal
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        entry={selectedEntry}
-      />
-      <DeactivateInventoryDialog
-        open={deactivateOpen}
-        onOpenChange={setDeactivateOpen}
-        entryId={selectedEntry?.id ?? null}
-        productName={selectedEntry?.products?.name ?? ""}
+      <CancelBatchDialog
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
+        batchId={selectedBatch?.id ?? null}
+        batchNumber={selectedBatch?.batch_number ?? ""}
+        onCancelled={() => {
+          setBatchList((prev) =>
+            prev.map((b) =>
+              b.id === selectedBatch?.id ? { ...b, status: "cancelled" } : b
+            )
+          )
+        }}
       />
     </div>
   )

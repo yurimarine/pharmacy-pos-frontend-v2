@@ -61,7 +61,7 @@ export function AddInventoryModal({
   const [products, setProducts] = useState<ProductOption[]>([])
 
   const form = useForm<InventoryFormValues>({
-    resolver: zodResolver(inventorySchema),
+    resolver: zodResolver(inventorySchema) as any, // eslint-disable-line @typescript-eslint/no-explicit-any
     defaultValues: {
       product_id: "",
       pharmacy_id: "",

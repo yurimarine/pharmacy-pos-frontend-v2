@@ -42,7 +42,7 @@ export function EditInventoryModal({
   const [isPending, startTransition] = useTransition()
 
   const form = useForm<EditInventoryFormValues>({
-    resolver: zodResolver(editInventorySchema),
+    resolver: zodResolver(editInventorySchema) as any, // eslint-disable-line @typescript-eslint/no-explicit-any
     defaultValues: {
       quantity: 0,
       low_stock_threshold: 10,

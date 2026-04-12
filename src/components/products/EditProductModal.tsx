@@ -62,7 +62,7 @@ export function EditProductModal({
   >([])
 
   const form = useForm<ProductFormValues>({
-    resolver: zodResolver(productSchema),
+    resolver: zodResolver(productSchema) as any, // eslint-disable-line @typescript-eslint/no-explicit-any
     defaultValues: {
       name: "",
       generic_name: "",
