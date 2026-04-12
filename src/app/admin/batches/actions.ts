@@ -1,29 +1,38 @@
-"use server"
+"use server";
 
-import { createClient } from "@/lib/supabase/server"
-import { revalidatePath } from "next/cache"
-import type { Batch, BatchItem, BatchWithItems, BatchType, StockOutReason } from "@/types/batch"
+import { createClient } from "@/lib/supabase/server";
+import { revalidatePath } from "next/cache";
+import type {
+  Batch,
+  BatchItem,
+  BatchWithItems,
+  BatchType,
+  StockOutReason,
+} from "@/types/batch";
 
 async function getCurrentUser() {
-  const supabase = await createClient()
+  const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) throw new Error("Not authenticated")
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
 
   const { data } = await supabase
     .from("users")
     .select("id, name, role, pharmacy_id")
     .eq("auth_id", user.id)
-    .single()
+    .single();
 
-  if (!data) throw new Error("User record not found")
-  return data
+  if (!data) throw new Error("User record not found");
+  return data;
 }
 
-export async function getCurrentUserRole(): Promise<{ role: string; isAdmin: boolean }> {
-  const user = await getCurrentUser()
-  return { role: user.role, isAdmin: user.role === "admin" }
+export async function getCurrentUserRole(): Promise<{
+  role: string;
+  isAdmin: boolean;
+}> {
+  const user = await getCurrentUser();
+  return { role: user.role, isAdmin: user.role === "admin" };
 }
 
 // ─────────────────────────────────────────────
@@ -31,44 +40,51 @@ export async function getCurrentUserRole(): Promise<{ role: string; isAdmin: boo
 // ─────────────────────────────────────────────
 
 export async function getBatches(showCancelled?: boolean): Promise<Batch[]> {
-  const supabase = await createClient()
+  const supabase = await createClient();
 
-  await supabase.rpc("cancel_stale_draft_batches")
+  await supabase.rpc("cancel_stale_draft_batches");
 
-  const currentUser = await getCurrentUser()
+  const currentUser = await getCurrentUser();
 
   let query = supabase
     .from("batches")
-    .select("*, pharmacies(name), users(name, role), batch_items(count)")
-    .order("created_at", { ascending: false })
+    .select(
+      `
+    *,
+    pharmacy:pharmacies!batches_pharmacy_id_fkey ( name ),
+    transfer_pharmacy:pharmacies!batches_transfer_to_pharmacy_id_fkey ( name ),
+    users ( name, role )
+  `,
+    )
+    .order("created_at", { ascending: false });
 
   if (currentUser.role !== "admin") {
-    query = query.eq("pharmacy_id", currentUser.pharmacy_id)
+    query = query.eq("pharmacy_id", currentUser.pharmacy_id);
   }
 
   if (!showCancelled) {
-    query = query.neq("status", "cancelled")
+    query = query.neq("status", "cancelled");
   }
 
-  const { data, error } = await query
-  if (error) throw new Error(error.message)
-  return (data ?? []) as Batch[]
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return (data ?? []) as Batch[];
 }
 
 export async function createBatch(data: {
-  type: BatchType
-  pharmacy_id: string
-  notes?: string
+  type: BatchType;
+  pharmacy_id: string;
+  notes?: string;
 }): Promise<Batch> {
-  const supabase = await createClient()
+  const supabase = await createClient();
 
-  const currentUser = await getCurrentUser()
+  const currentUser = await getCurrentUser();
 
   const { data: batchNumber, error: rpcError } = await supabase.rpc(
     "generate_batch_number",
-    { p_type: data.type }
-  )
-  if (rpcError) throw new Error(rpcError.message)
+    { p_type: data.type },
+  );
+  if (rpcError) throw new Error(rpcError.message);
 
   const { data: batch, error } = await supabase
     .from("batches")
@@ -80,41 +96,44 @@ export async function createBatch(data: {
       status: "draft",
       notes: data.notes || null,
     })
-    .select("*, pharmacies(name), users(name, role)")
-    .single()
+    .select(`*,
+      pharmacy:pharmacies!batches_pharmacy_id_fkey ( name ),
+      transfer_pharmacy:pharmacies!batches_transfer_to_pharmacy_id_fkey ( name ),
+      users ( name, role )`)
+    .single();
 
-  if (error) throw new Error(error.message)
-  revalidatePath("/admin/batches")
-  return batch as Batch
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/batches");
+  return batch as Batch;
 }
 
 export async function cancelBatch(id: string): Promise<void> {
-  const supabase = await createClient()
+  const supabase = await createClient();
 
-  const currentUser = await getCurrentUser()
+  const currentUser = await getCurrentUser();
   if (currentUser.role !== "admin") {
-    throw new Error("Only admins can cancel batches.")
+    throw new Error("Only admins can cancel batches.");
   }
 
   const { error } = await supabase
     .from("batches")
     .update({ status: "cancelled", updated_at: new Date().toISOString() })
-    .eq("id", id)
+    .eq("id", id);
 
-  if (error) throw new Error(error.message)
-  revalidatePath("/admin/batches")
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/batches");
 }
 
 export async function getPharmaciesForBatchSelect(): Promise<
   { id: string; name: string }[]
 > {
-  const supabase = await createClient()
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("pharmacies")
     .select("id, name")
-    .order("name", { ascending: true })
-  if (error) throw new Error(error.message)
-  return data ?? []
+    .order("name", { ascending: true });
+  if (error) throw new Error(error.message);
+  return data ?? [];
 }
 
 // ─────────────────────────────────────────────
@@ -122,74 +141,77 @@ export async function getPharmaciesForBatchSelect(): Promise<
 // ─────────────────────────────────────────────
 
 export async function getBatchById(id: string): Promise<BatchWithItems> {
-  const supabase = await createClient()
+  const supabase = await createClient();
 
   const { data: batch, error } = await supabase
     .from("batches")
     .select(
-      `*, pharmacies(name), users(name, role),
+      `*,
+       pharmacy:pharmacies!batches_pharmacy_id_fkey ( name ),
+       transfer_pharmacy:pharmacies!batches_transfer_to_pharmacy_id_fkey ( name ),
+       users ( name, role ),
        batch_items(
          *,
          products(name, generic_name, base_price, requires_prescription),
          suppliers(name),
          manufacturers(name)
-       )`
+       )`,
     )
     .eq("id", id)
-    .single()
+    .single();
 
-  if (error) throw new Error(error.message)
-  if (!batch) throw new Error("Batch not found")
+  if (error) throw new Error(error.message);
+  if (!batch) throw new Error("Batch not found");
 
   // Attach inventory quantities for display (stock levels at time of page load)
   const productIds = (batch.batch_items ?? []).map(
-    (item: BatchItem) => item.product_id
-  )
+    (item: BatchItem) => item.product_id,
+  );
 
   if (productIds.length > 0) {
     const { data: invRows } = await supabase
       .from("inventory")
       .select("product_id, quantity")
       .eq("pharmacy_id", batch.pharmacy_id)
-      .in("product_id", productIds)
+      .in("product_id", productIds);
 
     const invMap = new Map(
       (invRows ?? []).map((r: { product_id: string; quantity: number }) => [
         r.product_id,
         r.quantity,
-      ])
-    )
+      ]),
+    );
 
     batch.batch_items = (batch.batch_items ?? []).map((item: BatchItem) => ({
       ...item,
       inventory_quantity: invMap.get(item.product_id),
-    }))
+    }));
   }
 
-  return batch as BatchWithItems
+  return batch as BatchWithItems;
 }
 
 export async function addBatchItem(data: {
-  batch_id: string
-  product_id: string
-  supplier_id?: string
-  manufacturer_id?: string
-  quantity: number
-  unit_cost?: number
-  expiry_date?: string
-  reason?: StockOutReason
-  notes?: string
+  batch_id: string;
+  product_id: string;
+  supplier_id?: string;
+  manufacturer_id?: string;
+  quantity: number;
+  unit_cost?: number;
+  expiry_date?: string;
+  reason?: StockOutReason;
+  notes?: string;
 }): Promise<BatchItem> {
-  const supabase = await createClient()
+  const supabase = await createClient();
 
   const { data: batch } = await supabase
     .from("batches")
     .select("status")
     .eq("id", data.batch_id)
-    .single()
+    .single();
 
   if (!batch || batch.status !== "draft") {
-    throw new Error("Can only add items to draft batches.")
+    throw new Error("Can only add items to draft batches.");
   }
 
   const { data: item, error } = await supabase
@@ -206,46 +228,50 @@ export async function addBatchItem(data: {
       notes: data.notes || null,
     })
     .select(
-      "*, products(name, generic_name, base_price, requires_prescription), suppliers(name), manufacturers(name)"
+      "*, products(name, generic_name, base_price, requires_prescription), suppliers(name), manufacturers(name)",
     )
-    .single()
+    .single();
 
-  if (error) throw new Error(error.message)
-  revalidatePath(`/admin/batches/${data.batch_id}`)
-  return item as BatchItem
+  if (error) throw new Error(error.message);
+  revalidatePath(`/admin/batches/${data.batch_id}`);
+  return item as BatchItem;
 }
 
 export async function removeBatchItem(
   itemId: string,
-  batchId: string
+  batchId: string,
 ): Promise<void> {
-  const supabase = await createClient()
+  const supabase = await createClient();
 
   const { data: batch } = await supabase
     .from("batches")
     .select("status")
     .eq("id", batchId)
-    .single()
+    .single();
 
   if (!batch || batch.status !== "draft") {
-    throw new Error("Can only remove items from draft batches.")
+    throw new Error("Can only remove items from draft batches.");
   }
 
   const { error } = await supabase
     .from("batch_items")
     .delete()
-    .eq("id", itemId)
+    .eq("id", itemId);
 
-  if (error) throw new Error(error.message)
-  revalidatePath(`/admin/batches/${batchId}`)
+  if (error) throw new Error(error.message);
+  revalidatePath(`/admin/batches/${batchId}`);
 }
 
 export async function finalizeBatch(id: string): Promise<{
-  success: boolean
-  priceChanges: Array<{ productName: string; oldPrice: number; newPrice: number }>
+  success: boolean;
+  priceChanges: Array<{
+    productName: string;
+    oldPrice: number;
+    newPrice: number;
+  }>;
 }> {
-  const supabase = await createClient()
-  const now = new Date().toISOString()
+  const supabase = await createClient();
+  const now = new Date().toISOString();
 
   // Step 1: Fetch batch with all items
   const { data: batch, error: batchError } = await supabase
@@ -255,35 +281,35 @@ export async function finalizeBatch(id: string): Promise<{
        batch_items(
          id, product_id, quantity, unit_cost, reason,
          products(id, name, base_price)
-       )`
+       )`,
     )
     .eq("id", id)
-    .single()
+    .single();
 
-  if (batchError || !batch) throw new Error("Batch not found")
+  if (batchError || !batch) throw new Error("Batch not found");
 
   // Step 2: Verify draft
   if (batch.status !== "draft") {
-    throw new Error("Batch is not in draft status.")
+    throw new Error("Batch is not in draft status.");
   }
 
   // Step 3: Verify has items
   const items = (batch.batch_items ?? []) as unknown as Array<{
-    id: string
-    product_id: string
-    quantity: number
-    unit_cost: number | null
-    reason: string | null
-    products: { id: string; name: string; base_price: number } | null
-  }>
+    id: string;
+    product_id: string;
+    quantity: number;
+    unit_cost: number | null;
+    reason: string | null;
+    products: { id: string; name: string; base_price: number } | null;
+  }>;
   if (items.length === 0) {
-    throw new Error("Add at least one item before finalizing.")
+    throw new Error("Add at least one item before finalizing.");
   }
 
   // Step 4: Stock out inventory validation
-  const stockOutInvMap = new Map<string, { id: string; quantity: number }>()
+  const stockOutInvMap = new Map<string, { id: string; quantity: number }>();
   if (batch.type === "stock_out") {
-    const insufficientItems: string[] = []
+    const insufficientItems: string[] = [];
 
     for (const item of items) {
       const { data: inv } = await supabase
@@ -291,48 +317,60 @@ export async function finalizeBatch(id: string): Promise<{
         .select("id, quantity")
         .eq("product_id", item.product_id)
         .eq("pharmacy_id", batch.pharmacy_id)
-        .single()
+        .single();
 
       if (!inv) {
         throw new Error(
-          `${item.products?.name} has no inventory record in this pharmacy.`
-        )
+          `${item.products?.name} has no inventory record in this pharmacy.`,
+        );
       }
 
-      stockOutInvMap.set(item.product_id, inv)
+      stockOutInvMap.set(item.product_id, inv);
 
       if (item.quantity > inv.quantity) {
         insufficientItems.push(
-          `${item.products?.name} (needs ${item.quantity}, has ${inv.quantity})`
-        )
+          `${item.products?.name} (needs ${item.quantity}, has ${inv.quantity})`,
+        );
       }
     }
 
     if (insufficientItems.length > 0) {
       throw new Error(
-        `Insufficient stock for: ${insufficientItems.join("; ")}`
-      )
+        `Insufficient stock for: ${insufficientItems.join("; ")}`,
+      );
     }
   }
 
   // Step 5: Detect price changes (stock_in only)
   const priceChangeMap = new Map<
     string,
-    { productId: string; productName: string; oldPrice: number; newPrice: number }
-  >()
+    {
+      productId: string;
+      productName: string;
+      oldPrice: number;
+      newPrice: number;
+    }
+  >();
 
   if (batch.type === "stock_in") {
     for (const item of items) {
-      if (item.unit_cost !== null && item.unit_cost !== undefined && item.products) {
-        const unitCost = Number(item.unit_cost)
-        const basePrice = Number(item.products.base_price)
-        if (Math.abs(unitCost - basePrice) > 0.001 && !priceChangeMap.has(item.product_id)) {
+      if (
+        item.unit_cost !== null &&
+        item.unit_cost !== undefined &&
+        item.products
+      ) {
+        const unitCost = Number(item.unit_cost);
+        const basePrice = Number(item.products.base_price);
+        if (
+          Math.abs(unitCost - basePrice) > 0.001 &&
+          !priceChangeMap.has(item.product_id)
+        ) {
           priceChangeMap.set(item.product_id, {
             productId: item.product_id,
             productName: item.products.name,
             oldPrice: basePrice,
             newPrice: unitCost,
-          })
+          });
         }
       }
     }
@@ -346,7 +384,7 @@ export async function finalizeBatch(id: string): Promise<{
         .select("id, quantity")
         .eq("product_id", item.product_id)
         .eq("pharmacy_id", batch.pharmacy_id)
-        .single()
+        .single();
 
       if (existingInv) {
         const { error } = await supabase
@@ -355,10 +393,10 @@ export async function finalizeBatch(id: string): Promise<{
             quantity: existingInv.quantity + item.quantity,
             updated_at: now,
           })
-          .eq("id", existingInv.id)
-        if (error) throw new Error(error.message)
+          .eq("id", existingInv.id);
+        if (error) throw new Error(error.message);
       } else {
-        const basePrice = item.unit_cost ?? item.products?.base_price ?? 0
+        const basePrice = item.unit_cost ?? item.products?.base_price ?? 0;
         const { error } = await supabase.from("inventory").insert({
           product_id: item.product_id,
           pharmacy_id: batch.pharmacy_id,
@@ -367,43 +405,44 @@ export async function finalizeBatch(id: string): Promise<{
           markup_percentage: 0,
           selling_price: Number(basePrice),
           is_active: true,
-        })
-        if (error) throw new Error(error.message)
+        });
+        if (error) throw new Error(error.message);
       }
     } else {
-      const inv = stockOutInvMap.get(item.product_id)!
+      const inv = stockOutInvMap.get(item.product_id)!;
       const { error } = await supabase
         .from("inventory")
         .update({ quantity: inv.quantity - item.quantity, updated_at: now })
-        .eq("id", inv.id)
-      if (error) throw new Error(error.message)
+        .eq("id", inv.id);
+      if (error) throw new Error(error.message);
     }
   }
 
   // Step 7: Apply base_price + selling_price updates (stock_in price changes)
-  const priceChanges = Array.from(priceChangeMap.values())
+  const priceChanges = Array.from(priceChangeMap.values());
   for (const change of priceChanges) {
     const { error: productError } = await supabase
       .from("products")
       .update({ base_price: change.newPrice, updated_at: now })
-      .eq("id", change.productId)
-    if (productError) throw new Error(productError.message)
+      .eq("id", change.productId);
+    if (productError) throw new Error(productError.message);
 
     const { data: allInvRows } = await supabase
       .from("inventory")
       .select("id, markup_percentage")
-      .eq("product_id", change.productId)
+      .eq("product_id", change.productId);
 
     for (const invRow of allInvRows ?? []) {
       const newSelling =
-        change.newPrice + change.newPrice * (Number(invRow.markup_percentage) / 100)
+        change.newPrice +
+        change.newPrice * (Number(invRow.markup_percentage) / 100);
       await supabase
         .from("inventory")
         .update({
           selling_price: Math.round(newSelling * 100) / 100,
           updated_at: now,
         })
-        .eq("id", invRow.id)
+        .eq("id", invRow.id);
     }
   }
 
@@ -411,68 +450,72 @@ export async function finalizeBatch(id: string): Promise<{
   const { error: completeError } = await supabase
     .from("batches")
     .update({ status: "completed", updated_at: now })
-    .eq("id", id)
-  if (completeError) throw new Error(completeError.message)
+    .eq("id", id);
+  if (completeError) throw new Error(completeError.message);
 
   // Step 9: Revalidate
-  revalidatePath("/admin/batches")
-  revalidatePath(`/admin/batches/${id}`)
+  revalidatePath("/admin/batches");
+  revalidatePath(`/admin/batches/${id}`);
 
   return {
     success: true,
-    priceChanges: priceChanges.map((c) => ({
+    priceChanges: priceChanges.map(c => ({
       productName: c.productName,
       oldPrice: c.oldPrice,
       newPrice: c.newPrice,
     })),
-  }
+  };
 }
 
 export async function getPriceChangePreview(batchId: string): Promise<
   {
-    productName: string
-    currentBasePrice: number
-    newUnitCost: number
-    affectedPharmaciesCount: number
+    productName: string;
+    currentBasePrice: number;
+    newUnitCost: number;
+    affectedPharmaciesCount: number;
   }[]
 > {
-  const supabase = await createClient()
+  const supabase = await createClient();
 
   const { data: items, error } = await supabase
     .from("batch_items")
     .select("product_id, unit_cost, products(id, name, base_price)")
     .eq("batch_id", batchId)
-    .not("unit_cost", "is", null)
+    .not("unit_cost", "is", null);
 
-  if (error) throw new Error(error.message)
+  if (error) throw new Error(error.message);
 
-  const changes = []
-  const seen = new Set<string>()
-  type PreviewItem = { product_id: string; unit_cost: number | null; products: { id: string; name: string; base_price: number } | null }
-  const typedItems = (items ?? []) as unknown as PreviewItem[]
+  const changes = [];
+  const seen = new Set<string>();
+  type PreviewItem = {
+    product_id: string;
+    unit_cost: number | null;
+    products: { id: string; name: string; base_price: number } | null;
+  };
+  const typedItems = (items ?? []) as unknown as PreviewItem[];
 
   for (const item of typedItems) {
-    if (!item.products || seen.has(item.product_id)) continue
-    const unitCost = Number(item.unit_cost)
-    const basePrice = Number(item.products.base_price)
-    if (Math.abs(unitCost - basePrice) <= 0.001) continue
+    if (!item.products || seen.has(item.product_id)) continue;
+    const unitCost = Number(item.unit_cost);
+    const basePrice = Number(item.products.base_price);
+    if (Math.abs(unitCost - basePrice) <= 0.001) continue;
 
-    seen.add(item.product_id)
+    seen.add(item.product_id);
 
     const { count } = await supabase
       .from("inventory")
       .select("id", { count: "exact", head: true })
-      .eq("product_id", item.product_id)
+      .eq("product_id", item.product_id);
 
     changes.push({
       productName: item.products.name,
       currentBasePrice: basePrice,
       newUnitCost: unitCost,
       affectedPharmaciesCount: count ?? 0,
-    })
+    });
   }
 
-  return changes
+  return changes;
 }
 
 // ─────────────────────────────────────────────
@@ -481,26 +524,26 @@ export async function getPriceChangePreview(batchId: string): Promise<
 
 export async function getProductsForBatchSelect(
   pharmacyId: string,
-  batchType: BatchType
+  batchType: BatchType,
 ): Promise<
   {
-    id: string
-    name: string
-    generic_name: string | null
-    base_price: number
-    current_quantity?: number
+    id: string;
+    name: string;
+    generic_name: string | null;
+    base_price: number;
+    current_quantity?: number;
   }[]
 > {
-  const supabase = await createClient()
+  const supabase = await createClient();
 
   if (batchType === "stock_in") {
     const { data, error } = await supabase
       .from("products")
       .select("id, name, generic_name, base_price")
       .eq("is_active", true)
-      .order("name", { ascending: true })
-    if (error) throw new Error(error.message)
-    return data ?? []
+      .order("name", { ascending: true });
+    if (error) throw new Error(error.message);
+    return data ?? [];
   }
 
   // stock_out: only products with inventory in this pharmacy
@@ -509,42 +552,50 @@ export async function getProductsForBatchSelect(
     .select("quantity, products!inner(id, name, generic_name, base_price)")
     .eq("pharmacy_id", pharmacyId)
     .eq("is_active", true)
-    .order("products(name)", { ascending: true })
+    .order("products(name)", { ascending: true });
 
-  if (error) throw new Error(error.message)
+  if (error) throw new Error(error.message);
 
-  type InvRow = { quantity: number; products: { id: string; name: string; generic_name: string | null; base_price: number } }
+  type InvRow = {
+    quantity: number;
+    products: {
+      id: string;
+      name: string;
+      generic_name: string | null;
+      base_price: number;
+    };
+  };
   return ((data ?? []) as unknown as InvRow[])
-    .filter((inv) => inv.products !== null)
-    .map((inv) => ({
+    .filter(inv => inv.products !== null)
+    .map(inv => ({
       id: inv.products.id,
       name: inv.products.name,
       generic_name: inv.products.generic_name,
       base_price: Number(inv.products.base_price),
       current_quantity: inv.quantity,
-    }))
+    }));
 }
 
 export async function getSuppliersForBatchSelect(): Promise<
   { id: string; name: string }[]
 > {
-  const supabase = await createClient()
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("suppliers")
     .select("id, name")
-    .order("name", { ascending: true })
-  if (error) throw new Error(error.message)
-  return data ?? []
+    .order("name", { ascending: true });
+  if (error) throw new Error(error.message);
+  return data ?? [];
 }
 
 export async function getManufacturersForBatchSelect(): Promise<
   { id: string; name: string }[]
 > {
-  const supabase = await createClient()
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("manufacturers")
     .select("id, name")
-    .order("name", { ascending: true })
-  if (error) throw new Error(error.message)
-  return data ?? []
+    .order("name", { ascending: true });
+  if (error) throw new Error(error.message);
+  return data ?? [];
 }

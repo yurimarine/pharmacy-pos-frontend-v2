@@ -129,7 +129,7 @@ export function BatchesTable({ batches, pharmacies }: BatchesTableProps) {
       {
         id: "pharmacy",
         header: "Pharmacy",
-        cell: ({ row }) => row.original.pharmacies?.name ?? "—",
+        cell: ({ row }) => row.original.pharmacy?.name ?? "—",
       },
       {
         accessorKey: "status",
