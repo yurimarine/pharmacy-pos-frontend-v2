@@ -229,7 +229,9 @@ export function EditProductModal({
                   onValueChange={field.onChange}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select supplier" />
+                    <SelectValue placeholder="Select supplier">
+                      {suppliers.find(s => s.id === field.value)?.name}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {suppliers.length === 0 ? (
@@ -261,7 +263,9 @@ export function EditProductModal({
                   onValueChange={field.onChange}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select manufacturer" />
+                    <SelectValue placeholder="Select manufacturer">
+                      {manufacturers.find(m => m.id === field.value)?.name}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {manufacturers.length === 0 ? (

@@ -238,7 +238,11 @@ export function InventoryTable({ inventory, pharmacies }: InventoryTableProps) {
           {/* Pharmacy filter */}
           <Select value={selectedPharmacy} onValueChange={handlePharmacyChange}>
             <SelectTrigger className="w-48">
-              <SelectValue placeholder="All Pharmacies" />
+              <SelectValue placeholder="All Pharmacies">
+                {selectedPharmacy === "all"
+                  ? undefined
+                  : pharmacies.find(p => p.id === selectedPharmacy)?.name}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Pharmacies</SelectItem>

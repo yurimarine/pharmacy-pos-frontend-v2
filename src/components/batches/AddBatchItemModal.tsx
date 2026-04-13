@@ -291,7 +291,9 @@ export function AddBatchItemModal({
                 render={({ field }) => (
                   <Select value={field.value} onValueChange={field.onChange}>
                     <SelectTrigger id="pc_product_id" className="w-full">
-                      <SelectValue placeholder="Select product" />
+                      <SelectValue placeholder="Select product">
+                        {products.find(p => p.id === field.value)?.name}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent className="w-full">
                       {products.length === 0 ? (
@@ -370,7 +372,9 @@ export function AddBatchItemModal({
                 render={({ field }) => (
                   <Select value={field.value} onValueChange={field.onChange}>
                     <SelectTrigger id="product_id" className={"w-full"}>
-                      <SelectValue placeholder="Select product" />
+                      <SelectValue placeholder="Select product">
+                        {products.find(p => p.id === field.value)?.name}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent className={"w-full"}>
                       {products.length === 0 ? (
@@ -451,7 +455,9 @@ export function AddBatchItemModal({
                     onValueChange={field.onChange}
                   >
                     <SelectTrigger id="supplier_id">
-                      <SelectValue placeholder="Select supplier" />
+                      <SelectValue placeholder="Select supplier">
+                        {suppliers.find(s => s.id === field.value)?.name}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {suppliers.length === 0 ? (
@@ -483,7 +489,9 @@ export function AddBatchItemModal({
                     onValueChange={field.onChange}
                   >
                     <SelectTrigger id="manufacturer_id">
-                      <SelectValue placeholder="Select manufacturer" />
+                      <SelectValue placeholder="Select manufacturer">
+                        {manufacturers.find(m => m.id === field.value)?.name}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {manufacturers.length === 0 ? (
@@ -529,7 +537,9 @@ export function AddBatchItemModal({
                 render={({ field }) => (
                   <Select value={field.value} onValueChange={field.onChange}>
                     <SelectTrigger id="product_id_out" className={"w-full"}>
-                      <SelectValue placeholder="Select product" />
+                      <SelectValue placeholder="Select product">
+                        {products.find(p => p.id === field.value)?.name}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent className={"w-full"}>
                       {products.length === 0 ? (
