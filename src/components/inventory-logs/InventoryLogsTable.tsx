@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo, useTransition } from "react"
+import { format } from "date-fns"
 import {
   flexRender,
   getCoreRowModel,
@@ -11,11 +12,9 @@ import {
   type VisibilityState,
 } from "@tanstack/react-table"
 import {
-  EllipsisVerticalIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   SlidersHorizontalIcon,
-  PlusIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -33,98 +32,45 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import type { Inventory } from "@/types/inventory"
-import { getStockStatus } from "@/lib/inventory-utils"
-import { getInventory } from "@/app/admin/inventory/actions"
-import { AddInventoryModal } from "./AddInventoryModal"
-import { EditInventoryModal } from "./EditInventoryModal"
-import { DeactivateInventoryDialog } from "./DeactivateInventoryDialog"
+import type { InventoryLog } from "@/types/inventory-log"
+import { getInventoryLogs } from "@/app/admin/inventory-logs/actions"
 
-function formatPrice(value: number) {
-  return `₱${value.toFixed(2)}`
-}
-
-function StockBadge({
-  quantity,
-  threshold,
-}: {
-  quantity: number
-  threshold: number
-}) {
-  const status = getStockStatus(quantity, threshold)
-  if (status === "in_stock") {
-    return <Badge variant="default">In Stock</Badge>
-  }
-  if (status === "out_of_stock") {
-    return <Badge variant="destructive">Out of Stock</Badge>
-  }
-  // low_stock — amber styling
-  return (
-    <Badge className="bg-amber-100 text-amber-800 border-transparent hover:bg-amber-100">
-      Low Stock
-    </Badge>
-  )
-}
-
-type InventoryTableProps = {
-  inventory: Inventory[]
+type InventoryLogsTableProps = {
+  logs: InventoryLog[]
   pharmacies: { id: string; name: string }[]
 }
 
-export function InventoryTable({ inventory, pharmacies }: InventoryTableProps) {
+export function InventoryLogsTable({ logs, pharmacies }: InventoryLogsTableProps) {
   const [globalFilter, setGlobalFilter] = useState("")
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
-  const [addOpen, setAddOpen] = useState(false)
-  const [editOpen, setEditOpen] = useState(false)
-  const [deactivateOpen, setDeactivateOpen] = useState(false)
-  const [selectedEntry, setSelectedEntry] = useState<Inventory | null>(null)
-  const [filteredInventory, setFilteredInventory] = useState(inventory)
-  const [selectedPharmacy, setSelectedPharmacy] = useState<string>("all")
+  const [logList, setLogList] = useState(logs)
+  const [selectedPharmacyId, setSelectedPharmacyId] = useState<string | null>(null)
   const [, startTransition] = useTransition()
 
   const handlePharmacyChange = (pharmacyId: string | null) => {
-    if (!pharmacyId) return
-    setSelectedPharmacy(pharmacyId)
+    setSelectedPharmacyId(pharmacyId)
     startTransition(async () => {
       try {
-        const data = await getInventory(
-          pharmacyId === "all" ? undefined : pharmacyId
-        )
-        setFilteredInventory(data)
+        const data = await getInventoryLogs(pharmacyId ?? undefined)
+        setLogList(data)
       } catch {
-        // keep existing data on error
+        // keep existing data
       }
     })
   }
 
-  const columns = useMemo<ColumnDef<Inventory>[]>(
+  const columns = useMemo<ColumnDef<InventoryLog>[]>(
     () => [
       {
-        id: "product_name",
-        header: "Product Name",
+        id: "product",
+        header: "Product",
         cell: ({ row }) => (
-          <span className="font-medium">{row.original.products?.name}</span>
+          <span className="font-medium">
+            {row.original.products?.name ?? "—"}
+          </span>
         ),
-      },
-      {
-        id: "generic_name",
-        header: "Generic Name",
-        cell: ({ row }) => row.original.products?.generic_name ?? "—",
-      },
-      {
-        id: "category",
-        header: "Category",
-        cell: ({ row }) => row.original.products?.category ?? "—",
       },
       {
         id: "pharmacy",
@@ -132,73 +78,91 @@ export function InventoryTable({ inventory, pharmacies }: InventoryTableProps) {
         cell: ({ row }) => row.original.pharmacies?.name ?? "—",
       },
       {
-        accessorKey: "quantity",
-        header: "Quantity",
+        id: "changed_by",
+        header: "Changed By",
+        cell: ({ row }) => row.original.users?.name ?? "—",
+      },
+      {
+        accessorKey: "change_type",
+        header: "Change Type",
+        cell: ({ row }) => {
+          const type = row.getValue<string>("change_type")
+          return (
+            <Badge variant="outline">
+              {type === "manual_adjustment" ? "Manual Edit" : type}
+            </Badge>
+          )
+        },
+      },
+      {
+        accessorKey: "previous_quantity",
+        header: "Prev Qty",
         cell: ({ row }) => (
-          <span className="tabular-nums">{row.getValue("quantity")}</span>
+          <span className="tabular-nums text-right block">
+            {row.getValue("previous_quantity")}
+          </span>
         ),
       },
       {
-        id: "stock_status",
-        header: "Stock Status",
+        accessorKey: "new_quantity",
+        header: "New Qty",
         cell: ({ row }) => (
-          <StockBadge
-            quantity={row.original.quantity}
-            threshold={row.original.low_stock_threshold}
-          />
+          <span className="tabular-nums text-right block">
+            {row.getValue("new_quantity")}
+          </span>
         ),
       },
       {
-        accessorKey: "selling_price",
-        header: "Selling Price",
-        cell: ({ row }) => formatPrice(row.getValue("selling_price")),
-      },
-      {
-        id: "actions",
-        header: "",
-        enableHiding: false,
-        cell: ({ row }) => (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Open actions"
-                />
-              }
+        id: "difference",
+        header: "Difference",
+        cell: ({ row }) => {
+          const diff =
+            row.original.new_quantity - row.original.previous_quantity
+          if (diff === 0)
+            return <span className="text-muted-foreground tabular-nums">0</span>
+          return (
+            <span
+              className={`tabular-nums font-medium ${diff > 0 ? "text-green-600" : "text-red-600"}`}
             >
-              <EllipsisVerticalIcon className="size-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={() => {
-                  setSelectedEntry(row.original)
-                  setEditOpen(true)
-                }}
-              >
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                variant="destructive"
-                onClick={() => {
-                  setSelectedEntry(row.original)
-                  setDeactivateOpen(true)
-                }}
-              >
-                Deactivate
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ),
+              {diff > 0 ? `+${diff}` : diff}
+            </span>
+          )
+        },
+      },
+      {
+        accessorKey: "reason",
+        header: "Reason",
+        cell: ({ row }) => {
+          const reason = row.getValue<string>("reason") ?? ""
+          const truncated =
+            reason.length > 40 ? reason.slice(0, 40) + "…" : reason
+          return (
+            <span title={reason} className="text-muted-foreground">
+              {truncated || "—"}
+            </span>
+          )
+        },
+      },
+      {
+        accessorKey: "created_at",
+        header: "Date",
+        cell: ({ row }) => {
+          try {
+            return format(
+              new Date(row.getValue("created_at")),
+              "MMM dd, yyyy hh:mm a"
+            )
+          } catch {
+            return row.getValue("created_at")
+          }
+        },
       },
     ],
     []
   )
 
   const table = useReactTable({
-    data: filteredInventory,
+    data: logList,
     columns,
     state: {
       globalFilter,
@@ -207,22 +171,25 @@ export function InventoryTable({ inventory, pharmacies }: InventoryTableProps) {
     onGlobalFilterChange: setGlobalFilter,
     onColumnVisibilityChange: setColumnVisibility,
     globalFilterFn: (row, _columnId, filterValue) => {
-      const name = String(
+      const product = String(
         row.original.products?.name ?? ""
       ).toLowerCase()
-      return name.includes(String(filterValue).toLowerCase())
+      return product.includes(String(filterValue).toLowerCase())
     },
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     initialState: {
-      pagination: { pageSize: 8 },
+      pagination: { pageSize: 10 },
     },
   })
 
   const filteredCount = table.getFilteredRowModel().rows.length
   const pageCount = table.getPageCount()
   const currentPage = table.getState().pagination.pageIndex + 1
+
+  const selectedPharmacyName =
+    pharmacies.find((p) => p.id === selectedPharmacyId)?.name ?? "All Pharmacies"
 
   return (
     <div className="flex flex-col gap-4">
@@ -236,20 +203,28 @@ export function InventoryTable({ inventory, pharmacies }: InventoryTableProps) {
         />
         <div className="flex items-center gap-2">
           {/* Pharmacy filter */}
-          <Select value={selectedPharmacy} onValueChange={handlePharmacyChange}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="All Pharmacies" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Pharmacies</SelectItem>
-              {pharmacies.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.name}
-                </SelectItem>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={<Button variant="outline" size="sm" />}
+            >
+              {selectedPharmacyName}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={() => handlePharmacyChange(null)}>
+                All Pharmacies
+              </DropdownMenuItem>
+              {pharmacies.map((pharmacy) => (
+                <DropdownMenuItem
+                  key={pharmacy.id}
+                  onClick={() => handlePharmacyChange(pharmacy.id)}
+                >
+                  {pharmacy.name}
+                </DropdownMenuItem>
               ))}
-            </SelectContent>
-          </Select>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
+          {/* Column visibility */}
           <DropdownMenu>
             <DropdownMenuTrigger
               render={<Button variant="outline" size="sm" />}
@@ -273,18 +248,12 @@ export function InventoryTable({ inventory, pharmacies }: InventoryTableProps) {
                 ))}
             </DropdownMenuContent>
           </DropdownMenu>
-
-          <Button size="sm" onClick={() => setAddOpen(true)}>
-            <PlusIcon />
-            Add Stock Entry
-          </Button>
         </div>
       </div>
 
       {/* Count */}
       <p className="text-sm text-muted-foreground">
-        {filteredCount}{" "}
-        {filteredCount === 1 ? "inventory entry" : "inventory entries"} found
+        {filteredCount} log {filteredCount === 1 ? "entry" : "entries"}
       </p>
 
       {/* Table */}
@@ -326,7 +295,7 @@ export function InventoryTable({ inventory, pharmacies }: InventoryTableProps) {
                   colSpan={columns.length}
                   className="h-32 text-center text-muted-foreground"
                 >
-                  No inventory entries found.
+                  No inventory edits have been logged yet.
                 </TableCell>
               </TableRow>
             )}
@@ -362,23 +331,6 @@ export function InventoryTable({ inventory, pharmacies }: InventoryTableProps) {
           </div>
         </div>
       )}
-
-      <AddInventoryModal
-        open={addOpen}
-        onOpenChange={setAddOpen}
-        pharmacies={pharmacies}
-      />
-      <EditInventoryModal
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        entry={selectedEntry}
-      />
-      <DeactivateInventoryDialog
-        open={deactivateOpen}
-        onOpenChange={setDeactivateOpen}
-        entryId={selectedEntry?.id ?? null}
-        productName={selectedEntry?.products?.name ?? ""}
-      />
     </div>
   )
 }

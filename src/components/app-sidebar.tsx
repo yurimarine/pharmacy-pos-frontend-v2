@@ -32,6 +32,10 @@ import {
   FileChartColumnIcon,
   FileIcon,
   CommandIcon,
+  PackagePlusIcon,
+  ClipboardListIcon,
+  Box,
+  ShelvingUnit,
 } from "lucide-react";
 
 const navMain = [
@@ -43,12 +47,12 @@ const navMain = [
   {
     title: "Inventory",
     url: "/admin/inventory",
-    icon: <ListIcon />,
+    icon: <ShelvingUnit />,
   },
   {
     title: "Products",
     url: "/admin/products",
-    icon: <ChartBarIcon />,
+    icon: <Box />,
   },
   {
     title: "Suppliers",
@@ -64,6 +68,16 @@ const navMain = [
     title: "Pharmacies",
     url: "/admin/pharmacies",
     icon: <StoreIcon />,
+  },
+  {
+    title: "Batches",
+    url: "/admin/batches",
+    icon: <PackagePlusIcon />,
+  },
+  {
+    title: "Inventory Logs",
+    url: "/admin/inventory-logs",
+    icon: <ClipboardListIcon />,
   },
 ];
 

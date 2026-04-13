@@ -4,6 +4,19 @@ import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import type { Inventory } from "@/types/inventory"
 
+async function getCurrentUser() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error("Not authenticated")
+  const { data } = await supabase
+    .from("users")
+    .select("id, name, role, pharmacy_id")
+    .eq("auth_id", user.id)
+    .single()
+  if (!data) throw new Error("User record not found")
+  return data
+}
+
 type InventoryInput = {
   product_id: string
   pharmacy_id: string
@@ -84,9 +97,19 @@ export async function createInventoryEntry(
 
 export async function updateInventoryEntry(
   id: string,
-  data: InventoryUpdateInput
+  data: InventoryUpdateInput,
+  reason: string
 ): Promise<Inventory> {
   const supabase = await createClient()
+  const currentUser = await getCurrentUser()
+
+  const { data: currentRow, error: fetchError } = await supabase
+    .from("inventory")
+    .select("quantity, product_id, pharmacy_id")
+    .eq("id", id)
+    .single()
+  if (fetchError) throw new Error(fetchError.message)
+
   const { data: entry, error } = await supabase
     .from("inventory")
     .update({ ...data, updated_at: new Date().toISOString() })
@@ -96,7 +119,21 @@ export async function updateInventoryEntry(
     )
     .single()
   if (error) throw new Error(error.message)
+
+  const { error: logError } = await supabase.from("inventory_logs").insert({
+    inventory_id: id,
+    product_id: currentRow.product_id,
+    pharmacy_id: currentRow.pharmacy_id,
+    changed_by: currentUser.id,
+    change_type: "manual_adjustment",
+    previous_quantity: currentRow.quantity,
+    new_quantity: data.quantity,
+    reason,
+  })
+  if (logError) throw new Error(logError.message)
+
   revalidatePath("/admin/inventory")
+  revalidatePath("/admin/inventory-logs")
   return entry
 }
 

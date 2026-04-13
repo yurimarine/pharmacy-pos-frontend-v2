@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { toast } from "sonner"
+import { InfoIcon } from "lucide-react"
 import { updateInventoryEntry } from "@/app/admin/inventory/actions"
 import type { Inventory } from "@/types/inventory"
 import { Button } from "@/components/ui/button"
@@ -18,12 +19,15 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 const editInventorySchema = z.object({
   quantity: z.coerce.number().min(0),
   low_stock_threshold: z.coerce.number().min(0),
   markup_percentage: z.coerce.number().min(0),
   selling_price: z.coerce.number().min(0),
+  reason: z.string().min(1, "Reason is required"),
 })
 
 type EditInventoryFormValues = z.infer<typeof editInventorySchema>
@@ -42,12 +46,13 @@ export function EditInventoryModal({
   const [isPending, startTransition] = useTransition()
 
   const form = useForm<EditInventoryFormValues>({
-    resolver: zodResolver(editInventorySchema),
+    resolver: zodResolver(editInventorySchema) as any, // eslint-disable-line @typescript-eslint/no-explicit-any
     defaultValues: {
       quantity: 0,
       low_stock_threshold: 10,
       markup_percentage: 0,
       selling_price: 0,
+      reason: "",
     },
   })
 
@@ -58,6 +63,7 @@ export function EditInventoryModal({
         low_stock_threshold: entry.low_stock_threshold,
         markup_percentage: entry.markup_percentage,
         selling_price: entry.selling_price,
+        reason: "",
       })
     }
   }, [entry, form])
@@ -77,7 +83,16 @@ export function EditInventoryModal({
 
     startTransition(async () => {
       try {
-        await updateInventoryEntry(entry.id, data)
+        await updateInventoryEntry(
+          entry.id,
+          {
+            quantity: data.quantity,
+            low_stock_threshold: data.low_stock_threshold,
+            markup_percentage: data.markup_percentage,
+            selling_price: data.selling_price,
+          },
+          data.reason
+        )
         toast.success("Inventory updated.")
         onOpenChange(false)
       } catch {
@@ -105,6 +120,14 @@ export function EditInventoryModal({
             </span>
           </div>
         )}
+
+        <Alert className="border-amber-200 bg-amber-50 text-amber-800">
+          <InfoIcon className="size-4 text-amber-600" />
+          <AlertDescription className="text-amber-700">
+            Direct inventory edits are logged for audit purposes. Use Batches
+            for regular stock movements.
+          </AlertDescription>
+        </Alert>
 
         <form
           onSubmit={form.handleSubmit(onSubmit)}
@@ -160,6 +183,21 @@ export function EditInventoryModal({
                 {...form.register("selling_price")}
               />
             </div>
+          </div>
+
+          {/* Reason */}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="edit-inv-reason">Reason for Edit</Label>
+            <Textarea
+              id="edit-inv-reason"
+              placeholder="Explain why this inventory is being edited directly..."
+              {...form.register("reason")}
+            />
+            {form.formState.errors.reason && (
+              <p className="text-xs text-destructive">
+                {form.formState.errors.reason.message}
+              </p>
+            )}
           </div>
 
           <DialogFooter>
