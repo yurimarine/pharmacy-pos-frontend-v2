@@ -47,6 +47,13 @@ function TypeBadge({ type }: { type: BatchWithItems["type"] }) {
   if (type === "stock_in") {
     return <Badge variant="default">Stock In</Badge>;
   }
+  if (type === "price_change") {
+    return (
+      <Badge className="bg-blue-100 text-blue-800 border-transparent hover:bg-blue-100">
+        Price Change
+      </Badge>
+    );
+  }
   return (
     <Badge className="bg-orange-100 text-orange-800 border-transparent hover:bg-orange-100">
       Stock Out
@@ -236,13 +243,20 @@ export function BatchDetail({
               <TableRow>
                 <TableHead>Product</TableHead>
                 <TableHead>Generic Name</TableHead>
-                <TableHead className="text-right">Qty</TableHead>
+                {batch.type !== "price_change" && (
+                  <TableHead className="text-right">Qty</TableHead>
+                )}
                 {batch.type === "stock_in" ? (
                   <>
                     <TableHead className="text-right">Unit Cost</TableHead>
                     <TableHead>Expiry Date</TableHead>
                     <TableHead>Supplier</TableHead>
                     <TableHead>Manufacturer</TableHead>
+                  </>
+                ) : batch.type === "price_change" ? (
+                  <>
+                    <TableHead className="text-right">Current Price</TableHead>
+                    <TableHead className="text-right">New Price</TableHead>
                   </>
                 ) : (
                   <>
@@ -260,12 +274,10 @@ export function BatchDetail({
                   <TableCell
                     colSpan={
                       batch.type === "stock_in"
-                        ? isDraft
-                          ? 9
-                          : 8
-                        : isDraft
-                          ? 7
-                          : 6
+                        ? isDraft ? 9 : 8
+                        : batch.type === "price_change"
+                          ? isDraft ? 6 : 5
+                          : isDraft ? 7 : 6
                     }
                     className="text-center text-muted-foreground py-8"
                   >
@@ -282,9 +294,11 @@ export function BatchDetail({
                     <TableCell className="text-muted-foreground">
                       {item.products?.generic_name ?? "—"}
                     </TableCell>
-                    <TableCell className="text-right">
-                      {item.quantity}
-                    </TableCell>
+                    {batch.type !== "price_change" && (
+                      <TableCell className="text-right">
+                        {item.quantity}
+                      </TableCell>
+                    )}
                     {batch.type === "stock_in" ? (
                       <>
                         <TableCell className="text-right">
@@ -299,6 +313,19 @@ export function BatchDetail({
                         </TableCell>
                         <TableCell>{item.suppliers?.name ?? "—"}</TableCell>
                         <TableCell>{item.manufacturers?.name ?? "—"}</TableCell>
+                      </>
+                    ) : batch.type === "price_change" ? (
+                      <>
+                        <TableCell className="text-right text-muted-foreground">
+                          {item.products?.base_price != null
+                            ? `₱${Number(item.products.base_price).toFixed(2)}`
+                            : "—"}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {item.unit_cost != null
+                            ? `₱${Number(item.unit_cost).toFixed(2)}`
+                            : "—"}
+                        </TableCell>
                       </>
                     ) : (
                       <>

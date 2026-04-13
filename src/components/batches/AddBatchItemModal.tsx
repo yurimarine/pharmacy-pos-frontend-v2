@@ -1,12 +1,12 @@
-"use client"
+"use client";
 
-import { useEffect, useTransition } from "react"
-import { useForm, Controller } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { z } from "zod"
-import { toast } from "sonner"
-import { addBatchItem } from "@/app/admin/batches/actions"
-import type { BatchWithItems, BatchItem, StockOutReason } from "@/types/batch"
+import { useEffect, useTransition } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { toast } from "sonner";
+import { addBatchItem } from "@/app/admin/batches/actions";
+import type { BatchWithItems, BatchItem, StockOutReason } from "@/types/batch";
 import {
   Dialog,
   DialogContent,
@@ -14,53 +14,85 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 type Product = {
-  id: string
-  name: string
-  generic_name: string | null
-  base_price: number
-  current_quantity?: number
-}
+  id: string;
+  name: string;
+  generic_name: string | null;
+  base_price: number;
+  current_quantity?: number;
+};
 
-type Supplier = { id: string; name: string }
-type Manufacturer = { id: string; name: string }
+type Supplier = { id: string; name: string };
+type Manufacturer = { id: string; name: string };
 
 type AddBatchItemModalProps = {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  batch: BatchWithItems
-  products: Product[]
-  suppliers: Supplier[]
-  manufacturers: Manufacturer[]
-  onAdded: (item: BatchItem) => void
-}
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  batch: BatchWithItems;
+  products: Product[];
+  suppliers: Supplier[];
+  manufacturers: Manufacturer[];
+  onAdded: (item: BatchItem) => void;
+};
 
 const stockInSchema = z.object({
   product_id: z.string().min(1, "Product is required"),
   supplier_id: z.string().optional(),
   manufacturer_id: z.string().optional(),
-  quantity: z.preprocess((v) => Number(v), z.number().int().min(1, "Quantity must be at least 1")),
-  unit_cost: z.preprocess((v) => (v === "" || v === undefined ? undefined : Number(v)), z.number().min(0, "Unit cost cannot be negative").optional()),
+  quantity: z.preprocess(
+    v => Number(v),
+    z.number().int().min(1, "Quantity must be at least 1"),
+  ),
+  unit_cost: z.preprocess(
+    v => (v === "" || v === undefined ? undefined : Number(v)),
+    z.number().min(0, "Unit cost cannot be negative").optional(),
+  ),
   expiry_date: z.string().optional(),
   notes: z.string().optional(),
-})
+});
+
+const priceChangeSchema = z.object({
+  product_id: z.string().min(1, "Product is required"),
+  new_price: z.preprocess(
+    v => Number(v),
+    z.number().min(0, "Price cannot be negative"),
+  ),
+  notes: z.string().optional(),
+});
+
+type PriceChangeFormValues = z.infer<typeof priceChangeSchema>;
 
 const stockOutSchema = z.object({
   product_id: z.string().min(1, "Product is required"),
-  quantity: z.preprocess((v) => Number(v), z.number().int().min(1, "Quantity must be at least 1")),
-  reason: z.enum(["damaged", "expired", "returned", "adjustment", "transferred"]),
+  quantity: z.preprocess(
+    v => Number(v),
+    z.number().int().min(1, "Quantity must be at least 1"),
+  ),
+  reason: z.enum([
+    "damaged",
+    "expired",
+    "returned",
+    "adjustment",
+    "transferred",
+  ]),
   notes: z.string().optional(),
-})
+});
 
-type StockInFormValues = z.infer<typeof stockInSchema>
-type StockOutFormValues = z.infer<typeof stockOutSchema>
+type StockInFormValues = z.infer<typeof stockInSchema>;
+type StockOutFormValues = z.infer<typeof stockOutSchema>;
 
 const STOCK_OUT_REASONS: { value: StockOutReason; label: string }[] = [
   { value: "damaged", label: "Damaged" },
@@ -68,7 +100,7 @@ const STOCK_OUT_REASONS: { value: StockOutReason; label: string }[] = [
   { value: "returned", label: "Returned" },
   { value: "adjustment", label: "Adjustment" },
   { value: "transferred", label: "Transferred" },
-]
+];
 
 export function AddBatchItemModal({
   open,
@@ -79,8 +111,9 @@ export function AddBatchItemModal({
   manufacturers,
   onAdded,
 }: AddBatchItemModalProps) {
-  const [isPending, startTransition] = useTransition()
-  const isStockIn = batch.type === "stock_in"
+  const [isPending, startTransition] = useTransition();
+  const isStockIn = batch.type === "stock_in";
+  const isPriceChange = batch.type === "price_change";
 
   const stockInForm = useForm<StockInFormValues>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -94,7 +127,7 @@ export function AddBatchItemModal({
       expiry_date: "",
       notes: "",
     },
-  })
+  });
 
   const stockOutForm = useForm<StockOutFormValues>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -105,29 +138,51 @@ export function AddBatchItemModal({
       reason: undefined,
       notes: "",
     },
-  })
+  });
+
+  const priceChangeForm = useForm<PriceChangeFormValues>({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(priceChangeSchema) as any,
+    defaultValues: {
+      product_id: "",
+      new_price: 0,
+      notes: "",
+    },
+  });
 
   useEffect(() => {
     if (!open) {
-      stockInForm.reset()
-      stockOutForm.reset()
+      stockInForm.reset();
+      stockOutForm.reset();
+      priceChangeForm.reset();
     }
-  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const selectedProductIdIn = stockInForm.watch("product_id")
-  const selectedProductIdOut = stockOutForm.watch("product_id")
+  const selectedProductIdIn = stockInForm.watch("product_id");
+  const selectedProductIdOut = stockOutForm.watch("product_id");
+  const selectedProductIdChange = priceChangeForm.watch("product_id");
 
   // Auto-fill unit_cost with base_price on stock_in
   useEffect(() => {
-    if (!isStockIn || !selectedProductIdIn) return
-    const product = products.find((p) => p.id === selectedProductIdIn)
+    if (!isStockIn || !selectedProductIdIn) return;
+    const product = products.find(p => p.id === selectedProductIdIn);
     if (product) {
-      stockInForm.setValue("unit_cost", product.base_price)
+      stockInForm.setValue("unit_cost", product.base_price);
     }
-  }, [selectedProductIdIn, isStockIn, products]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedProductIdIn, isStockIn, products]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const selectedProductOut = products.find((p) => p.id === selectedProductIdOut)
-  const quantityOut = stockOutForm.watch("quantity")
+  // Auto-fill new_price with current base_price on price_change
+  useEffect(() => {
+    if (!isPriceChange || !selectedProductIdChange) return;
+    const product = products.find(p => p.id === selectedProductIdChange);
+    if (product) {
+      priceChangeForm.setValue("new_price", product.base_price);
+    }
+  }, [selectedProductIdChange, isPriceChange, products]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const selectedProductOut = products.find(p => p.id === selectedProductIdOut);
+  const quantityOut = stockOutForm.watch("quantity");
+  const selectedProductChange = products.find(p => p.id === selectedProductIdChange);
 
   const handleSubmitStockIn = (values: StockInFormValues) => {
     startTransition(async () => {
@@ -141,24 +196,27 @@ export function AddBatchItemModal({
           unit_cost: values.unit_cost,
           expiry_date: values.expiry_date || undefined,
           notes: values.notes || undefined,
-        })
-        toast.success("Item added to batch.")
-        onAdded(item)
-        onOpenChange(false)
+        });
+        toast.success("Item added to batch.");
+        onAdded(item);
+        onOpenChange(false);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to add item.")
+        toast.error(err instanceof Error ? err.message : "Failed to add item.");
       }
-    })
-  }
+    });
+  };
 
   const handleSubmitStockOut = (values: StockOutFormValues) => {
     // Validate against current_quantity
-    const product = products.find((p) => p.id === values.product_id)
-    if (product?.current_quantity !== undefined && values.quantity > product.current_quantity) {
+    const product = products.find(p => p.id === values.product_id);
+    if (
+      product?.current_quantity !== undefined &&
+      values.quantity > product.current_quantity
+    ) {
       stockOutForm.setError("quantity", {
         message: `Only ${product.current_quantity} units available in stock.`,
-      })
-      return
+      });
+      return;
     }
 
     startTransition(async () => {
@@ -169,28 +227,134 @@ export function AddBatchItemModal({
           quantity: values.quantity,
           reason: values.reason,
           notes: values.notes || undefined,
-        })
-        toast.success("Item added to batch.")
-        onAdded(item)
-        onOpenChange(false)
+        });
+        toast.success("Item added to batch.");
+        onAdded(item);
+        onOpenChange(false);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to add item.")
+        toast.error(err instanceof Error ? err.message : "Failed to add item.");
       }
-    })
-  }
+    });
+  };
+
+  const handleSubmitPriceChange = (values: PriceChangeFormValues) => {
+    startTransition(async () => {
+      try {
+        const item = await addBatchItem({
+          batch_id: batch.id,
+          product_id: values.product_id,
+          quantity: 1, // not used for price_change finalization
+          unit_cost: values.new_price,
+          notes: values.notes || undefined,
+        });
+        toast.success("Item added to batch.");
+        onAdded(item);
+        onOpenChange(false);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to add item.");
+      }
+    });
+  };
 
   return (
-    <Dialog open={open} onOpenChange={(val) => { if (!isPending) onOpenChange(val) }}>
+    <Dialog
+      open={open}
+      onOpenChange={val => {
+        if (!isPending) onOpenChange(val);
+      }}
+    >
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add Item</DialogTitle>
           <DialogDescription>
             Add a product to batch{" "}
-            <span className="font-medium text-foreground">{batch.batch_number}</span>.
+            <span className="font-medium text-foreground">
+              {batch.batch_number}
+            </span>
+            .
           </DialogDescription>
         </DialogHeader>
 
-        {isStockIn ? (
+        {isPriceChange ? (
+          <form
+            id="add-item-form"
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            onSubmit={priceChangeForm.handleSubmit(handleSubmitPriceChange as any)}
+            className="flex flex-col gap-4"
+          >
+            {/* Product */}
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="pc_product_id">Product *</Label>
+              <Controller
+                control={priceChangeForm.control}
+                name="product_id"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger id="pc_product_id" className="w-full">
+                      <SelectValue placeholder="Select product" />
+                    </SelectTrigger>
+                    <SelectContent className="w-full">
+                      {products.length === 0 ? (
+                        <div className="px-3 py-2 text-sm text-muted-foreground">
+                          No products available
+                        </div>
+                      ) : (
+                        products.map(p => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.name}
+                            {p.generic_name ? ` (${p.generic_name})` : ""}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {priceChangeForm.formState.errors.product_id && (
+                <p className="text-sm text-destructive">
+                  {priceChangeForm.formState.errors.product_id.message}
+                </p>
+              )}
+            </div>
+
+            {/* Current base price hint */}
+            {selectedProductChange && (
+              <p className="text-sm text-muted-foreground -mt-2">
+                Current base price: ₱{Number(selectedProductChange.base_price).toFixed(2)}
+              </p>
+            )}
+
+            {/* New Price */}
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="pc_new_price">New Base Price (₱) *</Label>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">₱</span>
+                <Input
+                  id="pc_new_price"
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  {...priceChangeForm.register("new_price")}
+                />
+              </div>
+              {priceChangeForm.formState.errors.new_price && (
+                <p className="text-sm text-destructive">
+                  {priceChangeForm.formState.errors.new_price.message}
+                </p>
+              )}
+            </div>
+
+            {/* Notes */}
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="pc_notes">Notes</Label>
+              <Textarea
+                id="pc_notes"
+                placeholder="Optional notes…"
+                {...priceChangeForm.register("notes")}
+              />
+            </div>
+          </form>
+        ) : isStockIn ? (
           <form
             id="add-item-form"
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -205,16 +369,16 @@ export function AddBatchItemModal({
                 name="product_id"
                 render={({ field }) => (
                   <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger id="product_id">
+                    <SelectTrigger id="product_id" className={"w-full"}>
                       <SelectValue placeholder="Select product" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className={"w-full"}>
                       {products.length === 0 ? (
                         <div className="px-3 py-2 text-sm text-muted-foreground">
                           No products available
                         </div>
                       ) : (
-                        products.map((p) => (
+                        products.map(p => (
                           <SelectItem key={p.id} value={p.id}>
                             {p.name}
                             {p.generic_name ? ` (${p.generic_name})` : ""}
@@ -282,7 +446,10 @@ export function AddBatchItemModal({
                 control={stockInForm.control}
                 name="supplier_id"
                 render={({ field }) => (
-                  <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                  <Select
+                    value={field.value ?? ""}
+                    onValueChange={field.onChange}
+                  >
                     <SelectTrigger id="supplier_id">
                       <SelectValue placeholder="Select supplier" />
                     </SelectTrigger>
@@ -292,7 +459,7 @@ export function AddBatchItemModal({
                           No suppliers available
                         </div>
                       ) : (
-                        suppliers.map((s) => (
+                        suppliers.map(s => (
                           <SelectItem key={s.id} value={s.id}>
                             {s.name}
                           </SelectItem>
@@ -311,7 +478,10 @@ export function AddBatchItemModal({
                 control={stockInForm.control}
                 name="manufacturer_id"
                 render={({ field }) => (
-                  <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                  <Select
+                    value={field.value ?? ""}
+                    onValueChange={field.onChange}
+                  >
                     <SelectTrigger id="manufacturer_id">
                       <SelectValue placeholder="Select manufacturer" />
                     </SelectTrigger>
@@ -321,7 +491,7 @@ export function AddBatchItemModal({
                           No manufacturers available
                         </div>
                       ) : (
-                        manufacturers.map((m) => (
+                        manufacturers.map(m => (
                           <SelectItem key={m.id} value={m.id}>
                             {m.name}
                           </SelectItem>
@@ -358,16 +528,16 @@ export function AddBatchItemModal({
                 name="product_id"
                 render={({ field }) => (
                   <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger id="product_id_out">
+                    <SelectTrigger id="product_id_out" className={"w-full"}>
                       <SelectValue placeholder="Select product" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className={"w-full"}>
                       {products.length === 0 ? (
                         <div className="px-3 py-2 text-sm text-muted-foreground">
                           No products with inventory at this pharmacy
                         </div>
                       ) : (
-                        products.map((p) => (
+                        products.map(p => (
                           <SelectItem key={p.id} value={p.id}>
                             {p.name}
                             {p.current_quantity !== undefined
@@ -388,11 +558,12 @@ export function AddBatchItemModal({
             </div>
 
             {/* Current stock hint */}
-            {selectedProductOut && selectedProductOut.current_quantity !== undefined && (
-              <p className="text-sm text-muted-foreground -mt-2">
-                Current stock: {selectedProductOut.current_quantity} units
-              </p>
-            )}
+            {selectedProductOut &&
+              selectedProductOut.current_quantity !== undefined && (
+                <p className="text-sm text-muted-foreground -mt-2">
+                  Current stock: {selectedProductOut.current_quantity} units
+                </p>
+              )}
 
             {/* Quantity */}
             <div className="flex flex-col gap-1.5">
@@ -424,12 +595,15 @@ export function AddBatchItemModal({
                 control={stockOutForm.control}
                 name="reason"
                 render={({ field }) => (
-                  <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                  <Select
+                    value={field.value ?? ""}
+                    onValueChange={field.onChange}
+                  >
                     <SelectTrigger id="reason">
                       <SelectValue placeholder="Select reason" />
                     </SelectTrigger>
                     <SelectContent>
-                      {STOCK_OUT_REASONS.map((r) => (
+                      {STOCK_OUT_REASONS.map(r => (
                         <SelectItem key={r.value} value={r.value}>
                           {r.label}
                         </SelectItem>
@@ -471,5 +645,5 @@ export function AddBatchItemModal({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

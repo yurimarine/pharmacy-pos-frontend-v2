@@ -1,4 +1,4 @@
-export type BatchType = "stock_in" | "stock_out";
+export type BatchType = "stock_in" | "stock_out" | "price_change";
 export type BatchStatus = "draft" | "completed" | "cancelled";
 export type StockOutReason =
   | "damaged"

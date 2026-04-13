@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/select"
 
 const createBatchSchema = z.object({
-  type: z.enum(["stock_in", "stock_out"]),
+  type: z.enum(["stock_in", "stock_out", "price_change"]),
   pharmacy_id: z.string().min(1, "Pharmacy is required"),
   notes: z.string().optional(),
 })
@@ -108,6 +108,9 @@ export function CreateBatchModal({
                     </SelectItem>
                     <SelectItem value="stock_out">
                       Stock Out — removing products
+                    </SelectItem>
+                    <SelectItem value="price_change">
+                      Price Change — update base prices
                     </SelectItem>
                   </SelectContent>
                 </Select>

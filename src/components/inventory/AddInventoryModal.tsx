@@ -1,15 +1,15 @@
-"use client"
+"use client";
 
-import { useEffect, useState, useTransition } from "react"
-import { useForm, Controller } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { z } from "zod"
-import { toast } from "sonner"
+import { useEffect, useState, useTransition } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { toast } from "sonner";
 import {
   createInventoryEntry,
   getActiveProductsForInventorySelect,
-} from "@/app/admin/inventory/actions"
-import { Button } from "@/components/ui/button"
+} from "@/app/admin/inventory/actions";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -17,16 +17,16 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 
 const inventorySchema = z.object({
   product_id: z.string().min(1, "Product is required"),
@@ -35,30 +35,30 @@ const inventorySchema = z.object({
   low_stock_threshold: z.coerce.number().min(0),
   markup_percentage: z.coerce.number().min(0),
   selling_price: z.coerce.number().min(0),
-})
+});
 
-type InventoryFormValues = z.infer<typeof inventorySchema>
+type InventoryFormValues = z.infer<typeof inventorySchema>;
 
 type AddInventoryModalProps = {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  pharmacies: { id: string; name: string }[]
-}
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  pharmacies: { id: string; name: string }[];
+};
 
 type ProductOption = {
-  id: string
-  name: string
-  generic_name: string | null
-  base_price: number
-}
+  id: string;
+  name: string;
+  generic_name: string | null;
+  base_price: number;
+};
 
 export function AddInventoryModal({
   open,
   onOpenChange,
   pharmacies,
 }: AddInventoryModalProps) {
-  const [isPending, startTransition] = useTransition()
-  const [products, setProducts] = useState<ProductOption[]>([])
+  const [isPending, startTransition] = useTransition();
+  const [products, setProducts] = useState<ProductOption[]>([]);
 
   const form = useForm<InventoryFormValues>({
     resolver: zodResolver(inventorySchema) as any, // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -70,43 +70,45 @@ export function AddInventoryModal({
       markup_percentage: 0,
       selling_price: 0,
     },
-  })
+  });
 
   useEffect(() => {
-    if (!open) return
-    getActiveProductsForInventorySelect().then(setProducts).catch(() => {})
-  }, [open])
+    if (!open) return;
+    getActiveProductsForInventorySelect()
+      .then(setProducts)
+      .catch(() => {});
+  }, [open]);
 
-  const watchProductId = form.watch("product_id")
-  const watchMarkup = form.watch("markup_percentage")
+  const watchProductId = form.watch("product_id");
+  const watchMarkup = form.watch("markup_percentage");
 
   useEffect(() => {
-    const product = products.find((p) => p.id === watchProductId)
-    if (!product) return
-    const markup = Number(watchMarkup) || 0
-    const computed = product.base_price + product.base_price * (markup / 100)
-    form.setValue("selling_price", Math.round(computed * 100) / 100)
-  }, [watchProductId, watchMarkup, products, form])
+    const product = products.find(p => p.id === watchProductId);
+    if (!product) return;
+    const markup = Number(watchMarkup) || 0;
+    const computed = product.base_price + product.base_price * (markup / 100);
+    form.setValue("selling_price", Math.round(computed * 100) / 100);
+  }, [watchProductId, watchMarkup, products, form]);
 
   const onSubmit = (data: InventoryFormValues) => {
     startTransition(async () => {
       try {
-        await createInventoryEntry(data)
-        toast.success("Inventory entry added.")
-        onOpenChange(false)
-        form.reset()
+        await createInventoryEntry(data);
+        toast.success("Inventory entry added.");
+        onOpenChange(false);
+        form.reset();
       } catch (e) {
-        const msg = e instanceof Error ? e.message : ""
+        const msg = e instanceof Error ? e.message : "";
         if (msg.includes("already has an inventory entry")) {
           toast.error(
-            "This product already has an inventory entry for this pharmacy."
-          )
+            "This product already has an inventory entry for this pharmacy.",
+          );
         } else {
-          toast.error("Failed to add inventory entry.")
+          toast.error("Failed to add inventory entry.");
         }
       }
-    })
-  }
+    });
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -141,7 +143,7 @@ export function AddInventoryModal({
                         No products found.
                       </p>
                     ) : (
-                      products.map((p) => (
+                      products.map(p => (
                         <SelectItem key={p.id} value={p.id}>
                           {p.name}
                         </SelectItem>
@@ -177,7 +179,7 @@ export function AddInventoryModal({
                         No pharmacies found.
                       </p>
                     ) : (
-                      pharmacies.map((p) => (
+                      pharmacies.map(p => (
                         <SelectItem key={p.id} value={p.id}>
                           {p.name}
                         </SelectItem>
@@ -266,5 +268,5 @@ export function AddInventoryModal({
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

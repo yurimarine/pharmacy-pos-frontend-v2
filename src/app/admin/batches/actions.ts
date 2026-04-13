@@ -306,7 +306,54 @@ export async function finalizeBatch(id: string): Promise<{
     throw new Error("Add at least one item before finalizing.");
   }
 
-  // Step 4: Stock out inventory validation
+  // Step 4: price_change — apply base_price updates and mark complete
+  if (batch.type === "price_change") {
+    const priceChanges: Array<{ productName: string; oldPrice: number; newPrice: number }> = [];
+
+    for (const item of items) {
+      if (item.unit_cost == null || !item.products) continue;
+      const newPrice = Number(item.unit_cost);
+      const oldPrice = Number(item.products.base_price);
+
+      const { error: productError } = await supabase
+        .from("products")
+        .update({ base_price: newPrice, updated_at: now })
+        .eq("id", item.product_id);
+      if (productError) throw new Error(productError.message);
+
+      const { data: allInvRows } = await supabase
+        .from("inventory")
+        .select("id, markup_percentage")
+        .eq("product_id", item.product_id);
+
+      for (const invRow of allInvRows ?? []) {
+        const newSelling =
+          newPrice + newPrice * (Number(invRow.markup_percentage) / 100);
+        await supabase
+          .from("inventory")
+          .update({
+            selling_price: Math.round(newSelling * 100) / 100,
+            updated_at: now,
+          })
+          .eq("id", invRow.id);
+      }
+
+      priceChanges.push({ productName: item.products.name, oldPrice, newPrice });
+    }
+
+    const { error: completeError } = await supabase
+      .from("batches")
+      .update({ status: "completed", updated_at: now })
+      .eq("id", id);
+    if (completeError) throw new Error(completeError.message);
+
+    revalidatePath("/admin/batches");
+    revalidatePath(`/admin/batches/${id}`);
+
+    return { success: true, priceChanges };
+  }
+
+  // Step 4b: Stock out inventory validation
   const stockOutInvMap = new Map<string, { id: string; quantity: number }>();
   if (batch.type === "stock_out") {
     const insufficientItems: string[] = [];
@@ -536,7 +583,7 @@ export async function getProductsForBatchSelect(
 > {
   const supabase = await createClient();
 
-  if (batchType === "stock_in") {
+  if (batchType === "stock_in" || batchType === "price_change") {
     const { data, error } = await supabase
       .from("products")
       .select("id, name, generic_name, base_price")
