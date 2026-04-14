@@ -27,6 +27,7 @@ const editInventorySchema = z.object({
   low_stock_threshold: z.coerce.number().min(0),
   markup_percentage: z.coerce.number().min(0),
   selling_price: z.coerce.number().min(0),
+  expiry_date: z.string().optional(),
   reason: z.string().min(1, "Reason is required"),
 })
 
@@ -52,6 +53,7 @@ export function EditInventoryModal({
       low_stock_threshold: 10,
       markup_percentage: 0,
       selling_price: 0,
+      expiry_date: "",
       reason: "",
     },
   })
@@ -63,6 +65,7 @@ export function EditInventoryModal({
         low_stock_threshold: entry.low_stock_threshold,
         markup_percentage: entry.markup_percentage,
         selling_price: entry.selling_price,
+        expiry_date: entry.expiry_date ?? "",
         reason: "",
       })
     }
@@ -90,6 +93,7 @@ export function EditInventoryModal({
             low_stock_threshold: data.low_stock_threshold,
             markup_percentage: data.markup_percentage,
             selling_price: data.selling_price,
+            expiry_date: data.expiry_date || undefined,
           },
           data.reason
         )
@@ -183,6 +187,16 @@ export function EditInventoryModal({
                 {...form.register("selling_price")}
               />
             </div>
+          </div>
+
+          {/* Expiry Date */}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="edit-inv-expiry">Expiry Date</Label>
+            <Input
+              id="edit-inv-expiry"
+              type="date"
+              {...form.register("expiry_date")}
+            />
           </div>
 
           {/* Reason */}

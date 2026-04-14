@@ -8,8 +8,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
-// Inventory columns: Product Name, Generic Name, Category, Pharmacy, Quantity, Stock Status, Selling Price, Actions
-const COLUMN_COUNT = 8
+// Inventory columns: Product Name, Generic Name, Category, Pharmacy, Quantity, Stock Status, Selling Price, Expiry Date, Last Restocked, Actions
+const COLUMN_COUNT = 10
 const ROWS = Array.from({ length: 8 })
 
 export default function Loading() {

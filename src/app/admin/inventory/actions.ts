@@ -24,6 +24,7 @@ type InventoryInput = {
   low_stock_threshold: number
   markup_percentage: number
   selling_price: number
+  expiry_date?: string
 }
 
 type InventoryUpdateInput = {
@@ -31,6 +32,7 @@ type InventoryUpdateInput = {
   low_stock_threshold: number
   markup_percentage: number
   selling_price: number
+  expiry_date?: string
 }
 
 export async function getInventory(pharmacyId?: string): Promise<Inventory[]> {
@@ -38,7 +40,7 @@ export async function getInventory(pharmacyId?: string): Promise<Inventory[]> {
   let query = supabase
     .from("inventory")
     .select(
-      "*, products(name, generic_name, category, type, base_price, requires_prescription), pharmacies(name)"
+      "*, products(name, generic_name, base_price, requires_prescription, product_categories(name)), pharmacies(name)"
     )
     .eq("is_active", true)
     .order("products(name)", { ascending: true })
@@ -57,7 +59,7 @@ export async function getInventoryById(id: string): Promise<Inventory> {
   const { data, error } = await supabase
     .from("inventory")
     .select(
-      "*, products(name, generic_name, category, type, base_price, requires_prescription), pharmacies(name)"
+      "*, products(name, generic_name, base_price, requires_prescription, product_categories(name)), pharmacies(name)"
     )
     .eq("id", id)
     .single()
@@ -87,7 +89,7 @@ export async function createInventoryEntry(
     .from("inventory")
     .insert(data)
     .select(
-      "*, products(name, generic_name, category, type, base_price, requires_prescription), pharmacies(name)"
+      "*, products(name, generic_name, base_price, requires_prescription, product_categories(name)), pharmacies(name)"
     )
     .single()
   if (error) throw new Error(error.message)
@@ -115,7 +117,7 @@ export async function updateInventoryEntry(
     .update({ ...data, updated_at: new Date().toISOString() })
     .eq("id", id)
     .select(
-      "*, products(name, generic_name, category, type, base_price, requires_prescription), pharmacies(name)"
+      "*, products(name, generic_name, base_price, requires_prescription, product_categories(name)), pharmacies(name)"
     )
     .single()
   if (error) throw new Error(error.message)
@@ -166,7 +168,7 @@ export async function getActiveProductsForInventorySelect(): Promise<
   const { data, error } = await supabase
     .from("products")
     .select("id, name, generic_name, base_price")
-    .eq("is_active", true)
+    .eq("status", "active")
     .order("name", { ascending: true })
   if (error) throw new Error(error.message)
   return data ?? []
