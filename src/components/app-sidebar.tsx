@@ -58,6 +58,20 @@ const navMain = [
     url: "/admin/products",
     icon: <Box />,
   },
+
+  {
+    title: "Batches",
+    url: "/admin/batches",
+    icon: <PackagePlusIcon />,
+  },
+  {
+    title: "Order",
+    url: "/admin/orders",
+    icon: <NotebookPen />,
+  },
+];
+
+const navReferenceData = [
   {
     title: "Suppliers",
     url: "/admin/suppliers",
@@ -73,19 +87,6 @@ const navMain = [
     url: "/admin/pharmacies",
     icon: <StoreIcon />,
   },
-  {
-    title: "Batches",
-    url: "/admin/batches",
-    icon: <PackagePlusIcon />,
-  },
-  {
-    title: "Order",
-    url: "/admin/orders",
-    icon: <NotebookPen />,
-  },
-];
-
-const navReferenceData = [
   {
     title: "Product Classes",
     url: "/admin/product-classes",
@@ -158,10 +159,10 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
       <SidebarContent>
         <NavMain items={navMain} />
         <SidebarGroup>
-          <SidebarGroupLabel>Reference Data</SidebarGroupLabel>
+          <SidebarGroupLabel>References</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navReferenceData.map((item) => (
+              {navReferenceData.map(item => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     isActive={pathname === item.url}
