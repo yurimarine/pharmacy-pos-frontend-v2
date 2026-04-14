@@ -36,13 +36,31 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import type { Product } from "@/types/product"
+import type { Product, ProductType, ProductStatus } from "@/types/product"
 import { AddProductModal } from "./AddProductModal"
 import { EditProductModal } from "./EditProductModal"
-import { DeactivateProductDialog } from "./DeactivateProductDialog"
+import { DiscontinueProductDialog } from "./DiscontinueProductDialog"
 
 function formatPrice(value: number) {
   return `₱${value.toFixed(2)}`
+}
+
+function TypeBadge({ type }: { type: ProductType }) {
+  if (type === "branded") return <Badge variant="default">Branded</Badge>
+  if (type === "generic") return <Badge variant="secondary">Generic</Badge>
+  return <Badge variant="outline">N/A</Badge>
+}
+
+function StatusBadge({ status }: { status: ProductStatus }) {
+  if (status === "active")
+    return <Badge variant="default">Active</Badge>
+  if (status === "inactive")
+    return (
+      <Badge variant="outline" className="border-yellow-500 text-yellow-600 bg-yellow-50">
+        Inactive
+      </Badge>
+    )
+  return <Badge variant="destructive">Discontinued</Badge>
 }
 
 export function ProductsTable({ products }: { products: Product[] }) {
@@ -50,11 +68,35 @@ export function ProductsTable({ products }: { products: Product[] }) {
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
   const [addOpen, setAddOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
-  const [deactivateOpen, setDeactivateOpen] = useState(false)
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+  const [discontinueOpen, setDiscontinueOpen] = useState(false)
+  const [selected, setSelected] = useState<Product | null>(null)
 
   const columns = useMemo<ColumnDef<Product>[]>(
     () => [
+      {
+        accessorKey: "sku",
+        header: "SKU",
+        cell: ({ row }) => {
+          const sku = row.getValue("sku") as string | null
+          return sku ? (
+            <span className="font-mono text-sm">{sku}</span>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )
+        },
+      },
+      {
+        accessorKey: "barcode",
+        header: "Barcode",
+        cell: ({ row }) => {
+          const barcode = row.getValue("barcode") as string | null
+          return barcode ? (
+            <span className="font-mono text-sm">{barcode}</span>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )
+        },
+      },
       {
         accessorKey: "name",
         header: "Name",
@@ -63,26 +105,31 @@ export function ProductsTable({ products }: { products: Product[] }) {
         ),
       },
       {
-        accessorKey: "generic_name",
-        header: "Generic Name",
-        cell: ({ row }) => (row.getValue("generic_name") as string) ?? "—",
+        id: "class",
+        header: "Class",
+        cell: ({ row }) => {
+          const name = row.original.product_classes?.name
+          return name ? (
+            <Badge variant="outline">{name}</Badge>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )
+        },
       },
       {
-        accessorKey: "category",
+        id: "category",
         header: "Category",
-        cell: ({ row }) => (row.getValue("category") as string) ?? "—",
+        cell: ({ row }) =>
+          row.original.product_categories?.name ?? (
+            <span className="text-muted-foreground">—</span>
+          ),
       },
       {
         accessorKey: "type",
         header: "Type",
-        cell: ({ row }) => {
-          const type = row.getValue("type") as string
-          return (
-            <Badge variant={type === "branded" ? "default" : "secondary"}>
-              {type === "branded" ? "Branded" : "Generic"}
-            </Badge>
-          )
-        },
+        cell: ({ row }) => (
+          <TypeBadge type={row.getValue("type") as ProductType} />
+        ),
       },
       {
         accessorKey: "base_price",
@@ -90,14 +137,33 @@ export function ProductsTable({ products }: { products: Product[] }) {
         cell: ({ row }) => formatPrice(row.getValue("base_price")),
       },
       {
+        id: "packaging",
+        header: "Packaging",
+        cell: ({ row }) => {
+          const pkg = row.original.packaging_units
+          if (!pkg) return <span className="text-muted-foreground">—</span>
+          return (
+            <span className="font-mono text-sm">
+              {row.original.unit_count} {pkg.abbreviation}
+            </span>
+          )
+        },
+      },
+      {
         id: "supplier",
         header: "Supplier",
-        cell: ({ row }) => row.original.suppliers?.name ?? "—",
+        cell: ({ row }) =>
+          row.original.suppliers?.name ?? (
+            <span className="text-muted-foreground">—</span>
+          ),
       },
       {
         id: "manufacturer",
         header: "Manufacturer",
-        cell: ({ row }) => row.original.manufacturers?.name ?? "—",
+        cell: ({ row }) =>
+          row.original.manufacturers?.name ?? (
+            <span className="text-muted-foreground">—</span>
+          ),
       },
       {
         accessorKey: "requires_prescription",
@@ -110,6 +176,13 @@ export function ProductsTable({ products }: { products: Product[] }) {
             </Badge>
           )
         },
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => (
+          <StatusBadge status={row.getValue("status") as ProductStatus} />
+        ),
       },
       {
         id: "actions",
@@ -131,7 +204,7 @@ export function ProductsTable({ products }: { products: Product[] }) {
             <DropdownMenuContent align="end">
               <DropdownMenuItem
                 onClick={() => {
-                  setSelectedProduct(row.original)
+                  setSelected(row.original)
                   setEditOpen(true)
                 }}
               >
@@ -141,11 +214,11 @@ export function ProductsTable({ products }: { products: Product[] }) {
               <DropdownMenuItem
                 variant="destructive"
                 onClick={() => {
-                  setSelectedProduct(row.original)
-                  setDeactivateOpen(true)
+                  setSelected(row.original)
+                  setDiscontinueOpen(true)
                 }}
               >
-                Deactivate
+                Discontinue
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -158,10 +231,7 @@ export function ProductsTable({ products }: { products: Product[] }) {
   const table = useReactTable({
     data: products,
     columns,
-    state: {
-      globalFilter,
-      columnVisibility,
-    },
+    state: { globalFilter, columnVisibility },
     onGlobalFilterChange: setGlobalFilter,
     onColumnVisibilityChange: setColumnVisibility,
     globalFilterFn: (row, _columnId, filterValue) => {
@@ -171,9 +241,7 @@ export function ProductsTable({ products }: { products: Product[] }) {
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    initialState: {
-      pagination: { pageSize: 8 },
-    },
+    initialState: { pagination: { pageSize: 8 } },
   })
 
   const filteredCount = table.getFilteredRowModel().rows.length
@@ -192,9 +260,7 @@ export function ProductsTable({ products }: { products: Product[] }) {
         />
         <div className="flex items-center gap-2">
           <DropdownMenu>
-            <DropdownMenuTrigger
-              render={<Button variant="outline" size="sm" />}
-            >
+            <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
               <SlidersHorizontalIcon />
               Columns
             </DropdownMenuTrigger>
@@ -227,13 +293,13 @@ export function ProductsTable({ products }: { products: Product[] }) {
       </p>
 
       {/* Table */}
-      <div className="rounded-md border">
+      <div className="overflow-x-auto rounded-md border">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
+                  <TableHead key={header.id} className="whitespace-nowrap">
                     {header.isPlaceholder
                       ? null
                       : flexRender(
@@ -250,7 +316,7 @@ export function ProductsTable({ products }: { products: Product[] }) {
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id}>
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell key={cell.id} className="whitespace-nowrap">
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext()
@@ -306,13 +372,13 @@ export function ProductsTable({ products }: { products: Product[] }) {
       <EditProductModal
         open={editOpen}
         onOpenChange={setEditOpen}
-        product={selectedProduct}
+        product={selected}
       />
-      <DeactivateProductDialog
-        open={deactivateOpen}
-        onOpenChange={setDeactivateOpen}
-        productId={selectedProduct?.id ?? null}
-        productName={selectedProduct?.name ?? ""}
+      <DiscontinueProductDialog
+        open={discontinueOpen}
+        onOpenChange={setDiscontinueOpen}
+        productId={selected?.id ?? null}
+        productName={selected?.name ?? ""}
       />
     </div>
   )

@@ -212,3 +212,13 @@ export async function getDispensingUnitsForProductForm(): Promise<
   if (error) throw new Error(error.message)
   return data ?? []
 }
+
+export async function generateSkuAction(prefix: string): Promise<string> {
+  const supabase = await createClient()
+  const { count } = await supabase
+    .from("products")
+    .select("*", { count: "exact", head: true })
+    .ilike("sku", `${prefix}-%`)
+  const sequence = String((count ?? 0) + 1).padStart(3, "0")
+  return `${prefix}-${sequence}`
+}

@@ -8,8 +8,9 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
-// Products columns: Name, Generic Name, Category, Type, Base Price, Supplier, Manufacturer, Prescription, Actions
-const COLUMN_COUNT = 9
+// Columns: SKU, Barcode, Name, Class, Category, Type, Base Price,
+//          Packaging, Supplier, Manufacturer, Prescription, Status, Actions
+const COLUMN_COUNT = 13
 const ROWS = Array.from({ length: 8 })
 
 export default function Loading() {
@@ -34,7 +35,7 @@ export default function Loading() {
       <Skeleton className="h-4 w-32" />
 
       {/* Table */}
-      <div className="rounded-md border">
+      <div className="overflow-x-auto rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -51,7 +52,13 @@ export default function Loading() {
                 {Array.from({ length: COLUMN_COUNT }).map((_, colIdx) => (
                   <TableCell key={colIdx}>
                     <Skeleton
-                      className={`h-4 ${colIdx === 0 ? "w-40" : colIdx === COLUMN_COUNT - 1 ? "w-6 mx-auto" : "w-24"}`}
+                      className={`h-4 ${
+                        colIdx === 2
+                          ? "w-40"
+                          : colIdx === COLUMN_COUNT - 1
+                          ? "mx-auto w-6"
+                          : "w-20"
+                      }`}
                     />
                   </TableCell>
                 ))}
