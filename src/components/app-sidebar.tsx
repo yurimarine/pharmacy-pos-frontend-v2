@@ -18,24 +18,20 @@ import {
 } from "@/components/ui/sidebar";
 import {
   LayoutDashboardIcon,
-  ListIcon,
-  ChartBarIcon,
-  FolderIcon,
   TruckIcon,
   FactoryIcon,
   StoreIcon,
-  UsersIcon,
   Settings2Icon,
   CircleHelpIcon,
   SearchIcon,
-  DatabaseIcon,
-  FileChartColumnIcon,
-  FileIcon,
   CommandIcon,
   PackagePlusIcon,
   ClipboardListIcon,
   Box,
   ShelvingUnit,
+  ReceiptText,
+  ClipboardClock,
+  NotebookPen,
 } from "lucide-react";
 
 const navMain = [
@@ -75,9 +71,9 @@ const navMain = [
     icon: <PackagePlusIcon />,
   },
   {
-    title: "Inventory Logs",
-    url: "/admin/inventory-logs",
-    icon: <ClipboardListIcon />,
+    title: "Order",
+    url: "/admin/orders",
+    icon: <NotebookPen />,
   },
 ];
 
@@ -88,9 +84,13 @@ const navSecondary = [
 ];
 
 const documents = [
-  { name: "Data Library", url: "#", icon: <DatabaseIcon /> },
-  { name: "Reports", url: "#", icon: <FileChartColumnIcon /> },
-  { name: "Word Assistant", url: "#", icon: <FileIcon /> },
+  {
+    name: "Inventory Logs",
+    url: "/admin/inventory-logs",
+    icon: <ClipboardListIcon />,
+  },
+  { name: "Transaction Logs", url: "#", icon: <ReceiptText /> },
+  { name: "Time Logs", url: "#", icon: <ClipboardClock /> },
 ];
 
 type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {

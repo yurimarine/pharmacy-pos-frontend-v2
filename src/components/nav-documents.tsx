@@ -23,6 +23,10 @@ import {
   FolderIcon,
   ShareIcon,
   Trash2Icon,
+  TagIcon,
+  FlaskConicalIcon,
+  BuildingIcon,
+  TruckIcon,
 } from "lucide-react";
 
 export function NavDocuments({
@@ -86,10 +90,30 @@ export function NavDocuments({
           </SidebarMenuItem>
         ))}
         <SidebarMenuItem>
-          <SidebarMenuButton className="text-sidebar-foreground/70">
-            <MoreHorizontalIcon className="text-sidebar-foreground/70" />
-            <span>More</span>
-          </SidebarMenuButton>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <SidebarMenuButton className="text-sidebar-foreground/70" />
+              }
+            >
+              <MoreHorizontalIcon className="text-sidebar-foreground/70" />
+              <span>More</span>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              className="w-52"
+              side={isMobile ? "bottom" : "right"}
+              align={isMobile ? "end" : "start"}
+            >
+              <DropdownMenuItem disabled>
+                <TagIcon />
+                <span>Product Category</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled>
+                <FlaskConicalIcon />
+                <span>Product Type</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </SidebarMenuItem>
       </SidebarMenu>
     </SidebarGroup>
