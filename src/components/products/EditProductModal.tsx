@@ -35,7 +35,7 @@ const productSchema = z.object({
   name: z.string().min(1, "Name is required"),
   generic_name: z.string().optional(),
   category: z.string().optional(),
-  type: z.enum(["branded", "generic"]),
+  type: z.enum(["branded", "generic", "na"]),
   base_price: z.coerce.number().min(0, "Price must be 0 or more"),
   requires_prescription: z.boolean().default(false),
   supplier_id: z.string().optional(),
