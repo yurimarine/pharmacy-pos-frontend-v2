@@ -8,18 +8,17 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
-// Columns: SKU, Barcode, Name, Class, Category, Type, Base Price,
-//          Packaging, Supplier, Manufacturer, Prescription, Status, Actions
-const COLUMN_COUNT = 13
-const ROWS = Array.from({ length: 8 })
+// Columns: Name, Class, Description, Created At, Actions
+const COLUMN_WIDTHS = ["w-3/4", "w-1/2", "w-full", "w-1/2", "w-6"]
+const ROWS = Array.from({ length: 6 })
 
 export default function Loading() {
   return (
     <div className="flex flex-col gap-6 px-4 lg:px-6">
       {/* Header */}
       <div className="flex flex-col gap-2">
-        <Skeleton className="h-8 w-36" />
-        <Skeleton className="h-4 w-64" />
+        <Skeleton className="h-8 w-56" />
+        <Skeleton className="h-4 w-80" />
       </div>
 
       {/* Toolbar */}
@@ -32,14 +31,14 @@ export default function Loading() {
       </div>
 
       {/* Count */}
-      <Skeleton className="h-4 w-32" />
+      <Skeleton className="h-4 w-44" />
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-md border">
+      <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
-              {Array.from({ length: COLUMN_COUNT }).map((_, i) => (
+              {COLUMN_WIDTHS.map((_, i) => (
                 <TableHead key={i}>
                   <Skeleton className="h-4 w-20" />
                 </TableHead>
@@ -49,16 +48,10 @@ export default function Loading() {
           <TableBody>
             {ROWS.map((_, rowIdx) => (
               <TableRow key={rowIdx}>
-                {Array.from({ length: COLUMN_COUNT }).map((_, colIdx) => (
+                {COLUMN_WIDTHS.map((width, colIdx) => (
                   <TableCell key={colIdx}>
                     <Skeleton
-                      className={`h-4 ${
-                        colIdx === 2
-                          ? "w-40"
-                          : colIdx === COLUMN_COUNT - 1
-                          ? "mx-auto w-6"
-                          : "w-20"
-                      }`}
+                      className={`h-4 ${width} ${colIdx === COLUMN_WIDTHS.length - 1 ? "mx-auto" : ""}`}
                     />
                   </TableCell>
                 ))}

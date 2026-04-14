@@ -35,6 +35,7 @@ const inventorySchema = z.object({
   low_stock_threshold: z.coerce.number().min(0),
   markup_percentage: z.coerce.number().min(0),
   selling_price: z.coerce.number().min(0),
+  expiry_date: z.string().optional(),
 });
 
 type InventoryFormValues = z.infer<typeof inventorySchema>;
@@ -69,6 +70,7 @@ export function AddInventoryModal({
       low_stock_threshold: 10,
       markup_percentage: 0,
       selling_price: 0,
+      expiry_date: "",
     },
   });
 
@@ -93,7 +95,10 @@ export function AddInventoryModal({
   const onSubmit = (data: InventoryFormValues) => {
     startTransition(async () => {
       try {
-        await createInventoryEntry(data);
+        await createInventoryEntry({
+          ...data,
+          expiry_date: data.expiry_date || undefined,
+        });
         toast.success("Inventory entry added.");
         onOpenChange(false);
         form.reset();
@@ -254,6 +259,16 @@ export function AddInventoryModal({
                 {...form.register("selling_price")}
               />
             </div>
+          </div>
+
+          {/* Expiry Date */}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="add-inv-expiry">Expiry Date</Label>
+            <Input
+              id="add-inv-expiry"
+              type="date"
+              {...form.register("expiry_date")}
+            />
           </div>
 
           <DialogFooter>

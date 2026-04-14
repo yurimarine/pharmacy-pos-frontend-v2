@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { NavDocuments } from "@/components/nav-documents";
 import { NavMain } from "@/components/nav-main";
 import { NavSecondary } from "@/components/nav-secondary";
@@ -11,6 +12,9 @@ import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -32,6 +36,10 @@ import {
   ReceiptText,
   ClipboardClock,
   NotebookPen,
+  Layers,
+  Tag,
+  Package,
+  Pipette,
 } from "lucide-react";
 
 const navMain = [
@@ -50,6 +58,20 @@ const navMain = [
     url: "/admin/products",
     icon: <Box />,
   },
+
+  {
+    title: "Batches",
+    url: "/admin/batches",
+    icon: <PackagePlusIcon />,
+  },
+  {
+    title: "Order",
+    url: "/admin/orders",
+    icon: <NotebookPen />,
+  },
+];
+
+const navReferenceData = [
   {
     title: "Suppliers",
     url: "/admin/suppliers",
@@ -66,14 +88,24 @@ const navMain = [
     icon: <StoreIcon />,
   },
   {
-    title: "Batches",
-    url: "/admin/batches",
-    icon: <PackagePlusIcon />,
+    title: "Product Classes",
+    url: "/admin/product-classes",
+    icon: <Layers />,
   },
   {
-    title: "Order",
-    url: "/admin/orders",
-    icon: <NotebookPen />,
+    title: "Product Categories",
+    url: "/admin/product-categories",
+    icon: <Tag />,
+  },
+  {
+    title: "Packaging Units",
+    url: "/admin/packaging-units",
+    icon: <Package />,
+  },
+  {
+    title: "Dispensing Units",
+    url: "/admin/dispensing-units",
+    icon: <Pipette />,
   },
 ];
 
@@ -102,6 +134,7 @@ type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
 };
 
 export function AppSidebar({ user, ...props }: AppSidebarProps) {
+  const pathname = usePathname();
   const resolvedUser = user ?? {
     name: "User",
     email: "",
@@ -125,6 +158,24 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navMain} />
+        <SidebarGroup>
+          <SidebarGroupLabel>References</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {navReferenceData.map(item => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton
+                    isActive={pathname === item.url}
+                    render={<Link href={item.url} />}
+                  >
+                    {item.icon}
+                    <span>{item.title}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
         <NavDocuments items={documents} />
         <NavSecondary items={navSecondary} className="mt-auto" />
       </SidebarContent>

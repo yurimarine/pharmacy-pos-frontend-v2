@@ -279,7 +279,7 @@ export async function finalizeBatch(id: string): Promise<{
     .select(
       `id, type, status, pharmacy_id,
        batch_items(
-         id, product_id, quantity, unit_cost, reason,
+         id, product_id, quantity, unit_cost, reason, expiry_date,
          products(id, name, base_price)
        )`,
     )
@@ -300,6 +300,7 @@ export async function finalizeBatch(id: string): Promise<{
     quantity: number;
     unit_cost: number | null;
     reason: string | null;
+    expiry_date: string | null;
     products: { id: string; name: string; base_price: number } | null;
   }>;
   if (items.length === 0) {
@@ -434,12 +435,17 @@ export async function finalizeBatch(id: string): Promise<{
         .single();
 
       if (existingInv) {
+        const updatePayload: Record<string, unknown> = {
+          quantity: existingInv.quantity + item.quantity,
+          last_restocked_at: now,
+          updated_at: now,
+        };
+        if (item.expiry_date) {
+          updatePayload.expiry_date = item.expiry_date;
+        }
         const { error } = await supabase
           .from("inventory")
-          .update({
-            quantity: existingInv.quantity + item.quantity,
-            updated_at: now,
-          })
+          .update(updatePayload)
           .eq("id", existingInv.id);
         if (error) throw new Error(error.message);
       } else {
@@ -452,6 +458,8 @@ export async function finalizeBatch(id: string): Promise<{
           markup_percentage: 0,
           selling_price: Number(basePrice),
           is_active: true,
+          expiry_date: item.expiry_date ?? null,
+          last_restocked_at: now,
         });
         if (error) throw new Error(error.message);
       }
@@ -587,7 +595,7 @@ export async function getProductsForBatchSelect(
     const { data, error } = await supabase
       .from("products")
       .select("id, name, generic_name, base_price")
-      .eq("is_active", true)
+      .eq("status", "active")
       .order("name", { ascending: true });
     if (error) throw new Error(error.message);
     return data ?? [];

@@ -19,7 +19,6 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import {
   Table,
   TableBody,
@@ -36,67 +35,29 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import type { Product, ProductType, ProductStatus } from "@/types/product"
-import { AddProductModal } from "./AddProductModal"
-import { EditProductModal } from "./EditProductModal"
-import { DiscontinueProductDialog } from "./DiscontinueProductDialog"
+import type { PackagingUnit } from "@/types/reference-data"
+import { AddPackagingUnitModal } from "./AddPackagingUnitModal"
+import { EditPackagingUnitModal } from "./EditPackagingUnitModal"
+import { DeletePackagingUnitDialog } from "./DeletePackagingUnitDialog"
 
-function formatPrice(value: number) {
-  return `₱${value.toFixed(2)}`
+function formatDate(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString("en-US", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+  })
 }
 
-function TypeBadge({ type }: { type: ProductType }) {
-  if (type === "branded") return <Badge variant="default">Branded</Badge>
-  if (type === "generic") return <Badge variant="secondary">Generic</Badge>
-  return <Badge variant="outline">N/A</Badge>
-}
-
-function StatusBadge({ status }: { status: ProductStatus }) {
-  if (status === "active")
-    return <Badge variant="default">Active</Badge>
-  if (status === "inactive")
-    return (
-      <Badge variant="outline" className="border-yellow-500 text-yellow-600 bg-yellow-50">
-        Inactive
-      </Badge>
-    )
-  return <Badge variant="destructive">Discontinued</Badge>
-}
-
-export function ProductsTable({ products }: { products: Product[] }) {
+export function PackagingUnitsTable({ units }: { units: PackagingUnit[] }) {
   const [globalFilter, setGlobalFilter] = useState("")
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
   const [addOpen, setAddOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
-  const [discontinueOpen, setDiscontinueOpen] = useState(false)
-  const [selected, setSelected] = useState<Product | null>(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [selected, setSelected] = useState<PackagingUnit | null>(null)
 
-  const columns = useMemo<ColumnDef<Product>[]>(
+  const columns = useMemo<ColumnDef<PackagingUnit>[]>(
     () => [
-      {
-        accessorKey: "sku",
-        header: "SKU",
-        cell: ({ row }) => {
-          const sku = row.getValue("sku") as string | null
-          return sku ? (
-            <span className="font-mono text-sm">{sku}</span>
-          ) : (
-            <span className="text-muted-foreground">—</span>
-          )
-        },
-      },
-      {
-        accessorKey: "barcode",
-        header: "Barcode",
-        cell: ({ row }) => {
-          const barcode = row.getValue("barcode") as string | null
-          return barcode ? (
-            <span className="font-mono text-sm">{barcode}</span>
-          ) : (
-            <span className="text-muted-foreground">—</span>
-          )
-        },
-      },
       {
         accessorKey: "name",
         header: "Name",
@@ -105,84 +66,16 @@ export function ProductsTable({ products }: { products: Product[] }) {
         ),
       },
       {
-        id: "class",
-        header: "Class",
-        cell: ({ row }) => {
-          const name = row.original.product_classes?.name
-          return name ? (
-            <Badge variant="outline">{name}</Badge>
-          ) : (
-            <span className="text-muted-foreground">—</span>
-          )
-        },
-      },
-      {
-        id: "category",
-        header: "Category",
-        cell: ({ row }) =>
-          row.original.product_categories?.name ?? (
-            <span className="text-muted-foreground">—</span>
-          ),
-      },
-      {
-        accessorKey: "type",
-        header: "Type",
+        accessorKey: "abbreviation",
+        header: "Abbreviation",
         cell: ({ row }) => (
-          <TypeBadge type={row.getValue("type") as ProductType} />
+          <span className="font-mono text-sm">{row.getValue("abbreviation")}</span>
         ),
       },
       {
-        accessorKey: "base_price",
-        header: "Base Price",
-        cell: ({ row }) => formatPrice(row.getValue("base_price")),
-      },
-      {
-        id: "packaging",
-        header: "Packaging",
-        cell: ({ row }) => {
-          const pkg = row.original.packaging_units
-          if (!pkg) return <span className="text-muted-foreground">—</span>
-          return (
-            <span className="font-mono text-sm">
-              {row.original.unit_count} {pkg.abbreviation}
-            </span>
-          )
-        },
-      },
-      {
-        id: "supplier",
-        header: "Supplier",
-        cell: ({ row }) =>
-          row.original.suppliers?.name ?? (
-            <span className="text-muted-foreground">—</span>
-          ),
-      },
-      {
-        id: "manufacturer",
-        header: "Manufacturer",
-        cell: ({ row }) =>
-          row.original.manufacturers?.name ?? (
-            <span className="text-muted-foreground">—</span>
-          ),
-      },
-      {
-        accessorKey: "requires_prescription",
-        header: "Prescription",
-        cell: ({ row }) => {
-          const req = row.getValue("requires_prescription") as boolean
-          return (
-            <Badge variant={req ? "destructive" : "secondary"}>
-              {req ? "Yes" : "No"}
-            </Badge>
-          )
-        },
-      },
-      {
-        accessorKey: "status",
-        header: "Status",
-        cell: ({ row }) => (
-          <StatusBadge status={row.getValue("status") as ProductStatus} />
-        ),
+        accessorKey: "created_at",
+        header: "Created At",
+        cell: ({ row }) => formatDate(row.getValue("created_at")),
       },
       {
         id: "actions",
@@ -215,10 +108,10 @@ export function ProductsTable({ products }: { products: Product[] }) {
                 variant="destructive"
                 onClick={() => {
                   setSelected(row.original)
-                  setDiscontinueOpen(true)
+                  setDeleteOpen(true)
                 }}
               >
-                Discontinue
+                Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -229,7 +122,7 @@ export function ProductsTable({ products }: { products: Product[] }) {
   )
 
   const table = useReactTable({
-    data: products,
+    data: units,
     columns,
     state: { globalFilter, columnVisibility },
     onGlobalFilterChange: setGlobalFilter,
@@ -282,24 +175,24 @@ export function ProductsTable({ products }: { products: Product[] }) {
           </DropdownMenu>
           <Button size="sm" onClick={() => setAddOpen(true)}>
             <PlusIcon />
-            Add Product
+            Add Unit
           </Button>
         </div>
       </div>
 
       {/* Count */}
       <p className="text-sm text-muted-foreground">
-        {filteredCount} {filteredCount === 1 ? "product" : "products"} found
+        {filteredCount} {filteredCount === 1 ? "unit" : "units"} found
       </p>
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-md border">
+      <div className="rounded-md border">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} className="whitespace-nowrap">
+                  <TableHead key={header.id}>
                     {header.isPlaceholder
                       ? null
                       : flexRender(
@@ -316,11 +209,8 @@ export function ProductsTable({ products }: { products: Product[] }) {
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id}>
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="whitespace-nowrap">
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
+                    <TableCell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
                 </TableRow>
@@ -331,7 +221,7 @@ export function ProductsTable({ products }: { products: Product[] }) {
                   colSpan={columns.length}
                   className="h-32 text-center text-muted-foreground"
                 >
-                  No products found.
+                  No packaging units found.
                 </TableCell>
               </TableRow>
             )}
@@ -368,17 +258,17 @@ export function ProductsTable({ products }: { products: Product[] }) {
         </div>
       )}
 
-      <AddProductModal open={addOpen} onOpenChange={setAddOpen} />
-      <EditProductModal
+      <AddPackagingUnitModal open={addOpen} onOpenChange={setAddOpen} />
+      <EditPackagingUnitModal
         open={editOpen}
         onOpenChange={setEditOpen}
-        product={selected}
+        unit={selected}
       />
-      <DiscontinueProductDialog
-        open={discontinueOpen}
-        onOpenChange={setDiscontinueOpen}
-        productId={selected?.id ?? null}
-        productName={selected?.name ?? ""}
+      <DeletePackagingUnitDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        unitId={selected?.id ?? null}
+        unitName={selected?.name ?? ""}
       />
     </div>
   )

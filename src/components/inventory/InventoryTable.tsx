@@ -44,7 +44,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { Inventory } from "@/types/inventory";
-import { getStockStatus } from "@/lib/inventory-utils";
+import { getStockStatus, stockStatusConfig } from "@/lib/inventory-utils";
 import { getInventory } from "@/app/admin/inventory/actions";
 import { AddInventoryModal } from "./AddInventoryModal";
 import { EditInventoryModal } from "./EditInventoryModal";
@@ -54,26 +54,49 @@ function formatPrice(value: number) {
   return `₱${value.toFixed(2)}`;
 }
 
+function formatDate(dateStr: string | null) {
+  if (!dateStr) return "—";
+  return new Date(dateStr).toLocaleDateString("en-PH", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
 function StockBadge({
   quantity,
   threshold,
+  expiryDate,
 }: {
   quantity: number;
   threshold: number;
+  expiryDate: string | null;
 }) {
-  const status = getStockStatus(quantity, threshold);
-  if (status === "in_stock") {
-    return <Badge variant="default">In Stock</Badge>;
-  }
-  if (status === "out_of_stock") {
-    return <Badge variant="destructive">Out of Stock</Badge>;
-  }
-  // low_stock — amber styling
+  const status = getStockStatus(quantity, threshold, expiryDate);
+  const config = stockStatusConfig[status];
   return (
-    <Badge className="bg-amber-100 text-amber-800 border-transparent hover:bg-amber-100">
-      Low Stock
+    <Badge variant={config.variant as "default" | "secondary" | "destructive" | "outline"} className={config.className}>
+      {config.label}
     </Badge>
   );
+}
+
+function ExpiryCell({ expiryDate }: { expiryDate: string | null }) {
+  if (!expiryDate) return <span className="text-muted-foreground">—</span>;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const expiry = new Date(expiryDate);
+  expiry.setHours(0, 0, 0, 0);
+  const daysUntil = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (daysUntil < 0) {
+    return <span className="font-medium text-red-600">{formatDate(expiryDate)}</span>;
+  }
+  if (daysUntil <= 60) {
+    return <span className="font-medium text-orange-600">{formatDate(expiryDate)}</span>;
+  }
+  return <span>{formatDate(expiryDate)}</span>;
 }
 
 type InventoryTableProps = {
@@ -119,17 +142,26 @@ export function InventoryTable({ inventory, pharmacies }: InventoryTableProps) {
       {
         id: "generic_name",
         header: "Generic Name",
-        cell: ({ row }) => row.original.products?.generic_name ?? "—",
+        cell: ({ row }) =>
+          row.original.products?.generic_name ?? (
+            <span className="text-muted-foreground">—</span>
+          ),
       },
       {
         id: "category",
         header: "Category",
-        cell: ({ row }) => row.original.products?.category ?? "—",
+        cell: ({ row }) => {
+          const name = row.original.products?.product_categories?.name;
+          return name ?? <span className="text-muted-foreground">—</span>;
+        },
       },
       {
         id: "pharmacy",
         header: "Pharmacy",
-        cell: ({ row }) => row.original.pharmacies?.name ?? "—",
+        cell: ({ row }) =>
+          row.original.pharmacies?.name ?? (
+            <span className="text-muted-foreground">—</span>
+          ),
       },
       {
         accessorKey: "quantity",
@@ -145,6 +177,7 @@ export function InventoryTable({ inventory, pharmacies }: InventoryTableProps) {
           <StockBadge
             quantity={row.original.quantity}
             threshold={row.original.low_stock_threshold}
+            expiryDate={row.original.expiry_date}
           />
         ),
       },
@@ -152,6 +185,20 @@ export function InventoryTable({ inventory, pharmacies }: InventoryTableProps) {
         accessorKey: "selling_price",
         header: "Selling Price",
         cell: ({ row }) => formatPrice(row.getValue("selling_price")),
+      },
+      {
+        id: "expiry_date",
+        header: "Expiry Date",
+        cell: ({ row }) => <ExpiryCell expiryDate={row.original.expiry_date} />,
+      },
+      {
+        id: "last_restocked",
+        header: "Last Restocked",
+        cell: ({ row }) => (
+          <span className="text-sm">
+            {formatDate(row.original.last_restocked_at)}
+          </span>
+        ),
       },
       {
         id: "actions",
@@ -238,7 +285,7 @@ export function InventoryTable({ inventory, pharmacies }: InventoryTableProps) {
             <SelectTrigger className="w-48">
               <SelectValue placeholder="All Pharmacies">
                 {selectedPharmacy === "All"
-                  ? undefined
+                  ? "All Pharmacies"
                   : pharmacies.find(p => p.id === selectedPharmacy)?.name}
               </SelectValue>
             </SelectTrigger>
@@ -290,13 +337,13 @@ export function InventoryTable({ inventory, pharmacies }: InventoryTableProps) {
       </p>
 
       {/* Table */}
-      <div className="rounded-md border">
+      <div className="overflow-x-auto rounded-md border">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map(headerGroup => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map(header => (
-                  <TableHead key={header.id}>
+                  <TableHead key={header.id} className="whitespace-nowrap">
                     {header.isPlaceholder
                       ? null
                       : flexRender(
@@ -313,7 +360,7 @@ export function InventoryTable({ inventory, pharmacies }: InventoryTableProps) {
               table.getRowModel().rows.map(row => (
                 <TableRow key={row.id}>
                   {row.getVisibleCells().map(cell => (
-                    <TableCell key={cell.id}>
+                    <TableCell key={cell.id} className="whitespace-nowrap">
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext(),
