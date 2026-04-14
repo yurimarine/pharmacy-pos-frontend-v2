@@ -595,7 +595,7 @@ export async function getProductsForBatchSelect(
     const { data, error } = await supabase
       .from("products")
       .select("id, name, generic_name, base_price")
-      .eq("is_active", true)
+      .eq("status", "active")
       .order("name", { ascending: true });
     if (error) throw new Error(error.message);
     return data ?? [];
