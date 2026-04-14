@@ -135,7 +135,9 @@ export function AddInventoryModal({
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select product" />
+                    <SelectValue placeholder="Select product">
+                      {products.find(p => p.id === field.value)?.name}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {products.length === 0 ? (
@@ -171,7 +173,9 @@ export function AddInventoryModal({
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select pharmacy" />
+                    <SelectValue placeholder="Select pharmacy">
+                      {pharmacies.find(p => p.id === field.value)?.name}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {pharmacies.length === 0 ? (

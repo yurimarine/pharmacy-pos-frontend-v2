@@ -134,7 +134,9 @@ export function CreateBatchModal({
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select pharmacy" />
+                    <SelectValue placeholder="Select pharmacy">
+                      {pharmacies.find(p => p.id === field.value)?.name}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {pharmacies.length === 0 ? (
