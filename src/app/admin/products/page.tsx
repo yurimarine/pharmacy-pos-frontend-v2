@@ -1,16 +1,21 @@
 import { getProducts } from "./actions"
 import { ProductsTable } from "@/components/products/ProductsTable"
-import type { Product } from "@/types/product"
 
-export default async function ProductsPage() {
-  let products: Product[] = []
-  let fetchError: string | null = null
+export default async function ProductsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    page?: string
+    search?: string
+  }>
+}) {
+  const params = await searchParams
 
-  try {
-    products = await getProducts()
-  } catch (e) {
-    fetchError = e instanceof Error ? e.message : "Failed to load products"
-  }
+  const page = Math.max(1, Number(params.page ?? 1))
+  const pageSize = 20
+  const search = params.search ?? undefined
+
+  const { data: products, count } = await getProducts(page, pageSize, search)
 
   return (
     <div className="flex flex-col gap-6 px-4 lg:px-6">
@@ -21,13 +26,13 @@ export default async function ProductsPage() {
         </p>
       </div>
 
-      {fetchError ? (
-        <div className="rounded-md border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {fetchError}
-        </div>
-      ) : (
-        <ProductsTable products={products} />
-      )}
+      <ProductsTable
+        products={products}
+        totalCount={count}
+        currentPage={page}
+        pageSize={pageSize}
+        currentSearch={search ?? ""}
+      />
     </div>
   )
 }

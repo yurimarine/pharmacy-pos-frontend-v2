@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useTransition, useCallback } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useDebouncedCallback } from "use-debounce";
 import {
   flexRender,
   getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
   useReactTable,
   type ColumnDef,
   type VisibilityState,
@@ -65,13 +65,33 @@ function StatusBadge({ status }: { status: ProductStatus }) {
   return <Badge variant="destructive">Discontinued</Badge>;
 }
 
-export function ProductsTable({ products }: { products: Product[] }) {
-  const [globalFilter, setGlobalFilter] = useState("");
+type ProductsTableProps = {
+  products: Product[];
+  totalCount: number;
+  currentPage: number;
+  pageSize: number;
+  currentSearch: string;
+};
+
+export function ProductsTable({
+  products,
+  totalCount,
+  currentPage,
+  pageSize,
+  currentSearch,
+}: ProductsTableProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
+
+  const [searchValue, setSearchValue] = useState(currentSearch);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({
+    sku: false,
     barcode: false,
     class: false,
     category: false,
-    type: false,
+    packaging: false,
     supplier: false,
     manufacturer: false,
     requires_prescription: false,
@@ -80,6 +100,33 @@ export function ProductsTable({ products }: { products: Product[] }) {
   const [editOpen, setEditOpen] = useState(false);
   const [discontinueOpen, setDiscontinueOpen] = useState(false);
   const [selected, setSelected] = useState<Product | null>(null);
+
+  const updateParams = useCallback(
+    (updates: Record<string, string | null>) => {
+      const params = new URLSearchParams(searchParams.toString());
+
+      Object.entries(updates).forEach(([key, value]) => {
+        if (value === null || value === "") {
+          params.delete(key);
+        } else {
+          params.set(key, value);
+        }
+      });
+
+      if (updates.search !== undefined) {
+        params.set("page", "1");
+      }
+
+      startTransition(() => {
+        router.push(`${pathname}?${params.toString()}`);
+      });
+    },
+    [searchParams, pathname, router],
+  );
+
+  const handleSearch = useDebouncedCallback((value: string) => {
+    updateParams({ search: value || null });
+  }, 400);
 
   const columns = useMemo<ColumnDef<Product>[]>(
     () => [
@@ -248,26 +295,24 @@ export function ProductsTable({ products }: { products: Product[] }) {
   const table = useReactTable({
     data: products,
     columns,
-    state: { globalFilter, columnVisibility },
-    onGlobalFilterChange: setGlobalFilter,
+    state: { columnVisibility },
     onColumnVisibilityChange: setColumnVisibility,
-    globalFilterFn: (row, _columnId, filterValue) => {
-      const filter = String(filterValue).toLowerCase();
-      const name = String(row.getValue("name") ?? "").toLowerCase();
-      const genericName = String(
-        row.getValue("generic_name") ?? "",
-      ).toLowerCase();
-      return name.includes(filter) || genericName.includes(filter);
-    },
     getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 8 } },
+    initialState: {
+      columnVisibility: {
+        sku: false,
+        barcode: false,
+        class: false,
+        category: false,
+        packaging: false,
+        supplier: false,
+        manufacturer: false,
+        requires_prescription: false,
+      },
+    },
   });
 
-  const filteredCount = table.getFilteredRowModel().rows.length;
-  const pageCount = table.getPageCount();
-  const currentPage = table.getState().pagination.pageIndex + 1;
+  const totalPages = Math.ceil(totalCount / pageSize);
 
   return (
     <div className="flex flex-col gap-4">
@@ -275,8 +320,11 @@ export function ProductsTable({ products }: { products: Product[] }) {
       <div className="flex items-center justify-between gap-4">
         <Input
           placeholder="Search by name…"
-          value={globalFilter}
-          onChange={e => setGlobalFilter(e.target.value)}
+          value={searchValue}
+          onChange={e => {
+            setSearchValue(e.target.value);
+            handleSearch(e.target.value);
+          }}
           className="max-w-xs"
         />
         <div className="flex items-center gap-2">
@@ -312,11 +360,15 @@ export function ProductsTable({ products }: { products: Product[] }) {
 
       {/* Count */}
       <p className="text-sm text-muted-foreground">
-        {filteredCount} {filteredCount === 1 ? "product" : "products"} found
+        {totalCount} {totalCount === 1 ? "product" : "products"} found
       </p>
 
-      {/* Table */}
-      <div className="overflow-x-auto rounded-md border">
+      {/* Table — dims while loading */}
+      <div
+        className={`overflow-x-auto rounded-md border transition-opacity ${
+          isPending ? "opacity-50 pointer-events-none" : ""
+        }`}
+      >
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map(headerGroup => (
@@ -363,17 +415,17 @@ export function ProductsTable({ products }: { products: Product[] }) {
       </div>
 
       {/* Pagination */}
-      {pageCount > 1 && (
+      {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            Page {currentPage} of {pageCount}
+            Page {currentPage} of {totalPages}
           </p>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
+              onClick={() => updateParams({ page: String(currentPage - 1) })}
+              disabled={currentPage <= 1 || isPending}
             >
               <ChevronLeftIcon />
               Previous
@@ -381,8 +433,8 @@ export function ProductsTable({ products }: { products: Product[] }) {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
+              onClick={() => updateParams({ page: String(currentPage + 1) })}
+              disabled={currentPage >= totalPages || isPending}
             >
               Next
               <ChevronRightIcon />

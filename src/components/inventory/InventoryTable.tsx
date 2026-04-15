@@ -138,9 +138,8 @@ export function InventoryTable({
   const [searchValue, setSearchValue] = useState(currentSearch);
 
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({
-    generic_name: false,
+    pharmacy: false,
     category: false,
-    expiry_date: false,
     last_restocked: false,
   });
   const [addOpen, setAddOpen] = useState(false);
