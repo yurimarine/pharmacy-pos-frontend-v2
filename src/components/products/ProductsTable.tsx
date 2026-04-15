@@ -252,8 +252,12 @@ export function ProductsTable({ products }: { products: Product[] }) {
     onGlobalFilterChange: setGlobalFilter,
     onColumnVisibilityChange: setColumnVisibility,
     globalFilterFn: (row, _columnId, filterValue) => {
+      const filter = String(filterValue).toLowerCase();
       const name = String(row.getValue("name") ?? "").toLowerCase();
-      return name.includes(String(filterValue).toLowerCase());
+      const genericName = String(
+        row.getValue("generic_name") ?? "",
+      ).toLowerCase();
+      return name.includes(filter) || genericName.includes(filter);
     },
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),

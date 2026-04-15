@@ -75,7 +75,12 @@ function StockBadge({
   const status = getStockStatus(quantity, threshold, expiryDate);
   const config = stockStatusConfig[status];
   return (
-    <Badge variant={config.variant as "default" | "secondary" | "destructive" | "outline"} className={config.className}>
+    <Badge
+      variant={
+        config.variant as "default" | "secondary" | "destructive" | "outline"
+      }
+      className={config.className}
+    >
       {config.label}
     </Badge>
   );
@@ -88,13 +93,21 @@ function ExpiryCell({ expiryDate }: { expiryDate: string | null }) {
   today.setHours(0, 0, 0, 0);
   const expiry = new Date(expiryDate);
   expiry.setHours(0, 0, 0, 0);
-  const daysUntil = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  const daysUntil = Math.ceil(
+    (expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+  );
 
   if (daysUntil < 0) {
-    return <span className="font-medium text-red-600">{formatDate(expiryDate)}</span>;
+    return (
+      <span className="font-medium text-red-600">{formatDate(expiryDate)}</span>
+    );
   }
   if (daysUntil <= 60) {
-    return <span className="font-medium text-orange-600">{formatDate(expiryDate)}</span>;
+    return (
+      <span className="font-medium text-orange-600">
+        {formatDate(expiryDate)}
+      </span>
+    );
   }
   return <span>{formatDate(expiryDate)}</span>;
 }
@@ -254,8 +267,12 @@ export function InventoryTable({ inventory, pharmacies }: InventoryTableProps) {
     onGlobalFilterChange: setGlobalFilter,
     onColumnVisibilityChange: setColumnVisibility,
     globalFilterFn: (row, _columnId, filterValue) => {
+      const filter = String(filterValue).toLowerCase();
       const name = String(row.original.products?.name ?? "").toLowerCase();
-      return name.includes(String(filterValue).toLowerCase());
+      const genericName = String(
+        row.original.products?.generic_name ?? "",
+      ).toLowerCase();
+      return name.includes(filter) || genericName.includes(filter);
     },
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
