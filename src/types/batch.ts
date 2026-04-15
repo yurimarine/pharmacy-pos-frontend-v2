@@ -1,4 +1,8 @@
-export type BatchType = "stock_in" | "stock_out" | "price_change";
+export type BatchType =
+  | "stock_in"
+  | "stock_out"
+  | "markup_change"
+  | "base_price_change";
 export type BatchStatus = "draft" | "completed" | "cancelled";
 export type StockOutReason =
   | "damaged"
@@ -11,7 +15,7 @@ export type Batch = {
   id: string;
   batch_number: string;
   type: BatchType;
-  pharmacy_id: string;
+  pharmacy_id: string | null;
   transfer_to_pharmacy_id: string | null;
   created_by: string;
   status: BatchStatus;
