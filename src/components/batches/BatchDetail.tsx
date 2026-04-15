@@ -47,10 +47,17 @@ function TypeBadge({ type }: { type: BatchWithItems["type"] }) {
   if (type === "stock_in") {
     return <Badge variant="default">Stock In</Badge>;
   }
-  if (type === "price_change") {
+  if (type === "markup_change") {
     return (
       <Badge className="bg-blue-100 text-blue-800 border-transparent hover:bg-blue-100">
-        Price Change
+        Markup Change
+      </Badge>
+    );
+  }
+  if (type === "base_price_change") {
+    return (
+      <Badge className="bg-purple-100 text-purple-800 border-transparent hover:bg-purple-100">
+        Base Price Change
       </Badge>
     );
   }
@@ -243,7 +250,7 @@ export function BatchDetail({
               <TableRow>
                 <TableHead>Product</TableHead>
                 <TableHead>Generic Name</TableHead>
-                {batch.type !== "price_change" && (
+                {batch.type !== "markup_change" && batch.type !== "base_price_change" && (
                   <TableHead className="text-right">Qty</TableHead>
                 )}
                 {batch.type === "stock_in" ? (
@@ -253,10 +260,15 @@ export function BatchDetail({
                     <TableHead>Supplier</TableHead>
                     <TableHead>Manufacturer</TableHead>
                   </>
-                ) : batch.type === "price_change" ? (
+                ) : batch.type === "markup_change" ? (
                   <>
-                    <TableHead className="text-right">Current Price</TableHead>
-                    <TableHead className="text-right">New Price</TableHead>
+                    <TableHead className="text-right">Current Markup %</TableHead>
+                    <TableHead className="text-right">New Markup %</TableHead>
+                  </>
+                ) : batch.type === "base_price_change" ? (
+                  <>
+                    <TableHead className="text-right">Current Base Price</TableHead>
+                    <TableHead className="text-right">New Base Price</TableHead>
                   </>
                 ) : (
                   <>
@@ -275,7 +287,7 @@ export function BatchDetail({
                     colSpan={
                       batch.type === "stock_in"
                         ? isDraft ? 9 : 8
-                        : batch.type === "price_change"
+                        : batch.type === "markup_change" || batch.type === "base_price_change"
                           ? isDraft ? 6 : 5
                           : isDraft ? 7 : 6
                     }
@@ -294,7 +306,7 @@ export function BatchDetail({
                     <TableCell className="text-muted-foreground">
                       {item.products?.generic_name ?? "—"}
                     </TableCell>
-                    {batch.type !== "price_change" && (
+                    {batch.type !== "markup_change" && batch.type !== "base_price_change" && (
                       <TableCell className="text-right">
                         {item.quantity}
                       </TableCell>
@@ -314,7 +326,18 @@ export function BatchDetail({
                         <TableCell>{item.suppliers?.name ?? "—"}</TableCell>
                         <TableCell>{item.manufacturers?.name ?? "—"}</TableCell>
                       </>
-                    ) : batch.type === "price_change" ? (
+                    ) : batch.type === "markup_change" ? (
+                      <>
+                        <TableCell className="text-right text-muted-foreground">
+                          —
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {item.unit_cost != null
+                            ? `${Number(item.unit_cost).toFixed(2)}%`
+                            : "—"}
+                        </TableCell>
+                      </>
+                    ) : batch.type === "base_price_change" ? (
                       <>
                         <TableCell className="text-right text-muted-foreground">
                           {item.products?.base_price != null

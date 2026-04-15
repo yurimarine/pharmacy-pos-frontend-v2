@@ -24,12 +24,12 @@ import {
   ShareIcon,
   Trash2Icon,
   TagIcon,
-  FlaskConicalIcon,
-  BuildingIcon,
-  TruckIcon,
+  Layers,
+  Package,
+  Pipette,
 } from "lucide-react";
 
-export function NavDocuments({
+export function NavLogs({
   items,
 }: {
   items: {
@@ -43,7 +43,7 @@ export function NavDocuments({
   const { isMobile } = useSidebar();
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-      <SidebarGroupLabel>Documents</SidebarGroupLabel>
+      <SidebarGroupLabel>Logs</SidebarGroupLabel>
       <SidebarMenu>
         {items.map(item => (
           <SidebarMenuItem key={item.name}>
@@ -104,13 +104,25 @@ export function NavDocuments({
               side={isMobile ? "bottom" : "right"}
               align={isMobile ? "end" : "start"}
             >
-              <DropdownMenuItem disabled>
-                <TagIcon />
-                <span>Product Category</span>
+              <DropdownMenuItem render={<Link href="/admin/product-classes" />}>
+                <Layers />
+                <span>Product Classes</span>
               </DropdownMenuItem>
-              <DropdownMenuItem disabled>
-                <FlaskConicalIcon />
-                <span>Product Type</span>
+              <DropdownMenuItem
+                render={<Link href="/admin/product-categories" />}
+              >
+                <TagIcon />
+                <span>Product Categories</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem render={<Link href="/admin/packaging-units" />}>
+                <Package />
+                <span>Packaging Units</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                render={<Link href="/admin/dispensing-units" />}
+              >
+                <Pipette />
+                <span>Dispensing Units</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

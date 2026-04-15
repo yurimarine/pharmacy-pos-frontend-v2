@@ -73,10 +73,19 @@ export async function getBatches(showCancelled?: boolean): Promise<Batch[]> {
 
 export async function createBatch(data: {
   type: BatchType;
-  pharmacy_id: string;
+  pharmacy_id: string | null;
   notes?: string;
 }): Promise<Batch> {
   const supabase = await createClient();
+
+  // markup_change must be scoped to a pharmacy
+  if (data.type === "markup_change" && !data.pharmacy_id) {
+    throw new Error("Markup change batches require a pharmacy.");
+  }
+
+  // base_price_change is always global — ignore any provided pharmacy
+  const pharmacyId =
+    data.type === "base_price_change" ? null : data.pharmacy_id;
 
   const currentUser = await getCurrentUser();
 
@@ -91,7 +100,7 @@ export async function createBatch(data: {
     .insert({
       batch_number: batchNumber,
       type: data.type,
-      pharmacy_id: data.pharmacy_id,
+      pharmacy_id: pharmacyId,
       created_by: currentUser.id,
       status: "draft",
       notes: data.notes || null,
@@ -307,39 +316,109 @@ export async function finalizeBatch(id: string): Promise<{
     throw new Error("Add at least one item before finalizing.");
   }
 
-  // Step 4: price_change — apply base_price updates and mark complete
-  if (batch.type === "price_change") {
-    const priceChanges: Array<{ productName: string; oldPrice: number; newPrice: number }> = [];
+  // Step 4a: markup_change — update inventory.markup_percentage for this pharmacy only.
+  // item.unit_cost stores the new markup percentage (not a cost value).
+  if (batch.type === "markup_change") {
+    const errors: string[] = [];
 
     for (const item of items) {
       if (item.unit_cost == null || !item.products) continue;
-      const newPrice = Number(item.unit_cost);
-      const oldPrice = Number(item.products.base_price);
+
+      const { data: invRow } = await supabase
+        .from("inventory")
+        .select("id")
+        .eq("product_id", item.product_id)
+        .eq("pharmacy_id", batch.pharmacy_id)
+        .single();
+
+      if (!invRow) {
+        errors.push(
+          `${item.products.name} has no inventory record in this pharmacy.`,
+        );
+        continue;
+      }
+
+      const { data: product } = await supabase
+        .from("products")
+        .select("base_price")
+        .eq("id", item.product_id)
+        .single();
+
+      const basePrice = Number(product?.base_price ?? 0);
+      // item.unit_cost stores the new markup percentage for markup_change batches
+      const newMarkup = Number(item.unit_cost);
+      const newSelling = Math.round(
+        (basePrice + basePrice * (newMarkup / 100)) * 100,
+      ) / 100;
+
+      const { error } = await supabase
+        .from("inventory")
+        .update({
+          markup_percentage: newMarkup,
+          selling_price: newSelling,
+          updated_at: now,
+        })
+        .eq("id", invRow.id);
+      if (error) throw new Error(error.message);
+    }
+
+    if (errors.length > 0) throw new Error(errors.join("; "));
+
+    const { error: completeError } = await supabase
+      .from("batches")
+      .update({ status: "completed", updated_at: now })
+      .eq("id", id);
+    if (completeError) throw new Error(completeError.message);
+
+    revalidatePath("/admin/batches");
+    revalidatePath(`/admin/batches/${id}`);
+
+    return { success: true, priceChanges: [] };
+  }
+
+  // Step 4b: base_price_change — update products.base_price globally and recalculate
+  // selling_price for all pharmacies that stock each product.
+  // item.unit_cost stores the new base price.
+  if (batch.type === "base_price_change") {
+    const priceChanges: Array<{
+      productName: string;
+      oldPrice: number;
+      newPrice: number;
+    }> = [];
+
+    for (const item of items) {
+      if (item.unit_cost == null || !item.products) continue;
+
+      const newBasePrice = Number(item.unit_cost);
+      const oldBasePrice = Number(item.products.base_price);
 
       const { error: productError } = await supabase
         .from("products")
-        .update({ base_price: newPrice, updated_at: now })
+        .update({ base_price: newBasePrice, updated_at: now })
         .eq("id", item.product_id);
       if (productError) throw new Error(productError.message);
 
       const { data: allInvRows } = await supabase
         .from("inventory")
         .select("id, markup_percentage")
-        .eq("product_id", item.product_id);
+        .eq("product_id", item.product_id)
+        .eq("is_active", true);
 
       for (const invRow of allInvRows ?? []) {
-        const newSelling =
-          newPrice + newPrice * (Number(invRow.markup_percentage) / 100);
+        const newSelling = Math.round(
+          (newBasePrice + newBasePrice * (Number(invRow.markup_percentage) / 100)) * 100,
+        ) / 100;
         await supabase
           .from("inventory")
-          .update({
-            selling_price: Math.round(newSelling * 100) / 100,
-            updated_at: now,
-          })
+          .update({ selling_price: newSelling, updated_at: now })
           .eq("id", invRow.id);
       }
 
-      priceChanges.push({ productName: item.products.name, oldPrice, newPrice });
+      priceChanges.push({
+        productName: item.products.name,
+        oldPrice: oldBasePrice,
+        newPrice: newBasePrice,
+      });
     }
 
     const { error: completeError } = await supabase
@@ -522,55 +601,127 @@ export async function finalizeBatch(id: string): Promise<{
   };
 }
 
-export async function getPriceChangePreview(batchId: string): Promise<
-  {
-    productName: string;
-    currentBasePrice: number;
-    newUnitCost: number;
-    affectedPharmaciesCount: number;
-  }[]
-> {
+export type PriceChangePreviewItem =
+  | {
+      type: "markup_change";
+      productName: string;
+      oldMarkup: number;
+      newMarkup: number;
+      oldSellingPrice: number;
+      newSellingPrice: number;
+      pharmacyName: string | null;
+    }
+  | {
+      type: "base_price_change";
+      productName: string;
+      oldBasePrice: number;
+      newBasePrice: number;
+      affectedPharmaciesCount: number;
+      pharmacyBreakdown: {
+        pharmacyName: string | null | undefined;
+        oldSelling: number;
+        newSelling: number;
+      }[];
+    };
+
+export async function getPriceChangePreview(
+  batchId: string,
+): Promise<PriceChangePreviewItem[]> {
   const supabase = await createClient();
 
-  const { data: items, error } = await supabase
+  // Fetch batch type and pharmacy
+  const { data: batch, error: batchError } = await supabase
+    .from("batches")
+    .select(
+      "type, pharmacy_id, pharmacy:pharmacies!batches_pharmacy_id_fkey(name)",
+    )
+    .eq("id", batchId)
+    .single();
+  if (batchError || !batch) throw new Error("Batch not found");
+
+  const { data: items, error: itemsError } = await supabase
     .from("batch_items")
     .select("product_id, unit_cost, products(id, name, base_price)")
     .eq("batch_id", batchId)
     .not("unit_cost", "is", null);
+  if (itemsError) throw new Error(itemsError.message);
 
-  if (error) throw new Error(error.message);
-
-  const changes = [];
-  const seen = new Set<string>();
   type PreviewItem = {
     product_id: string;
     unit_cost: number | null;
     products: { id: string; name: string; base_price: number } | null;
   };
   const typedItems = (items ?? []) as unknown as PreviewItem[];
+  const results: PriceChangePreviewItem[] = [];
 
-  for (const item of typedItems) {
-    if (!item.products || seen.has(item.product_id)) continue;
-    const unitCost = Number(item.unit_cost);
-    const basePrice = Number(item.products.base_price);
-    if (Math.abs(unitCost - basePrice) <= 0.001) continue;
+  if (batch.type === "markup_change") {
+    for (const item of typedItems) {
+      if (item.unit_cost == null || !item.products) continue;
 
-    seen.add(item.product_id);
+      const { data: invRow } = await supabase
+        .from("inventory")
+        .select("markup_percentage, selling_price")
+        .eq("product_id", item.product_id)
+        .eq("pharmacy_id", batch.pharmacy_id)
+        .single();
 
-    const { count } = await supabase
-      .from("inventory")
-      .select("id", { count: "exact", head: true })
-      .eq("product_id", item.product_id);
+      const basePrice = Number(item.products.base_price);
+      const newMarkup = Number(item.unit_cost);
+      const newSelling = Math.round(
+        (basePrice + basePrice * (newMarkup / 100)) * 100,
+      ) / 100;
 
-    changes.push({
-      productName: item.products.name,
-      currentBasePrice: basePrice,
-      newUnitCost: unitCost,
-      affectedPharmaciesCount: count ?? 0,
-    });
+      const pharmacyData = (
+        Array.isArray(batch.pharmacy) ? batch.pharmacy[0] : batch.pharmacy
+      ) as { name: string } | null | undefined;
+      results.push({
+        type: "markup_change",
+        productName: item.products.name,
+        oldMarkup: Number(invRow?.markup_percentage ?? 0),
+        newMarkup,
+        oldSellingPrice: Number(invRow?.selling_price ?? 0),
+        newSellingPrice: newSelling,
+        pharmacyName: pharmacyData?.name ?? null,
+      });
+    }
+  } else if (batch.type === "base_price_change") {
+    for (const item of typedItems) {
+      if (item.unit_cost == null || !item.products) continue;
+
+      const { data: allInvRows } = await supabase
+        .from("inventory")
+        .select(
+          "selling_price, markup_percentage, pharmacies(name)",
+        )
+        .eq("product_id", item.product_id)
+        .eq("is_active", true);
+
+      const newBasePrice = Number(item.unit_cost);
+      type InvPreviewRow = {
+        selling_price: number;
+        markup_percentage: number;
+        pharmacies: { name: string } | null;
+      };
+      const invRows = (allInvRows ?? []) as unknown as InvPreviewRow[];
+
+      results.push({
+        type: "base_price_change",
+        productName: item.products.name,
+        oldBasePrice: Number(item.products.base_price),
+        newBasePrice,
+        affectedPharmaciesCount: invRows.length,
+        pharmacyBreakdown: invRows.map(inv => ({
+          pharmacyName: inv.pharmacies?.name,
+          oldSelling: Number(inv.selling_price),
+          newSelling: Math.round(
+            (newBasePrice + newBasePrice * (Number(inv.markup_percentage) / 100)) * 100,
+          ) / 100,
+        })),
+      });
+    }
   }
 
-  return changes;
+  return results;
 }
 
 // ─────────────────────────────────────────────
@@ -578,7 +729,7 @@ export async function getPriceChangePreview(batchId: string): Promise<
 // ─────────────────────────────────────────────
 
 export async function getProductsForBatchSelect(
-  pharmacyId: string,
+  pharmacyId: string | null,
   batchType: BatchType,
 ): Promise<
   {
@@ -587,11 +738,20 @@ export async function getProductsForBatchSelect(
     generic_name: string | null;
     base_price: number;
     current_quantity?: number;
+    current_markup?: number;
+    current_selling_price?: number;
+    affected_pharmacies?: {
+      pharmacy_id: string;
+      pharmacy_name: string | null | undefined;
+      current_markup: number;
+      current_selling_price: number;
+    }[];
   }[]
 > {
   const supabase = await createClient();
 
-  if (batchType === "stock_in" || batchType === "price_change") {
+  // stock_in: all active products
+  if (batchType === "stock_in") {
     const { data, error } = await supabase
       .from("products")
       .select("id, name, generic_name, base_price")
@@ -601,34 +761,79 @@ export async function getProductsForBatchSelect(
     return data ?? [];
   }
 
-  // stock_out: only products with inventory in this pharmacy
+  // stock_out + markup_change: only products with inventory at this pharmacy
+  if (batchType === "stock_out" || batchType === "markup_change") {
+    const { data, error } = await supabase
+      .from("inventory")
+      .select(
+        "markup_percentage, selling_price, quantity, products!inner(id, name, generic_name, base_price)",
+      )
+      .eq("pharmacy_id", pharmacyId!)
+      .eq("is_active", true)
+      .order("products(name)", { ascending: true });
+
+    if (error) throw new Error(error.message);
+
+    type InvRow = {
+      markup_percentage: number;
+      selling_price: number;
+      quantity: number;
+      products: {
+        id: string;
+        name: string;
+        generic_name: string | null;
+        base_price: number;
+      };
+    };
+    return ((data ?? []) as unknown as InvRow[])
+      .filter(inv => inv.products !== null)
+      .map(inv => ({
+        id: inv.products.id,
+        name: inv.products.name,
+        generic_name: inv.products.generic_name,
+        base_price: Number(inv.products.base_price),
+        current_quantity: inv.quantity,
+        current_markup: Number(inv.markup_percentage),
+        current_selling_price: Number(inv.selling_price),
+      }));
+  }
+
+  // base_price_change: all active products, with per-pharmacy inventory breakdown
   const { data, error } = await supabase
-    .from("inventory")
-    .select("quantity, products!inner(id, name, generic_name, base_price)")
-    .eq("pharmacy_id", pharmacyId)
-    .eq("is_active", true)
-    .order("products(name)", { ascending: true });
+    .from("products")
+    .select(
+      `id, name, generic_name, base_price,
+       inventory ( pharmacy_id, markup_percentage, selling_price, pharmacies ( name ) )`,
+    )
+    .eq("status", "active")
+    .order("name", { ascending: true });
 
   if (error) throw new Error(error.message);
 
-  type InvRow = {
-    quantity: number;
-    products: {
-      id: string;
-      name: string;
-      generic_name: string | null;
-      base_price: number;
-    };
+  type ProductRow = {
+    id: string;
+    name: string;
+    generic_name: string | null;
+    base_price: number;
+    inventory: {
+      pharmacy_id: string;
+      markup_percentage: number;
+      selling_price: number;
+      pharmacies: { name: string } | null;
+    }[];
   };
-  return ((data ?? []) as unknown as InvRow[])
-    .filter(inv => inv.products !== null)
-    .map(inv => ({
-      id: inv.products.id,
-      name: inv.products.name,
-      generic_name: inv.products.generic_name,
-      base_price: Number(inv.products.base_price),
-      current_quantity: inv.quantity,
-    }));
+  return ((data ?? []) as unknown as ProductRow[]).map(product => ({
+    id: product.id,
+    name: product.name,
+    generic_name: product.generic_name,
+    base_price: Number(product.base_price),
+    affected_pharmacies: (product.inventory ?? []).map(inv => ({
+      pharmacy_id: inv.pharmacy_id,
+      pharmacy_name: inv.pharmacies?.name,
+      current_markup: Number(inv.markup_percentage),
+      current_selling_price: Number(inv.selling_price),
+    })),
+  }));
 }
 
 export async function getSuppliersForBatchSelect(): Promise<

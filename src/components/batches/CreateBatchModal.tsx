@@ -26,11 +26,21 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
-const createBatchSchema = z.object({
-  type: z.enum(["stock_in", "stock_out", "price_change"]),
-  pharmacy_id: z.string().min(1, "Pharmacy is required"),
-  notes: z.string().optional(),
-})
+const createBatchSchema = z
+  .object({
+    type: z.enum(["stock_in", "stock_out", "markup_change", "base_price_change"]),
+    pharmacy_id: z.string().optional(),
+    notes: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.type !== "base_price_change" && !data.pharmacy_id) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Pharmacy is required",
+        path: ["pharmacy_id"],
+      })
+    }
+  })
 
 type CreateBatchFormValues = z.infer<typeof createBatchSchema>
 
@@ -39,6 +49,13 @@ type CreateBatchModalProps = {
   onOpenChange: (open: boolean) => void
   pharmacies: { id: string; name: string }[]
   onCreated: (batch: Batch) => void
+}
+
+const BATCH_TYPE_LABELS: Record<string, string> = {
+  stock_in: "Stock In",
+  stock_out: "Stock Out",
+  markup_change: "Markup Change",
+  base_price_change: "Base Price Change",
 }
 
 export function CreateBatchModal({
@@ -58,12 +75,15 @@ export function CreateBatchModal({
     },
   })
 
+  const batchType = form.watch("type")
+  const isGlobal = batchType === "base_price_change"
+
   const onSubmit = (data: CreateBatchFormValues) => {
     startTransition(async () => {
       try {
         const result = await createBatch({
           type: data.type,
-          pharmacy_id: data.pharmacy_id,
+          pharmacy_id: isGlobal ? null : (data.pharmacy_id ?? null),
           notes: data.notes,
         })
         toast.success(`Batch ${result.batch_number} created.`)
@@ -100,17 +120,22 @@ export function CreateBatchModal({
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select type" />
+                    <SelectValue placeholder="Select batch type">
+                      {BATCH_TYPE_LABELS[field.value]}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="stock_in">
-                      Stock In — receiving products
+                      Stock In — receive products into inventory
                     </SelectItem>
                     <SelectItem value="stock_out">
-                      Stock Out — removing products
+                      Stock Out — remove products from inventory
                     </SelectItem>
-                    <SelectItem value="price_change">
-                      Price Change — update base prices
+                    <SelectItem value="markup_change">
+                      Markup Change — adjust selling price markup per pharmacy
+                    </SelectItem>
+                    <SelectItem value="base_price_change">
+                      Base Price Change — update product base price globally
                     </SelectItem>
                   </SelectContent>
                 </Select>
@@ -123,43 +148,51 @@ export function CreateBatchModal({
             )}
           </div>
 
-          {/* Pharmacy */}
-          <div className="flex flex-col gap-1.5">
-            <Label>
-              Pharmacy <span className="text-destructive">*</span>
-            </Label>
-            <Controller
-              control={form.control}
-              name="pharmacy_id"
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select pharmacy">
-                      {pharmacies.find(p => p.id === field.value)?.name}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {pharmacies.length === 0 ? (
-                      <p className="py-4 text-center text-sm text-muted-foreground">
-                        No pharmacies found.
-                      </p>
-                    ) : (
-                      pharmacies.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.name}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+          {/* Pharmacy — hidden for base_price_change */}
+          {!isGlobal && (
+            <div className="flex flex-col gap-1.5">
+              <Label>
+                Pharmacy <span className="text-destructive">*</span>
+              </Label>
+              <Controller
+                control={form.control}
+                name="pharmacy_id"
+                render={({ field }) => (
+                  <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select pharmacy">
+                        {pharmacies.find(p => p.id === field.value)?.name}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {pharmacies.length === 0 ? (
+                        <p className="py-4 text-center text-sm text-muted-foreground">
+                          No pharmacies found.
+                        </p>
+                      ) : (
+                        pharmacies.map(p => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.name}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {form.formState.errors.pharmacy_id && (
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.pharmacy_id.message}
+                </p>
               )}
-            />
-            {form.formState.errors.pharmacy_id && (
-              <p className="text-sm text-destructive">
-                {form.formState.errors.pharmacy_id.message}
-              </p>
-            )}
-          </div>
+            </div>
+          )}
+
+          {isGlobal && (
+            <p className="text-sm text-muted-foreground">
+              Base price changes apply globally across all pharmacies.
+            </p>
+          )}
 
           {/* Notes */}
           <div className="flex flex-col gap-1.5">

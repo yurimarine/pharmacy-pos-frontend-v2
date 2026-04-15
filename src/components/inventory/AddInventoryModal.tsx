@@ -117,174 +117,177 @@ export function AddInventoryModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="flex flex-col max-h-[90vh]">
+        <DialogHeader className="shrink-0">
           <DialogTitle>Add Stock Entry</DialogTitle>
           <DialogDescription>
             Add a new inventory entry for a product at a pharmacy.
           </DialogDescription>
         </DialogHeader>
 
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="flex flex-col gap-4"
-        >
-          {/* Product */}
-          <div className="flex flex-col gap-1.5">
-            <Label>
-              Product <span className="text-destructive">*</span>
-            </Label>
-            <Controller
-              control={form.control}
-              name="product_id"
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select product">
-                      {products.find(p => p.id === field.value)?.name}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {products.length === 0 ? (
-                      <p className="py-4 text-center text-sm text-muted-foreground">
-                        No products found.
-                      </p>
-                    ) : (
-                      products.map(p => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.name}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-            {form.formState.errors.product_id && (
-              <p className="text-sm text-destructive">
-                {form.formState.errors.product_id.message}
-              </p>
-            )}
-          </div>
-
-          {/* Pharmacy */}
-          <div className="flex flex-col gap-1.5">
-            <Label>
-              Pharmacy <span className="text-destructive">*</span>
-            </Label>
-            <Controller
-              control={form.control}
-              name="pharmacy_id"
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select pharmacy">
-                      {pharmacies.find(p => p.id === field.value)?.name}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {pharmacies.length === 0 ? (
-                      <p className="py-4 text-center text-sm text-muted-foreground">
-                        No pharmacies found.
-                      </p>
-                    ) : (
-                      pharmacies.map(p => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.name}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-            {form.formState.errors.pharmacy_id && (
-              <p className="text-sm text-destructive">
-                {form.formState.errors.pharmacy_id.message}
-              </p>
-            )}
-          </div>
-
-          {/* Quantity */}
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="add-inv-quantity">Quantity</Label>
-            <Input
-              id="add-inv-quantity"
-              type="number"
-              min="0"
-              placeholder="0"
-              {...form.register("quantity")}
-            />
-          </div>
-
-          {/* Low Stock Threshold */}
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="add-inv-threshold">Low Stock Threshold</Label>
-            <Input
-              id="add-inv-threshold"
-              type="number"
-              min="0"
-              placeholder="10"
-              {...form.register("low_stock_threshold")}
-            />
-          </div>
-
-          {/* Markup Percentage */}
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="add-inv-markup">Markup Percentage</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                id="add-inv-markup"
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="0.00"
-                {...form.register("markup_percentage")}
+        <div className="flex-1 overflow-y-auto px-1">
+          <form
+            id="add-inv-form"
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="flex flex-col gap-4"
+          >
+            {/* Product */}
+            <div className="flex flex-col gap-1.5">
+              <Label>
+                Product <span className="text-destructive">*</span>
+              </Label>
+              <Controller
+                control={form.control}
+                name="product_id"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select product">
+                        {products.find(p => p.id === field.value)?.name}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {products.length === 0 ? (
+                        <p className="py-4 text-center text-sm text-muted-foreground">
+                          No products found.
+                        </p>
+                      ) : (
+                        products.map(p => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.name}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
               />
-              <span className="text-sm text-muted-foreground">%</span>
+              {form.formState.errors.product_id && (
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.product_id.message}
+                </p>
+              )}
             </div>
-          </div>
 
-          {/* Selling Price */}
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="add-inv-price">Selling Price</Label>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">₱</span>
+            {/* Pharmacy */}
+            <div className="flex flex-col gap-1.5">
+              <Label>
+                Pharmacy <span className="text-destructive">*</span>
+              </Label>
+              <Controller
+                control={form.control}
+                name="pharmacy_id"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select pharmacy">
+                        {pharmacies.find(p => p.id === field.value)?.name}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {pharmacies.length === 0 ? (
+                        <p className="py-4 text-center text-sm text-muted-foreground">
+                          No pharmacies found.
+                        </p>
+                      ) : (
+                        pharmacies.map(p => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.name}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {form.formState.errors.pharmacy_id && (
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.pharmacy_id.message}
+                </p>
+              )}
+            </div>
+
+            {/* Quantity */}
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="add-inv-quantity">Quantity</Label>
               <Input
-                id="add-inv-price"
+                id="add-inv-quantity"
                 type="number"
-                step="0.01"
                 min="0"
-                placeholder="0.00"
-                {...form.register("selling_price")}
+                placeholder="0"
+                {...form.register("quantity")}
               />
             </div>
-          </div>
 
-          {/* Expiry Date */}
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="add-inv-expiry">Expiry Date</Label>
-            <Input
-              id="add-inv-expiry"
-              type="date"
-              {...form.register("expiry_date")}
-            />
-          </div>
+            {/* Low Stock Threshold */}
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="add-inv-threshold">Low Stock Threshold</Label>
+              <Input
+                id="add-inv-threshold"
+                type="number"
+                min="0"
+                placeholder="10"
+                {...form.register("low_stock_threshold")}
+              />
+            </div>
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isPending}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? "Saving…" : "Add Entry"}
-            </Button>
-          </DialogFooter>
-        </form>
+            {/* Markup Percentage */}
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="add-inv-markup">Markup Percentage</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="add-inv-markup"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  {...form.register("markup_percentage")}
+                />
+                <span className="text-sm text-muted-foreground">%</span>
+              </div>
+            </div>
+
+            {/* Selling Price */}
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="add-inv-price">Selling Price</Label>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">₱</span>
+                <Input
+                  id="add-inv-price"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  {...form.register("selling_price")}
+                />
+              </div>
+            </div>
+
+            {/* Expiry Date */}
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="add-inv-expiry">Expiry Date</Label>
+              <Input
+                id="add-inv-expiry"
+                type="date"
+                {...form.register("expiry_date")}
+              />
+            </div>
+          </form>
+        </div>
+
+        <DialogFooter className="shrink-0">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isPending}
+          >
+            Cancel
+          </Button>
+          <Button form="add-inv-form" type="submit" disabled={isPending}>
+            {isPending ? "Saving…" : "Add Entry"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
