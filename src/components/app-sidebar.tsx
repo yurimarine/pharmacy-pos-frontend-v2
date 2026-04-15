@@ -93,12 +93,12 @@ const navSecondary = [
 
 const logs = [
   {
-    name: "Inventory",
+    name: "Inventory Logs",
     url: "/admin/inventory-logs",
     icon: <FilePenLine />,
   },
-  { name: "Transaction", url: "#", icon: <Receipt /> },
-  { name: "Time", url: "#", icon: <ClipboardClock /> },
+  { name: "Transaction Logs", url: "#", icon: <Receipt /> },
+  { name: "Time Logs", url: "#", icon: <ClipboardClock /> },
 ];
 
 type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
