@@ -4,7 +4,7 @@ import * as React from "react";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { NavDocuments } from "@/components/nav-documents";
+import { NavLogs } from "@/components/nav-logs";
 import { NavMain } from "@/components/nav-main";
 import { NavSecondary } from "@/components/nav-secondary";
 import { NavUser } from "@/components/nav-user";
@@ -30,16 +30,12 @@ import {
   SearchIcon,
   CommandIcon,
   PackagePlusIcon,
-  ClipboardListIcon,
   Box,
   ShelvingUnit,
-  ReceiptText,
   ClipboardClock,
   NotebookPen,
-  Layers,
-  Tag,
-  Package,
-  Pipette,
+  FilePenLine,
+  Receipt,
 } from "lucide-react";
 
 const navMain = [
@@ -87,26 +83,6 @@ const navReferenceData = [
     url: "/admin/pharmacies",
     icon: <StoreIcon />,
   },
-  {
-    title: "Product Classes",
-    url: "/admin/product-classes",
-    icon: <Layers />,
-  },
-  {
-    title: "Product Categories",
-    url: "/admin/product-categories",
-    icon: <Tag />,
-  },
-  {
-    title: "Packaging Units",
-    url: "/admin/packaging-units",
-    icon: <Package />,
-  },
-  {
-    title: "Dispensing Units",
-    url: "/admin/dispensing-units",
-    icon: <Pipette />,
-  },
 ];
 
 const navSecondary = [
@@ -115,14 +91,14 @@ const navSecondary = [
   { title: "Search", url: "#", icon: <SearchIcon /> },
 ];
 
-const documents = [
+const logs = [
   {
-    name: "Inventory Logs",
+    name: "Inventory",
     url: "/admin/inventory-logs",
-    icon: <ClipboardListIcon />,
+    icon: <FilePenLine />,
   },
-  { name: "Transaction Logs", url: "#", icon: <ReceiptText /> },
-  { name: "Time Logs", url: "#", icon: <ClipboardClock /> },
+  { name: "Transaction", url: "#", icon: <Receipt /> },
+  { name: "Time", url: "#", icon: <ClipboardClock /> },
 ];
 
 type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
@@ -176,7 +152,7 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-        <NavDocuments items={documents} />
+        <NavLogs items={logs} />
         <NavSecondary items={navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
