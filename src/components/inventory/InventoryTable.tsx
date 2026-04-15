@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useMemo, useTransition } from "react";
+import { useState, useMemo, useTransition, useCallback } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useDebouncedCallback } from "use-debounce";
 import {
   flexRender,
   getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
   useReactTable,
   type ColumnDef,
   type VisibilityState,
@@ -45,7 +45,6 @@ import {
 } from "@/components/ui/select";
 import type { Inventory } from "@/types/inventory";
 import { getStockStatus, stockStatusConfig } from "@/lib/inventory-utils";
-import { getInventory } from "@/app/admin/inventory/actions";
 import { AddInventoryModal } from "./AddInventoryModal";
 import { EditInventoryModal } from "./EditInventoryModal";
 import { DeactivateInventoryDialog } from "./DeactivateInventoryDialog";
@@ -115,32 +114,75 @@ function ExpiryCell({ expiryDate }: { expiryDate: string | null }) {
 type InventoryTableProps = {
   inventory: Inventory[];
   pharmacies: { id: string; name: string }[];
+  totalCount: number;
+  currentPage: number;
+  pageSize: number;
+  selectedPharmacyId: string | null;
+  currentSearch: string;
 };
 
-export function InventoryTable({ inventory, pharmacies }: InventoryTableProps) {
-  const [globalFilter, setGlobalFilter] = useState("");
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+export function InventoryTable({
+  inventory,
+  pharmacies,
+  totalCount,
+  currentPage,
+  pageSize,
+  selectedPharmacyId,
+  currentSearch,
+}: InventoryTableProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
+
+  const [searchValue, setSearchValue] = useState(currentSearch);
+
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({
+    generic_name: false,
+    category: false,
+    expiry_date: false,
+    last_restocked: false,
+  });
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deactivateOpen, setDeactivateOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<Inventory | null>(null);
-  const [filteredInventory, setFilteredInventory] = useState(inventory);
-  const [selectedPharmacy, setSelectedPharmacy] = useState<string>("All");
-  const [, startTransition] = useTransition();
 
-  const handlePharmacyChange = (pharmacyId: string | null) => {
-    if (!pharmacyId) return;
-    setSelectedPharmacy(pharmacyId);
-    startTransition(async () => {
-      try {
-        const data = await getInventory(
-          pharmacyId === "All" ? undefined : pharmacyId,
-        );
-        setFilteredInventory(data);
-      } catch {
-        // keep existing data on error
+  const updateParams = useCallback(
+    (updates: Record<string, string | null>) => {
+      const params = new URLSearchParams(searchParams.toString());
+
+      Object.entries(updates).forEach(([key, value]) => {
+        if (value === null || value === "") {
+          params.delete(key);
+        } else {
+          params.set(key, value);
+        }
+      });
+
+      // Reset to page 1 when pharmacy or search changes
+      if (updates.pharmacy !== undefined || updates.search !== undefined) {
+        params.set("page", "1");
       }
-    });
+
+      startTransition(() => {
+        router.push(`${pathname}?${params.toString()}`);
+      });
+    },
+    [searchParams, pathname, router],
+  );
+
+  const handlePharmacyChange = (value: string | null) => {
+    if (!value) return;
+    updateParams({ pharmacy: value === "all" ? null : value });
+  };
+
+  const handleSearch = useDebouncedCallback((value: string) => {
+    updateParams({ search: value || null });
+  }, 400);
+
+  const handlePageChange = (newPage: number) => {
+    updateParams({ page: String(newPage) });
   };
 
   const columns = useMemo<ColumnDef<Inventory>[]>(
@@ -258,33 +300,14 @@ export function InventoryTable({ inventory, pharmacies }: InventoryTableProps) {
   );
 
   const table = useReactTable({
-    data: filteredInventory,
+    data: inventory,
     columns,
-    state: {
-      globalFilter,
-      columnVisibility,
-    },
-    onGlobalFilterChange: setGlobalFilter,
+    state: { columnVisibility },
     onColumnVisibilityChange: setColumnVisibility,
-    globalFilterFn: (row, _columnId, filterValue) => {
-      const filter = String(filterValue).toLowerCase();
-      const name = String(row.original.products?.name ?? "").toLowerCase();
-      const genericName = String(
-        row.original.products?.generic_name ?? "",
-      ).toLowerCase();
-      return name.includes(filter) || genericName.includes(filter);
-    },
     getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: {
-      pagination: { pageSize: 8 },
-    },
   });
 
-  const filteredCount = table.getFilteredRowModel().rows.length;
-  const pageCount = table.getPageCount();
-  const currentPage = table.getState().pagination.pageIndex + 1;
+  const totalPages = Math.ceil(totalCount / pageSize);
 
   return (
     <div className="flex flex-col gap-4">
@@ -292,22 +315,28 @@ export function InventoryTable({ inventory, pharmacies }: InventoryTableProps) {
       <div className="flex items-center justify-between gap-4">
         <Input
           placeholder="Search by product name…"
-          value={globalFilter}
-          onChange={e => setGlobalFilter(e.target.value)}
+          value={searchValue}
+          onChange={e => {
+            setSearchValue(e.target.value);
+            handleSearch(e.target.value);
+          }}
           className="max-w-xs"
         />
         <div className="flex items-center gap-2">
           {/* Pharmacy filter */}
-          <Select value={selectedPharmacy} onValueChange={handlePharmacyChange}>
+          <Select
+            value={selectedPharmacyId ?? "all"}
+            onValueChange={handlePharmacyChange}
+          >
             <SelectTrigger className="w-48">
               <SelectValue placeholder="All Pharmacies">
-                {selectedPharmacy === "All"
-                  ? "All Pharmacies"
-                  : pharmacies.find(p => p.id === selectedPharmacy)?.name}
+                {selectedPharmacyId
+                  ? pharmacies.find(p => p.id === selectedPharmacyId)?.name
+                  : "All Pharmacies"}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="All">All Pharmacies</SelectItem>
+              <SelectItem value="all">All Pharmacies</SelectItem>
               {pharmacies.map(p => (
                 <SelectItem key={p.id} value={p.id}>
                   {p.name}
@@ -349,12 +378,16 @@ export function InventoryTable({ inventory, pharmacies }: InventoryTableProps) {
 
       {/* Count */}
       <p className="text-sm text-muted-foreground">
-        {filteredCount}{" "}
-        {filteredCount === 1 ? "inventory entry" : "inventory entries"} found
+        {totalCount}{" "}
+        {totalCount === 1 ? "inventory entry" : "inventory entries"} found
       </p>
 
-      {/* Table */}
-      <div className="overflow-x-auto rounded-md border">
+      {/* Table — dims while loading */}
+      <div
+        className={`overflow-x-auto rounded-md border transition-opacity ${
+          isPending ? "opacity-50 pointer-events-none" : ""
+        }`}
+      >
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map(headerGroup => (
@@ -401,17 +434,17 @@ export function InventoryTable({ inventory, pharmacies }: InventoryTableProps) {
       </div>
 
       {/* Pagination */}
-      {pageCount > 1 && (
+      {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            Page {currentPage} of {pageCount}
+            Page {currentPage} of {totalPages}
           </p>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage <= 1 || isPending}
             >
               <ChevronLeftIcon />
               Previous
@@ -419,8 +452,8 @@ export function InventoryTable({ inventory, pharmacies }: InventoryTableProps) {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage >= totalPages || isPending}
             >
               Next
               <ChevronRightIcon />
