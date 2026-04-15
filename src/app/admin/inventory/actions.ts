@@ -35,23 +35,48 @@ type InventoryUpdateInput = {
   expiry_date?: string
 }
 
-export async function getInventory(pharmacyId?: string): Promise<Inventory[]> {
+export async function getInventory(
+  pharmacyId?: string,
+  page: number = 1,
+  pageSize: number = 20,
+  search?: string,
+): Promise<{ data: Inventory[]; count: number }> {
   const supabase = await createClient()
+  const from = (page - 1) * pageSize
+  const to = from + pageSize - 1
+
   let query = supabase
     .from("inventory")
     .select(
-      "*, products(name, generic_name, base_price, requires_prescription, product_categories(name)), pharmacies(name)"
+      "*, products(name, generic_name, base_price, requires_prescription, product_categories(name)), pharmacies(name)",
+      { count: "exact" },
     )
     .eq("is_active", true)
-    .order("products(name)", { ascending: true })
+    .range(from, to)
+    .order("created_at", { ascending: false })
 
   if (pharmacyId) {
     query = query.eq("pharmacy_id", pharmacyId)
   }
 
-  const { data, error } = await query
+  const { data, error, count } = await query
   if (error) throw new Error(error.message)
-  return data ?? []
+
+  // Note: Supabase does not support ilike on joined columns (products.name)
+  // directly in a PostgREST query. Search is applied as a post-fetch filter
+  // on the current page only. For full server-side search, a generated column
+  // or full-text search index on the inventory table would be needed.
+  let result = data ?? []
+  if (search && search.trim()) {
+    const term = search.trim().toLowerCase()
+    result = result.filter(
+      row =>
+        row.products?.name?.toLowerCase().includes(term) ||
+        row.products?.generic_name?.toLowerCase().includes(term),
+    )
+  }
+
+  return { data: result, count: count ?? 0 }
 }
 
 export async function getInventoryById(id: string): Promise<Inventory> {

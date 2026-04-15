@@ -1,20 +1,36 @@
+import { redirect } from "next/navigation"
 import { getInventory, getPharmaciesForSelect } from "./actions"
 import { InventoryTable } from "@/components/inventory/InventoryTable"
-import type { Inventory } from "@/types/inventory"
 
-export default async function InventoryPage() {
-  let inventory: Inventory[] = []
-  let pharmacies: { id: string; name: string }[] = []
-  let fetchError: string | null = null
+export default async function InventoryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    pharmacy?: string
+    page?: string
+    search?: string
+  }>
+}) {
+  const params = await searchParams
 
-  try {
-    ;[inventory, pharmacies] = await Promise.all([
-      getInventory(),
-      getPharmaciesForSelect(),
-    ])
-  } catch (e) {
-    fetchError = e instanceof Error ? e.message : "Failed to load inventory"
+  const pharmacyId = params.pharmacy ?? undefined
+  const page = Math.max(1, Number(params.page ?? 1))
+  const pageSize = 20
+  const search = params.search ?? undefined
+
+  const pharmacies = await getPharmaciesForSelect()
+
+  // Default to the first pharmacy on initial visit to prevent unbounded fetch
+  if (!pharmacyId && pharmacies.length > 0) {
+    redirect(`/admin/inventory?pharmacy=${pharmacies[0].id}`)
   }
+
+  const { data: inventory, count } = await getInventory(
+    pharmacyId,
+    page,
+    pageSize,
+    search,
+  )
 
   return (
     <div className="flex flex-col gap-6 px-4 lg:px-6">
@@ -25,13 +41,15 @@ export default async function InventoryPage() {
         </p>
       </div>
 
-      {fetchError ? (
-        <div className="rounded-md border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {fetchError}
-        </div>
-      ) : (
-        <InventoryTable inventory={inventory} pharmacies={pharmacies} />
-      )}
+      <InventoryTable
+        inventory={inventory}
+        pharmacies={pharmacies}
+        totalCount={count}
+        currentPage={page}
+        pageSize={pageSize}
+        selectedPharmacyId={pharmacyId ?? null}
+        currentSearch={search ?? ""}
+      />
     </div>
   )
 }

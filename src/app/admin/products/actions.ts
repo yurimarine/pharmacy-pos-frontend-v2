@@ -33,15 +33,29 @@ type ProductInput = {
   dispensing_unit_id?: string
 }
 
-export async function getProducts(): Promise<Product[]> {
+export async function getProducts(
+  page: number = 1,
+  pageSize: number = 20,
+  search?: string,
+): Promise<{ data: Product[]; count: number }> {
   const supabase = await createClient()
-  const { data, error } = await supabase
+  const from = (page - 1) * pageSize
+  const to = from + pageSize - 1
+
+  let query = supabase
     .from("products")
-    .select(PRODUCT_SELECT)
+    .select(PRODUCT_SELECT, { count: "exact" })
     .neq("status", "discontinued")
     .order("name", { ascending: true })
+    .range(from, to)
+
+  if (search && search.trim()) {
+    query = query.ilike("name", `%${search.trim()}%`)
+  }
+
+  const { data, error, count } = await query
   if (error) throw new Error(error.message)
-  return data ?? []
+  return { data: data ?? [], count: count ?? 0 }
 }
 
 export async function getProductById(id: string): Promise<Product> {
