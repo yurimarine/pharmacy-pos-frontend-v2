@@ -169,6 +169,12 @@ export function AddProductModal({ open, onOpenChange }: Props) {
     })
   }
 
+  const PRODUCT_TYPE_LABELS: Record<string, string> = {
+    branded: "Branded",
+    generic: "Generic",
+    na: "N/A",
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
@@ -325,7 +331,9 @@ export function AddProductModal({ open, onOpenChange }: Props) {
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select type" />
+                    <SelectValue placeholder="Select product type">
+                      {PRODUCT_TYPE_LABELS[field.value]}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="branded">Branded</SelectItem>

@@ -75,6 +75,12 @@ export function CreateBatchModal({
     })
   }
 
+  const BATCH_TYPE_LABELS: Record<string, string> = {
+    stock_in: "Stock In",
+    stock_out: "Stock Out",
+    price_change: "Price Change",
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -100,7 +106,9 @@ export function CreateBatchModal({
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select type" />
+                    <SelectValue placeholder="Select batch type">
+                      {BATCH_TYPE_LABELS[field.value]}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="stock_in">
