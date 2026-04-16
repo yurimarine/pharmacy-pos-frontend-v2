@@ -36,9 +36,26 @@ import {
   NotebookPen,
   FilePenLine,
   Receipt,
+  UsersIcon,
 } from "lucide-react";
 
-const navMain = [
+type Role = "admin" | "pharmacist" | "pharmacy_assistant";
+
+type NavItem = {
+  title: string;
+  url: string;
+  icon: React.ReactNode;
+  roles?: Role[];
+};
+
+type LogItem = {
+  name: string;
+  url: string;
+  icon: React.ReactNode;
+  roles?: Role[];
+};
+
+const navMain: NavItem[] = [
   {
     title: "Dashboard",
     url: "/admin/dashboard",
@@ -54,7 +71,6 @@ const navMain = [
     url: "/admin/products",
     icon: <Box />,
   },
-
   {
     title: "Batches",
     url: "/admin/batches",
@@ -67,45 +83,61 @@ const navMain = [
   },
 ];
 
-const navReferenceData = [
+const navReferenceData: NavItem[] = [
   {
     title: "Suppliers",
     url: "/admin/suppliers",
     icon: <TruckIcon />,
+    roles: ["admin"],
   },
   {
     title: "Manufacturers",
     url: "/admin/manufacturers",
     icon: <FactoryIcon />,
+    roles: ["admin"],
   },
   {
     title: "Pharmacies",
     url: "/admin/pharmacies",
     icon: <StoreIcon />,
+    roles: ["admin"],
+  },
+  {
+    title: "Users",
+    url: "/admin/users",
+    icon: <UsersIcon />,
+    roles: ["admin"],
   },
 ];
 
-const navSecondary = [
+const navSecondary: NavItem[] = [
   { title: "Settings", url: "#", icon: <Settings2Icon /> },
   { title: "Get Help", url: "#", icon: <CircleHelpIcon /> },
   { title: "Search", url: "#", icon: <SearchIcon /> },
 ];
 
-const logs = [
+const logs: LogItem[] = [
   {
     name: "Inventory Logs",
     url: "/admin/inventory-logs",
     icon: <FilePenLine />,
+    roles: ["admin"],
   },
   { name: "Transaction Logs", url: "#", icon: <Receipt /> },
   { name: "Time Logs", url: "#", icon: <ClipboardClock /> },
 ];
+
+function filterByRole<T extends { roles?: Role[] }>(items: T[], role: Role): T[] {
+  return items.filter(item => !item.roles || item.roles.includes(role));
+}
 
 type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
   user?: {
     name: string;
     email: string;
     avatar: string;
+    role?: Role;
+    pharmacy_id?: string | null;
   };
 };
 
@@ -116,6 +148,13 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
     email: "",
     avatar: "",
   };
+
+  const currentRole: Role = resolvedUser.role ?? "pharmacy_assistant";
+
+  const visibleNavMain = filterByRole(navMain, currentRole);
+  const visibleNavReferenceData = filterByRole(navReferenceData, currentRole);
+  const visibleLogs = filterByRole(logs, currentRole);
+  const visibleNavSecondary = filterByRole(navSecondary, currentRole);
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
@@ -133,27 +172,29 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={navMain} />
-        <SidebarGroup>
-          <SidebarGroupLabel>References</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {navReferenceData.map(item => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    isActive={pathname === item.url}
-                    render={<Link href={item.url} />}
-                  >
-                    {item.icon}
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-        <NavLogs items={logs} />
-        <NavSecondary items={navSecondary} className="mt-auto" />
+        <NavMain items={visibleNavMain} />
+        {visibleNavReferenceData.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>References</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {visibleNavReferenceData.map(item => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      isActive={pathname === item.url}
+                      render={<Link href={item.url} />}
+                    >
+                      {item.icon}
+                      <span>{item.title}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+        {visibleLogs.length > 0 && <NavLogs items={visibleLogs} />}
+        <NavSecondary items={visibleNavSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={resolvedUser} />

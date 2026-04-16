@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import type { Manufacturer, ManufacturerInput } from "@/types/manufacturer"
+import { getCurrentUser, isAdmin } from "@/lib/get-current-user"
 
 export async function getManufacturers(): Promise<Manufacturer[]> {
   const supabase = await createClient()
@@ -28,6 +29,8 @@ export async function getManufacturerById(id: string): Promise<Manufacturer> {
 export async function createManufacturer(
   data: ManufacturerInput
 ): Promise<Manufacturer> {
+  const currentUser = await getCurrentUser()
+  if (!isAdmin(currentUser)) throw new Error("Unauthorized: Admin access required")
   const supabase = await createClient()
   const { data: manufacturer, error } = await supabase
     .from("manufacturers")
@@ -43,6 +46,8 @@ export async function updateManufacturer(
   id: string,
   data: ManufacturerInput
 ): Promise<Manufacturer> {
+  const currentUser = await getCurrentUser()
+  if (!isAdmin(currentUser)) throw new Error("Unauthorized: Admin access required")
   const supabase = await createClient()
   const { data: manufacturer, error } = await supabase
     .from("manufacturers")
@@ -56,6 +61,8 @@ export async function updateManufacturer(
 }
 
 export async function deleteManufacturer(id: string): Promise<void> {
+  const currentUser = await getCurrentUser()
+  if (!isAdmin(currentUser)) throw new Error("Unauthorized: Admin access required")
   const supabase = await createClient()
   const { error } = await supabase
     .from("manufacturers")

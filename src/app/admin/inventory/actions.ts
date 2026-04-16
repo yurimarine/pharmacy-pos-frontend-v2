@@ -3,18 +3,14 @@
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import type { Inventory } from "@/types/inventory"
+import { getCurrentUser, isAdmin } from "@/lib/get-current-user"
 
-async function getCurrentUser() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error("Not authenticated")
-  const { data } = await supabase
-    .from("users")
-    .select("id, name, role, pharmacy_id")
-    .eq("auth_id", user.id)
-    .single()
-  if (!data) throw new Error("User record not found")
-  return data
+async function requireAdmin() {
+  const currentUser = await getCurrentUser()
+  if (!isAdmin(currentUser)) {
+    throw new Error("Unauthorized: Admin access required")
+  }
+  return currentUser
 }
 
 type InventoryInput = {
@@ -95,6 +91,22 @@ export async function getInventoryById(id: string): Promise<Inventory> {
 export async function createInventoryEntry(
   data: InventoryInput
 ): Promise<Inventory> {
+  const currentUser = await getCurrentUser()
+
+  if (currentUser.role !== "admin" && currentUser.role !== "pharmacist") {
+    throw new Error("Unauthorized")
+  }
+
+  if (
+    currentUser.role === "pharmacist" &&
+    currentUser.pharmacy_id &&
+    data.pharmacy_id !== currentUser.pharmacy_id
+  ) {
+    throw new Error(
+      "Unauthorized: You can only add stock to your assigned pharmacy.",
+    )
+  }
+
   const supabase = await createClient()
 
   const { data: existing } = await supabase
@@ -127,8 +139,27 @@ export async function updateInventoryEntry(
   data: InventoryUpdateInput,
   reason: string
 ): Promise<Inventory> {
-  const supabase = await createClient()
   const currentUser = await getCurrentUser()
+
+  if (currentUser.role !== "admin" && currentUser.role !== "pharmacist") {
+    throw new Error("Unauthorized")
+  }
+
+  const supabase = await createClient()
+
+  if (currentUser.role === "pharmacist" && currentUser.pharmacy_id) {
+    const { data: existingEntry } = await supabase
+      .from("inventory")
+      .select("pharmacy_id")
+      .eq("id", id)
+      .single()
+
+    if (existingEntry && existingEntry.pharmacy_id !== currentUser.pharmacy_id) {
+      throw new Error(
+        "Unauthorized: You can only edit inventory for your assigned pharmacy.",
+      )
+    }
+  }
 
   const { data: currentRow, error: fetchError } = await supabase
     .from("inventory")
@@ -165,6 +196,7 @@ export async function updateInventoryEntry(
 }
 
 export async function deactivateInventoryEntry(id: string): Promise<void> {
+  await requireAdmin()
   const supabase = await createClient()
   const { error } = await supabase
     .from("inventory")

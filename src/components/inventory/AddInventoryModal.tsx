@@ -44,6 +44,8 @@ type AddInventoryModalProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   pharmacies: { id: string; name: string }[];
+  userRole: "admin" | "pharmacist" | "pharmacy_assistant";
+  userPharmacyId: string | null;
 };
 
 type ProductOption = {
@@ -57,7 +59,10 @@ export function AddInventoryModal({
   open,
   onOpenChange,
   pharmacies,
+  userRole,
+  userPharmacyId,
 }: AddInventoryModalProps) {
+  const isAdmin = userRole === "admin";
   const [isPending, startTransition] = useTransition();
   const [products, setProducts] = useState<ProductOption[]>([]);
 
@@ -79,7 +84,11 @@ export function AddInventoryModal({
     getActiveProductsForInventorySelect()
       .then(setProducts)
       .catch(() => {});
-  }, [open]);
+    // Pre-fill pharmacy for pharmacist
+    if (!isAdmin && userPharmacyId) {
+      form.setValue("pharmacy_id", userPharmacyId);
+    }
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const watchProductId = form.watch("product_id");
   const watchMarkup = form.watch("markup_percentage");
@@ -95,10 +104,12 @@ export function AddInventoryModal({
   const onSubmit = (data: InventoryFormValues) => {
     startTransition(async () => {
       try {
-        await createInventoryEntry({
+        const payload = {
           ...data,
+          pharmacy_id: isAdmin ? data.pharmacy_id : (userPharmacyId ?? data.pharmacy_id),
           expiry_date: data.expiry_date || undefined,
-        });
+        };
+        await createInventoryEntry(payload);
         toast.success("Inventory entry added.");
         onOpenChange(false);
         form.reset();
@@ -174,32 +185,43 @@ export function AddInventoryModal({
               <Label>
                 Pharmacy <span className="text-destructive">*</span>
               </Label>
-              <Controller
-                control={form.control}
-                name="pharmacy_id"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select pharmacy">
-                        {pharmacies.find(p => p.id === field.value)?.name}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {pharmacies.length === 0 ? (
-                        <p className="py-4 text-center text-sm text-muted-foreground">
-                          No pharmacies found.
-                        </p>
-                      ) : (
-                        pharmacies.map(p => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.name}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
+              {isAdmin ? (
+                <Controller
+                  control={form.control}
+                  name="pharmacy_id"
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select pharmacy">
+                          {pharmacies.find(p => p.id === field.value)?.name}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {pharmacies.length === 0 ? (
+                          <p className="py-4 text-center text-sm text-muted-foreground">
+                            No pharmacies found.
+                          </p>
+                        ) : (
+                          pharmacies.map(p => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.name}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              ) : (
+                <div className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm bg-muted">
+                  <span className="font-medium">
+                    {pharmacies.find(p => p.id === userPharmacyId)?.name ?? "My Pharmacy"}
+                  </span>
+                  <span className="text-xs text-muted-foreground ml-auto">
+                    Locked to your pharmacy
+                  </span>
+                </div>
+              )}
               {form.formState.errors.pharmacy_id && (
                 <p className="text-sm text-destructive">
                   {form.formState.errors.pharmacy_id.message}

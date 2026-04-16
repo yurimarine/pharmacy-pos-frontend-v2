@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import type { Product, ProductType } from "@/types/product"
+import { getCurrentUser, isAdmin } from "@/lib/get-current-user"
 
 const PRODUCT_SELECT = `
   *,
@@ -70,6 +71,8 @@ export async function getProductById(id: string): Promise<Product> {
 }
 
 export async function createProduct(data: ProductInput): Promise<Product> {
+  const currentUser = await getCurrentUser()
+  if (!isAdmin(currentUser)) throw new Error("Unauthorized: Admin access required")
   const supabase = await createClient()
   const { data: product, error } = await supabase
     .from("products")
@@ -100,6 +103,8 @@ export async function updateProduct(
   id: string,
   data: ProductInput
 ): Promise<Product> {
+  const currentUser = await getCurrentUser()
+  if (!isAdmin(currentUser)) throw new Error("Unauthorized: Admin access required")
   const supabase = await createClient()
   const { data: product, error } = await supabase
     .from("products")
@@ -129,6 +134,8 @@ export async function updateProduct(
 }
 
 export async function discontinueProduct(id: string): Promise<void> {
+  const currentUser = await getCurrentUser()
+  if (!isAdmin(currentUser)) throw new Error("Unauthorized: Admin access required")
   const supabase = await createClient()
   const { error } = await supabase
     .from("products")
@@ -228,6 +235,8 @@ export async function getDispensingUnitsForProductForm(): Promise<
 }
 
 export async function generateSkuAction(prefix: string): Promise<string> {
+  const currentUser = await getCurrentUser()
+  if (!isAdmin(currentUser)) throw new Error("Unauthorized: Admin access required")
   const supabase = await createClient()
   const { count } = await supabase
     .from("products")

@@ -31,6 +31,14 @@ import {
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 
+type Role = "admin" | "pharmacist" | "pharmacy_assistant"
+
+const ROLE_LABELS: Record<Role, string> = {
+  admin: "Admin",
+  pharmacist: "Pharmacist",
+  pharmacy_assistant: "Pharmacy Assistant",
+}
+
 export function NavUser({
   user,
 }: {
@@ -38,10 +46,13 @@ export function NavUser({
     name: string
     email: string
     avatar: string
+    role?: Role
+    pharmacy_id?: string | null
   }
 }) {
   const { isMobile } = useSidebar()
   const router = useRouter()
+  const roleLabel = user.role ? ROLE_LABELS[user.role] : undefined
 
   const handleLogout = async () => {
     const supabase = createClient()
@@ -76,7 +87,7 @@ export function NavUser({
             <div className="grid flex-1 text-left text-sm leading-tight">
               <span className="truncate font-medium">{user.name}</span>
               <span className="truncate text-xs text-foreground/70">
-                {user.email}
+                {roleLabel ?? user.email}
               </span>
             </div>
             <EllipsisVerticalIcon className="ml-auto size-4" />
@@ -96,6 +107,11 @@ export function NavUser({
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-medium">{user.name}</span>
+                    {roleLabel && (
+                      <span className="truncate text-xs text-muted-foreground">
+                        {roleLabel}
+                      </span>
+                    )}
                     <span className="truncate text-xs text-muted-foreground">
                       {user.email}
                     </span>

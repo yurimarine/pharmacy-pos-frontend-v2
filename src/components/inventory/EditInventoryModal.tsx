@@ -37,13 +37,18 @@ type EditInventoryModalProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   entry: Inventory | null;
+  userRole: "admin" | "pharmacist" | "pharmacy_assistant";
+  userPharmacyId: string | null;
 };
 
 export function EditInventoryModal({
   open,
   onOpenChange,
   entry,
+  userRole,
+  userPharmacyId,
 }: EditInventoryModalProps) {
+  const isAdmin = userRole === "admin";
   const [isPending, startTransition] = useTransition();
 
   const form = useForm<EditInventoryFormValues>({
@@ -83,6 +88,11 @@ export function EditInventoryModal({
 
   const onSubmit = (data: EditInventoryFormValues) => {
     if (!entry) return;
+
+    if (!isAdmin && userPharmacyId && entry.pharmacy_id !== userPharmacyId) {
+      toast.error("You can only edit inventory for your pharmacy.");
+      return;
+    }
 
     startTransition(async () => {
       try {

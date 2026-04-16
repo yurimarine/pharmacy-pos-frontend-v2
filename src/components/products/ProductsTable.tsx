@@ -71,6 +71,7 @@ type ProductsTableProps = {
   currentPage: number;
   pageSize: number;
   currentSearch: string;
+  userRole: "admin" | "pharmacist" | "pharmacy_assistant";
 };
 
 export function ProductsTable({
@@ -79,7 +80,9 @@ export function ProductsTable({
   currentPage,
   pageSize,
   currentSearch,
+  userRole,
 }: ProductsTableProps) {
+  const canEdit = userRole === "admin";
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -248,48 +251,52 @@ export function ProductsTable({
           <StatusBadge status={row.getValue("status") as ProductStatus} />
         ),
       },
-      {
-        id: "actions",
-        header: "",
-        enableHiding: false,
-        cell: ({ row }) => (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Open actions"
-                />
-              }
-            >
-              <EllipsisVerticalIcon className="size-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={() => {
-                  setSelected(row.original);
-                  setEditOpen(true);
-                }}
-              >
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                variant="destructive"
-                onClick={() => {
-                  setSelected(row.original);
-                  setDiscontinueOpen(true);
-                }}
-              >
-                Discontinue
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ),
-      },
+      ...(canEdit
+        ? [
+            {
+              id: "actions",
+              header: "",
+              enableHiding: false,
+              cell: ({ row }: { row: { original: Product } }) => (
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Open actions"
+                      />
+                    }
+                  >
+                    <EllipsisVerticalIcon className="size-4" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setSelected(row.original);
+                        setEditOpen(true);
+                      }}
+                    >
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onClick={() => {
+                        setSelected(row.original);
+                        setDiscontinueOpen(true);
+                      }}
+                    >
+                      Discontinue
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ),
+            } satisfies ColumnDef<Product>,
+          ]
+        : []),
     ],
-    [],
+    [canEdit],
   );
 
   const table = useReactTable({
@@ -351,10 +358,12 @@ export function ProductsTable({
                 ))}
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button size="sm" onClick={() => setAddOpen(true)}>
-            <PlusIcon />
-            Add Product
-          </Button>
+          {canEdit && (
+            <Button size="sm" onClick={() => setAddOpen(true)}>
+              <PlusIcon />
+              Add Product
+            </Button>
+          )}
         </div>
       </div>
 

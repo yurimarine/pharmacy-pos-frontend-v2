@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import type { Pharmacy, PharmacyInput } from "@/types/pharmacy"
+import { getCurrentUser, isAdmin } from "@/lib/get-current-user"
 
 export async function getPharmacies(): Promise<Pharmacy[]> {
   const supabase = await createClient()
@@ -26,6 +27,8 @@ export async function getPharmacyById(id: string): Promise<Pharmacy> {
 }
 
 export async function createPharmacy(data: PharmacyInput): Promise<Pharmacy> {
+  const currentUser = await getCurrentUser()
+  if (!isAdmin(currentUser)) throw new Error("Unauthorized: Admin access required")
   const supabase = await createClient()
   const { data: pharmacy, error } = await supabase
     .from("pharmacies")
@@ -41,6 +44,8 @@ export async function updatePharmacy(
   id: string,
   data: PharmacyInput
 ): Promise<Pharmacy> {
+  const currentUser = await getCurrentUser()
+  if (!isAdmin(currentUser)) throw new Error("Unauthorized: Admin access required")
   const supabase = await createClient()
   const { data: pharmacy, error } = await supabase
     .from("pharmacies")
@@ -54,6 +59,8 @@ export async function updatePharmacy(
 }
 
 export async function deletePharmacy(id: string): Promise<void> {
+  const currentUser = await getCurrentUser()
+  if (!isAdmin(currentUser)) throw new Error("Unauthorized: Admin access required")
   const supabase = await createClient()
   const { error } = await supabase
     .from("pharmacies")

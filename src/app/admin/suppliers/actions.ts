@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import type { Supplier, SupplierInput } from "@/types/supplier"
+import { getCurrentUser, isAdmin } from "@/lib/get-current-user"
 
 export async function getSuppliers(): Promise<Supplier[]> {
   const supabase = await createClient()
@@ -26,6 +27,8 @@ export async function getSupplierById(id: string): Promise<Supplier> {
 }
 
 export async function createSupplier(data: SupplierInput): Promise<Supplier> {
+  const currentUser = await getCurrentUser()
+  if (!isAdmin(currentUser)) throw new Error("Unauthorized: Admin access required")
   const supabase = await createClient()
   const { data: supplier, error } = await supabase
     .from("suppliers")
@@ -41,6 +44,8 @@ export async function updateSupplier(
   id: string,
   data: Partial<SupplierInput>
 ): Promise<Supplier> {
+  const currentUser = await getCurrentUser()
+  if (!isAdmin(currentUser)) throw new Error("Unauthorized: Admin access required")
   const supabase = await createClient()
   const { data: supplier, error } = await supabase
     .from("suppliers")
@@ -54,6 +59,8 @@ export async function updateSupplier(
 }
 
 export async function deleteSupplier(id: string): Promise<void> {
+  const currentUser = await getCurrentUser()
+  if (!isAdmin(currentUser)) throw new Error("Unauthorized: Admin access required")
   const supabase = await createClient()
   const { error } = await supabase
     .from("suppliers")

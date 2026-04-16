@@ -2,34 +2,26 @@ import { redirect } from "next/navigation"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
-import { createClient } from "@/lib/supabase/server"
+import { getCurrentUser } from "@/lib/get-current-user"
 
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
+  let currentUser
+  try {
+    currentUser = await getCurrentUser()
+  } catch {
     redirect("/auth/login")
   }
 
-  const { data: profile } = user
-    ? await supabase
-        .from("users")
-        .select("name, email, role")
-        .eq("auth_id", user.id)
-        .single()
-    : { data: null }
-
   const sidebarUser = {
-    name: profile?.name ?? user?.email ?? "User",
-    email: profile?.email ?? user?.email ?? "",
+    name: currentUser.name,
+    email: currentUser.email,
     avatar: "",
+    role: currentUser.role,
+    pharmacy_id: currentUser.pharmacy_id,
   }
 
   return (

@@ -119,6 +119,8 @@ type InventoryTableProps = {
   pageSize: number;
   selectedPharmacyId: string | null;
   currentSearch: string;
+  userRole: "admin" | "pharmacist" | "pharmacy_assistant";
+  userPharmacyId: string | null;
 };
 
 export function InventoryTable({
@@ -129,7 +131,12 @@ export function InventoryTable({
   pageSize,
   selectedPharmacyId,
   currentSearch,
+  userRole,
+  userPharmacyId,
 }: InventoryTableProps) {
+  const isAdmin = userRole === "admin";
+  const canEdit = userRole === "admin" || userRole === "pharmacist";
+  const canDeactivate = userRole === "admin";
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -254,48 +261,56 @@ export function InventoryTable({
           </span>
         ),
       },
-      {
-        id: "actions",
-        header: "",
-        enableHiding: false,
-        cell: ({ row }) => (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Open actions"
-                />
-              }
-            >
-              <EllipsisVerticalIcon className="size-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={() => {
-                  setSelectedEntry(row.original);
-                  setEditOpen(true);
-                }}
-              >
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                variant="destructive"
-                onClick={() => {
-                  setSelectedEntry(row.original);
-                  setDeactivateOpen(true);
-                }}
-              >
-                Deactivate
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ),
-      },
+      ...(canEdit
+        ? [
+            {
+              id: "actions",
+              header: "",
+              enableHiding: false,
+              cell: ({ row }: { row: { original: Inventory } }) => (
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Open actions"
+                      />
+                    }
+                  >
+                    <EllipsisVerticalIcon className="size-4" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setSelectedEntry(row.original);
+                        setEditOpen(true);
+                      }}
+                    >
+                      Edit
+                    </DropdownMenuItem>
+                    {canDeactivate && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={() => {
+                            setSelectedEntry(row.original);
+                            setDeactivateOpen(true);
+                          }}
+                        >
+                          Deactivate
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ),
+            } satisfies ColumnDef<Inventory>,
+          ]
+        : []),
     ],
-    [],
+    [canEdit],
   );
 
   const table = useReactTable({
@@ -322,27 +337,36 @@ export function InventoryTable({
           className="max-w-xs"
         />
         <div className="flex items-center gap-2">
-          {/* Pharmacy filter */}
-          <Select
-            value={selectedPharmacyId ?? "all"}
-            onValueChange={handlePharmacyChange}
-          >
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="All Pharmacies">
-                {selectedPharmacyId
-                  ? pharmacies.find(p => p.id === selectedPharmacyId)?.name
-                  : "All Pharmacies"}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Pharmacies</SelectItem>
-              {pharmacies.map(p => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {/* Pharmacy filter — interactive for admin, locked label for pharmacist */}
+          {isAdmin ? (
+            <Select
+              value={selectedPharmacyId ?? "all"}
+              onValueChange={handlePharmacyChange}
+            >
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="All Pharmacies">
+                  {selectedPharmacyId
+                    ? pharmacies.find(p => p.id === selectedPharmacyId)?.name
+                    : "All Pharmacies"}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Pharmacies</SelectItem>
+                {pharmacies.map(p => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <div className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm bg-muted">
+              <span className="text-muted-foreground">Pharmacy:</span>
+              <span className="font-medium">
+                {pharmacies.find(p => p.id === userPharmacyId)?.name ?? "My Pharmacy"}
+              </span>
+            </div>
+          )}
 
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -465,11 +489,15 @@ export function InventoryTable({
         open={addOpen}
         onOpenChange={setAddOpen}
         pharmacies={pharmacies}
+        userRole={userRole}
+        userPharmacyId={userPharmacyId}
       />
       <EditInventoryModal
         open={editOpen}
         onOpenChange={setEditOpen}
         entry={selectedEntry}
+        userRole={userRole}
+        userPharmacyId={userPharmacyId}
       />
       <DeactivateInventoryDialog
         open={deactivateOpen}
