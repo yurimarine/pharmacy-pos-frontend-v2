@@ -15,7 +15,7 @@ export default function DeactivatedPage() {
           to regain access.
         </p>
       </div>
-      <Button render={<Link href="/auth/login" />}>Back to Login</Button>
+      <Button render={<Link href="/auth/login" />} nativeButton={false}>Back to Login</Button>
     </div>
   )
 }

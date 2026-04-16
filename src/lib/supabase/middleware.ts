@@ -25,9 +25,6 @@ const ADMIN_PHARMACIST_ROUTES = [
 const PUBLIC_ROUTES = ["/auth/login", "/auth/deactivated", "/unauthorized"];
 
 export async function updateSession(request: NextRequest) {
-  // Log 1 — confirm middleware is running
-  console.log("\n=== MIDDLEWARE ===", request.nextUrl.pathname);
-
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -53,9 +50,8 @@ export async function updateSession(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
 
-  // Log 2 — confirm public route check
+  // Always allow public routes through
   if (PUBLIC_ROUTES.some((r) => path.startsWith(r))) {
-    console.log("→ PUBLIC ROUTE, allowing through");
     return supabaseResponse;
   }
 
@@ -64,12 +60,8 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Log 3 — confirm user
-  console.log("→ user:", user?.email ?? "NOT AUTHENTICATED");
-
   // Not authenticated → redirect to login
   if (!user) {
-    console.log("→ redirecting to /auth/login (no user)");
     const url = request.nextUrl.clone();
     url.pathname = "/auth/login";
     return NextResponse.redirect(url);
@@ -82,13 +74,8 @@ export async function updateSession(request: NextRequest) {
     .eq("auth_id", user.id)
     .single();
 
-  // Log 4 — confirm DB query result
-  console.log("→ userData:", JSON.stringify(userData));
-  console.log("→ DB error:", error?.message ?? "none");
-
   // User not found in public users table → redirect to login
   if (error || !userData) {
-    console.log("→ redirecting to /auth/login (no userData)");
     const url = request.nextUrl.clone();
     url.pathname = "/auth/login";
     return NextResponse.redirect(url);
@@ -96,7 +83,6 @@ export async function updateSession(request: NextRequest) {
 
   // Deactivated account → redirect to deactivated page
   if (userData.is_active === false) {
-    console.log("→ redirecting to /auth/deactivated");
     const url = request.nextUrl.clone();
     url.pathname = "/auth/deactivated";
     return NextResponse.redirect(url);
@@ -104,21 +90,8 @@ export async function updateSession(request: NextRequest) {
 
   const role = userData.role;
 
-  // Log 5 — confirm role checks
-  console.log("→ role:", role);
-  console.log("→ path:", path);
-  console.log(
-    "→ isAdminOnly:",
-    ADMIN_ONLY_ROUTES.some((r) => path.startsWith(r)),
-  );
-  console.log(
-    "→ isAdminPharmacist:",
-    ADMIN_PHARMACIST_ROUTES.some((r) => path.startsWith(r)),
-  );
-
   // Pharmacy Assistant → cannot access /admin at all
   if (role === "pharmacy_assistant" && path.startsWith("/admin")) {
-    console.log("→ redirecting PA to /unauthorized");
     const url = request.nextUrl.clone();
     url.pathname = "/unauthorized";
     return NextResponse.redirect(url);
@@ -127,7 +100,6 @@ export async function updateSession(request: NextRequest) {
   // Admin only routes
   const isAdminOnlyRoute = ADMIN_ONLY_ROUTES.some((r) => path.startsWith(r));
   if (isAdminOnlyRoute && role !== "admin") {
-    console.log("→ redirecting to /unauthorized (admin only route)");
     const url = request.nextUrl.clone();
     url.pathname = "/unauthorized";
     return NextResponse.redirect(url);
@@ -138,12 +110,10 @@ export async function updateSession(request: NextRequest) {
     path.startsWith(r),
   );
   if (isAdminPharmacistRoute && role !== "admin" && role !== "pharmacist") {
-    console.log("→ redirecting to /unauthorized (admin+pharmacist route)");
     const url = request.nextUrl.clone();
     url.pathname = "/unauthorized";
     return NextResponse.redirect(url);
   }
 
-  console.log("→ ALLOWING THROUGH");
   return supabaseResponse;
 }

@@ -13,7 +13,7 @@ export default function UnauthorizedPage() {
           this is a mistake, contact your administrator.
         </p>
       </div>
-      <Button render={<Link href="/admin/dashboard" />}>
+      <Button render={<Link href="/admin/dashboard" />} nativeButton={false}>
         Back to Dashboard
       </Button>
     </div>
