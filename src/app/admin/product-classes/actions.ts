@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import type { ProductClass } from "@/types/reference-data"
+import { getCurrentUser, isAdmin } from "@/lib/get-current-user"
 
 export async function getProductClasses(): Promise<ProductClass[]> {
   const supabase = await createClient()
@@ -29,6 +30,8 @@ export async function createProductClass(data: {
   name: string
   description?: string
 }): Promise<ProductClass> {
+  const currentUser = await getCurrentUser()
+  if (!isAdmin(currentUser)) throw new Error("Unauthorized: Admin access required")
   const supabase = await createClient()
   const { data: row, error } = await supabase
     .from("product_classes")
@@ -47,6 +50,8 @@ export async function updateProductClass(
   id: string,
   data: { name: string; description?: string }
 ): Promise<ProductClass> {
+  const currentUser = await getCurrentUser()
+  if (!isAdmin(currentUser)) throw new Error("Unauthorized: Admin access required")
   const supabase = await createClient()
   const { data: row, error } = await supabase
     .from("product_classes")
@@ -64,6 +69,8 @@ export async function updateProductClass(
 }
 
 export async function deleteProductClass(id: string): Promise<void> {
+  const currentUser = await getCurrentUser()
+  if (!isAdmin(currentUser)) throw new Error("Unauthorized: Admin access required")
   const supabase = await createClient()
   const { error } = await supabase
     .from("product_classes")

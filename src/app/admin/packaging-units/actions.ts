@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import type { PackagingUnit } from "@/types/reference-data"
+import { getCurrentUser, isAdmin } from "@/lib/get-current-user"
 
 export async function getPackagingUnits(): Promise<PackagingUnit[]> {
   const supabase = await createClient()
@@ -18,6 +19,8 @@ export async function createPackagingUnit(data: {
   name: string
   abbreviation: string
 }): Promise<PackagingUnit> {
+  const currentUser = await getCurrentUser()
+  if (!isAdmin(currentUser)) throw new Error("Unauthorized: Admin access required")
   const supabase = await createClient()
   const { data: row, error } = await supabase
     .from("packaging_units")
@@ -33,6 +36,8 @@ export async function updatePackagingUnit(
   id: string,
   data: { name: string; abbreviation: string }
 ): Promise<PackagingUnit> {
+  const currentUser = await getCurrentUser()
+  if (!isAdmin(currentUser)) throw new Error("Unauthorized: Admin access required")
   const supabase = await createClient()
   const { data: row, error } = await supabase
     .from("packaging_units")
@@ -46,6 +51,8 @@ export async function updatePackagingUnit(
 }
 
 export async function deletePackagingUnit(id: string): Promise<void> {
+  const currentUser = await getCurrentUser()
+  if (!isAdmin(currentUser)) throw new Error("Unauthorized: Admin access required")
   const supabase = await createClient()
   const { error } = await supabase
     .from("packaging_units")

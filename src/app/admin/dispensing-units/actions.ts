@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import type { DispensingUnit } from "@/types/reference-data"
+import { getCurrentUser, isAdmin } from "@/lib/get-current-user"
 
 export async function getDispensingUnits(): Promise<DispensingUnit[]> {
   const supabase = await createClient()
@@ -18,6 +19,8 @@ export async function createDispensingUnit(data: {
   name: string
   abbreviation: string
 }): Promise<DispensingUnit> {
+  const currentUser = await getCurrentUser()
+  if (!isAdmin(currentUser)) throw new Error("Unauthorized: Admin access required")
   const supabase = await createClient()
   const { data: row, error } = await supabase
     .from("dispensing_units")
@@ -33,6 +36,8 @@ export async function updateDispensingUnit(
   id: string,
   data: { name: string; abbreviation: string }
 ): Promise<DispensingUnit> {
+  const currentUser = await getCurrentUser()
+  if (!isAdmin(currentUser)) throw new Error("Unauthorized: Admin access required")
   const supabase = await createClient()
   const { data: row, error } = await supabase
     .from("dispensing_units")
@@ -46,6 +51,8 @@ export async function updateDispensingUnit(
 }
 
 export async function deleteDispensingUnit(id: string): Promise<void> {
+  const currentUser = await getCurrentUser()
+  if (!isAdmin(currentUser)) throw new Error("Unauthorized: Admin access required")
   const supabase = await createClient()
   const { error } = await supabase
     .from("dispensing_units")

@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import type { InventoryLog } from "@/types/inventory-log"
+import { getCurrentUser } from "@/lib/get-current-user"
 
 export async function getInventoryLogs(pharmacyId?: string): Promise<InventoryLog[]> {
   const supabase = await createClient()

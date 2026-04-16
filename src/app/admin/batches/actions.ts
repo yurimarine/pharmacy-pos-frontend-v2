@@ -9,30 +9,14 @@ import type {
   BatchType,
   StockOutReason,
 } from "@/types/batch";
-
-async function getCurrentUser() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
-
-  const { data } = await supabase
-    .from("users")
-    .select("id, name, role, pharmacy_id")
-    .eq("auth_id", user.id)
-    .single();
-
-  if (!data) throw new Error("User record not found");
-  return data;
-}
+import { getCurrentUser, isAdmin } from "@/lib/get-current-user";
 
 export async function getCurrentUserRole(): Promise<{
   role: string;
   isAdmin: boolean;
 }> {
   const user = await getCurrentUser();
-  return { role: user.role, isAdmin: user.role === "admin" };
+  return { role: user.role, isAdmin: isAdmin(user) };
 }
 
 // ─────────────────────────────────────────────
@@ -120,7 +104,7 @@ export async function cancelBatch(id: string): Promise<void> {
   const supabase = await createClient();
 
   const currentUser = await getCurrentUser();
-  if (currentUser.role !== "admin") {
+  if (!isAdmin(currentUser)) {
     throw new Error("Only admins can cancel batches.");
   }
 

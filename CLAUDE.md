@@ -20,7 +20,7 @@ No test suite is configured yet.
 - **Tailwind CSS v4** — PostCSS-based, no `tailwind.config.js`. Config lives in `globals.css`.
 - **shadcn/ui** — components live in `src/components/ui/`. Add new ones via `npx shadcn add <component>`.
 - **Supabase** (`@supabase/ssr`) — auth and database. Env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
-- **@tanstack/react-table**, **recharts**, **@dnd-kit**, **zod**, **sonner**, **vaul** — already installed.
+- **@tanstack/react-table**, **recharts**, **@dnd-kit**, **zod**, **sonner**, **vaul**, **use-debounce** — already installed.
 - Path alias: `@/` → `src/`
 
 ## Architecture
@@ -52,8 +52,12 @@ The app is a multi-pharmacy POS system. Key entities and relationships:
 
 - **Pharmacy** — a physical location. Users belong to one pharmacy (except admins).
 - **Product** — catalog item with `base_price`. Can be `branded` or `generic`.
-- **Inventory** — a (product × pharmacy) record with `quantity`, `selling_price` (= `base_price + markup_percentage%`), and `low_stock_threshold`.
-- **Batch** — a grouped stock operation: `stock_in`, `stock_out`, or `price_change`. Batches are `draft` → `completed` | `cancelled`. Finalizing a batch updates inventory quantities and, if unit costs differ from base_price on stock_in, propagates price changes to all pharmacies.
+- **Inventory** — a (product × pharmacy) record with `quantity`, `selling_price` (= `base_price + markup_percentage%`), `low_stock_threshold`, `expiry_date`, and `last_restocked_at`.
+- **Batch** — a grouped stock operation. Types: `stock_in`, `stock_out`, `markup_change`, `base_price_change`. Batches are `draft` → `completed` | `cancelled`.
+  - `stock_in`: adds inventory at a pharmacy. If `unit_cost` differs from `base_price`, propagates a base price update globally on finalize.
+  - `stock_out`: deducts inventory at a pharmacy. `batch_items.reason` is required.
+  - `markup_change`: updates `inventory.markup_percentage` + recalculates `selling_price` at a specific pharmacy. `batch_items.unit_cost` stores the new markup %.
+  - `base_price_change`: updates `products.base_price` globally, recalculates `selling_price` across all pharmacies. `pharmacy_id` is null on the batch.
 - **InventoryLog** — written on every `updateInventoryEntry` call; tracks who changed what and why.
 - **Supplier / Manufacturer** — reference data linked to products and batch items.
 
@@ -64,6 +68,11 @@ Pages are async RSCs. They call Server Actions in `actions.ts` co-located in the
 ```
 page.tsx (RSC) → actions.ts ("use server") → Supabase → Client Component
 ```
+
+**URL search params pattern** — Inventory and Products pages use URL-based filtering, search, and pagination instead of client-side state. `searchParams` is awaited in the RSC, passed to the action, and the Client Component uses `useRouter` + `useSearchParams` to push URL updates. Search is debounced 400ms via `useDebouncedCallback`. `useTransition` wraps `router.push` to get an `isPending` flag for table dimming. When adding this pattern to a new page:
+- `searchParams` must be `await`ed in Next.js 16+ — type it as `Promise<{...}>`
+- Use controlled input state (`useState`) for search to avoid Base UI's uncontrolled-to-controlled warning
+- Actions return `{ data, count }` when pagination is needed — use `{ count: "exact" }` in the Supabase select and `.range(from, to)` for the slice
 
 ### Auth flow
 
@@ -79,17 +88,25 @@ Role-based access: `users` table has a `role` field (`"admin"` or otherwise). Ac
 ### Component conventions
 
 Each domain has a folder under `src/components/<domain>/` containing:
-- `<Domain>Table.tsx` — Client Component using `@tanstack/react-table`; receives data as props, calls Server Actions via `useTransition` for mutations.
-- `Add<Domain>Modal.tsx`, `Edit<Domain>Modal.tsx` — Dialog/Sheet wrappers with forms.
+- `<Domain>Table.tsx` — Client Component using `@tanstack/react-table`; receives already-paginated data as props. Inventory and Products use URL search params for filtering/pagination — TanStack handles display only (`getCoreRowModel` only, no `getFilteredRowModel` or `getPaginationRowModel`).
+- `Add<Domain>Modal.tsx`, `Edit<Domain>Modal.tsx` — Dialog/Sheet wrappers with forms. Modal pattern: `DialogContent className="flex flex-col max-h-[90vh]"`, scrollable middle `<div className="flex-1 overflow-y-auto px-1">`, sticky `DialogHeader`/`DialogFooter` with `flex-shrink-0`. When the submit button is in the footer outside the `<form>`, link them with `id="form-id"` on the form and `form="form-id"` on the button.
 - `Delete/Deactivate<Domain>Dialog.tsx` — Confirmation dialogs.
 
-Shared utility: `src/lib/inventory-utils.ts` exports `getStockStatus(quantity, threshold)` and `stockStatusConfig` for badge rendering.
+Shared utilities:
+- `src/lib/inventory-utils.ts` — `getStockStatus(quantity, threshold, expiryDate?)` returns one of 5 statuses including `near_expiry` (≤60 days) and `expired`. `stockStatusConfig` maps status → badge props.
+
+### SelectValue display fix
+
+This shadcn version uses `@base-ui/react/select`. `SelectValue` does not auto-render the selected item's label — it renders the raw value string. Always pass the resolved label as children:
+- UUID selects: `{items.find(i => i.id === field.value)?.name}`
+- Enum selects: `{LABEL_MAP[field.value]}` — define a static `Record<string, string>` map
 
 ### Admin layout composition
 
-`AppSidebar` (`src/components/app-sidebar.tsx`) composes four nav sections:
-- `NavMain` — primary links (Dashboard, Inventory, Products, …)
-- `NavDocuments` — document shortcuts
+`AppSidebar` (`src/components/app-sidebar.tsx`) composes nav sections:
+- `NavMain` — primary links (Dashboard, Inventory, Products, Batches, Order)
+- References group — Suppliers, Manufacturers, Pharmacies
+- `NavLogs` — Inventory log, Transaction, Time (log shortcuts)
 - `NavSecondary` — Settings, Help, Search (pinned to bottom)
 - `NavUser` — user avatar/menu in the footer
 
@@ -103,5 +120,5 @@ This version of shadcn has breaking API changes from common training data:
 
 - `SidebarMenuButton`: use `render={<Link href="..." />}` (not `asChild`) to wrap with Next.js `<Link>`.
 - `DropdownMenuTrigger`: use `render={<Button ... />}` (not `asChild`).
-- `Select`: accepts an `items` prop for the option list in addition to `<SelectItem>` children.
+- `Select`: `onValueChange` receives `string | null`, not `string` — guard against null before using the value.
 - `Checkbox`: accepts `indeterminate` prop directly (not via `ref`).
