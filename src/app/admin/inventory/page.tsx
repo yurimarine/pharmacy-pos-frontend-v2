@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation"
 import { getInventory, getPharmaciesForSelect } from "./actions"
+import { getCurrentUser } from "@/lib/get-current-user"
 import { InventoryTable } from "@/components/inventory/InventoryTable"
 
 export default async function InventoryPage({
@@ -13,15 +14,43 @@ export default async function InventoryPage({
 }) {
   const params = await searchParams
 
-  const pharmacyId = params.pharmacy ?? undefined
   const page = Math.max(1, Number(params.page ?? 1))
   const pageSize = 20
   const search = params.search ?? undefined
 
-  const pharmacies = await getPharmaciesForSelect()
+  const [pharmacies, currentUser] = await Promise.all([
+    getPharmaciesForSelect(),
+    getCurrentUser(),
+  ])
 
-  // Default to the first pharmacy on initial visit to prevent unbounded fetch
-  if (!pharmacyId && pharmacies.length > 0) {
+  const isAdminUser = currentUser.role === "admin"
+
+  // Pharmacist with no pharmacy assigned — show error
+  if (!isAdminUser && !currentUser.pharmacy_id) {
+    return (
+      <div className="flex flex-col gap-6 px-4 lg:px-6">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-bold tracking-tight">Inventory</h1>
+        </div>
+        <p className="text-muted-foreground">
+          Your account is not assigned to a pharmacy. Contact your administrator.
+        </p>
+      </div>
+    )
+  }
+
+  // Pharmacist trying to view a different pharmacy via URL — redirect to their own
+  if (!isAdminUser && params.pharmacy && params.pharmacy !== currentUser.pharmacy_id) {
+    redirect(`/admin/inventory?pharmacy=${currentUser.pharmacy_id}`)
+  }
+
+  // Determine active pharmacy ID
+  const pharmacyId = isAdminUser
+    ? (params.pharmacy ?? undefined)
+    : (currentUser.pharmacy_id ?? undefined)
+
+  // Admin: default to first pharmacy on initial visit
+  if (isAdminUser && !params.pharmacy && pharmacies.length > 0) {
     redirect(`/admin/inventory?pharmacy=${pharmacies[0].id}`)
   }
 
@@ -49,6 +78,8 @@ export default async function InventoryPage({
         pageSize={pageSize}
         selectedPharmacyId={pharmacyId ?? null}
         currentSearch={search ?? ""}
+        userRole={currentUser.role}
+        userPharmacyId={currentUser.pharmacy_id}
       />
     </div>
   )
