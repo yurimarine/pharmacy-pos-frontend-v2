@@ -1,4 +1,5 @@
 import { getProducts } from "./actions"
+import { getCurrentUser } from "@/lib/get-current-user"
 import { ProductsTable } from "@/components/products/ProductsTable"
 
 export default async function ProductsPage({
@@ -15,7 +16,10 @@ export default async function ProductsPage({
   const pageSize = 20
   const search = params.search ?? undefined
 
-  const { data: products, count } = await getProducts(page, pageSize, search)
+  const [{ data: products, count }, currentUser] = await Promise.all([
+    getProducts(page, pageSize, search),
+    getCurrentUser(),
+  ])
 
   return (
     <div className="flex flex-col gap-6 px-4 lg:px-6">
@@ -32,6 +36,7 @@ export default async function ProductsPage({
         currentPage={page}
         pageSize={pageSize}
         currentSearch={search ?? ""}
+        userRole={currentUser.role}
       />
     </div>
   )
