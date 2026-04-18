@@ -1,6 +1,8 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { BanIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -20,54 +22,34 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-
-const mockTransaction = {
-  transactionNumber: 'TXN-000001',
-  pharmacy: 'MediCare Pharmacy',
-  processedBy: 'Juan dela Cruz',
-  role: 'Pharmacist',
-  dateTime: 'April 16, 2026 2:34 PM',
-  paymentMethod: 'Cash',
-  status: 'completed',
-  items: [
-    {
-      name: 'Biogesic 500mg',
-      genericName: 'Paracetamol',
-      sku: 'BIOG-001',
-      quantity: 2,
-      unitPrice: 10.2,
-      total: 20.4,
-    },
-    {
-      name: 'Amoxicillin 500mg',
-      genericName: 'Amoxicillin',
-      sku: 'AMOX-001',
-      quantity: 1,
-      unitPrice: 14.4,
-      total: 14.4,
-    },
-    {
-      name: 'Cetirizine 10mg',
-      genericName: 'Cetirizine HCl',
-      sku: 'CETI-001',
-      quantity: 3,
-      unitPrice: 4.0,
-      total: 12.0,
-    },
-  ],
-  subtotal: 46.8,
-  discountAmount: 0.0,
-  totalAmount: 46.8,
-  amountTendered: 50.0,
-  changeAmount: 3.2,
-}
+import type { TransactionWithItems } from '@/types/transaction'
+import { ROLE_LABELS } from '@/types/user'
+import { VoidTransactionDialog } from './VoidTransactionDialog'
 
 type TransactionDetailProps = {
+  transaction: TransactionWithItems
   canVoid: boolean
   backHref: string
 }
 
-export default function TransactionDetail({ canVoid, backHref }: TransactionDetailProps) {
+function formatDate(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+export default function TransactionDetail({
+  transaction,
+  canVoid,
+  backHref,
+}: TransactionDetailProps) {
+  const router = useRouter()
+  const [voidOpen, setVoidOpen] = useState(false)
+
   return (
     <div className="flex flex-col gap-6 p-6">
       {/* Back button */}
@@ -86,16 +68,14 @@ export default function TransactionDetail({ canVoid, backHref }: TransactionDeta
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex flex-col gap-1">
               <CardTitle className="font-mono text-xl">
-                {mockTransaction.transactionNumber}
+                {transaction.transaction_number}
               </CardTitle>
               <CardDescription>
-                {mockTransaction.dateTime}
+                {formatDate(transaction.created_at)}
               </CardDescription>
             </div>
-            {mockTransaction.status === 'completed' ? (
-              <Badge className="bg-green-500 hover:bg-green-500">
-                Completed
-              </Badge>
+            {transaction.status === 'completed' ? (
+              <Badge className="bg-green-500 hover:bg-green-500">Completed</Badge>
             ) : (
               <Badge variant="destructive">Voided</Badge>
             )}
@@ -105,18 +85,49 @@ export default function TransactionDetail({ canVoid, backHref }: TransactionDeta
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
             <div className="flex flex-col gap-1">
               <span className="text-muted-foreground text-xs">Pharmacy</span>
-              <span className="font-medium">{mockTransaction.pharmacy}</span>
+              <span className="font-medium">
+                {transaction.pharmacies?.name ?? '—'}
+              </span>
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-muted-foreground text-xs">Processed By</span>
-              <span className="font-medium">{mockTransaction.processedBy}</span>
-              <span className="text-xs text-muted-foreground">{mockTransaction.role}</span>
+              <span className="font-medium">
+                {transaction.users?.name ?? '—'}
+              </span>
+              {transaction.users?.role && (
+                <span className="text-xs text-muted-foreground">
+                  {ROLE_LABELS[transaction.users.role as keyof typeof ROLE_LABELS] ??
+                    transaction.users.role}
+                </span>
+              )}
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-muted-foreground text-xs">Payment Method</span>
               <Badge variant="secondary" className="w-fit">Cash</Badge>
             </div>
           </div>
+
+          {/* Voided info */}
+          {transaction.status === 'voided' && (
+            <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm">
+              <p className="font-medium text-destructive mb-1">Voided Transaction</p>
+              {transaction.voided_by_user?.name && (
+                <p className="text-muted-foreground">
+                  Voided by: {transaction.voided_by_user.name}
+                </p>
+              )}
+              {transaction.voided_at && (
+                <p className="text-muted-foreground">
+                  Date: {formatDate(transaction.voided_at)}
+                </p>
+              )}
+              {transaction.void_reason && (
+                <p className="text-muted-foreground">
+                  Reason: {transaction.void_reason}
+                </p>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -138,14 +149,22 @@ export default function TransactionDetail({ canVoid, backHref }: TransactionDeta
               </TableRow>
             </TableHeader>
             <TableBody>
-              {mockTransaction.items.map((item, i) => (
-                <TableRow key={i}>
-                  <TableCell className="font-medium">{item.name}</TableCell>
-                  <TableCell className="text-muted-foreground">{item.genericName}</TableCell>
-                  <TableCell className="font-mono text-xs">{item.sku}</TableCell>
+              {transaction.transaction_items.map(item => (
+                <TableRow key={item.id}>
+                  <TableCell className="font-medium">{item.product_name}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {item.product_generic_name ?? '—'}
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {item.product_sku ?? '—'}
+                  </TableCell>
                   <TableCell className="text-right">{item.quantity}</TableCell>
-                  <TableCell className="text-right">₱{item.unitPrice.toFixed(2)}</TableCell>
-                  <TableCell className="text-right font-medium">₱{item.total.toFixed(2)}</TableCell>
+                  <TableCell className="text-right">
+                    ₱{item.unit_price.toFixed(2)}
+                  </TableCell>
+                  <TableCell className="text-right font-medium">
+                    ₱{item.total_price.toFixed(2)}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -163,36 +182,36 @@ export default function TransactionDetail({ canVoid, backHref }: TransactionDeta
           <CardContent className="flex flex-col gap-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Subtotal</span>
-              <span>₱{mockTransaction.subtotal.toFixed(2)}</span>
+              <span>₱{transaction.subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Discount</span>
-              <span>₱{mockTransaction.discountAmount.toFixed(2)}</span>
+              <span>₱{transaction.discount_amount.toFixed(2)}</span>
             </div>
             <Separator />
             <div className="flex justify-between font-bold text-base">
               <span>Total</span>
-              <span>₱{mockTransaction.totalAmount.toFixed(2)}</span>
+              <span>₱{transaction.total_amount.toFixed(2)}</span>
             </div>
             <Separator />
             <div className="flex justify-between">
               <span className="text-muted-foreground">Cash Tendered</span>
-              <span>₱{mockTransaction.amountTendered.toFixed(2)}</span>
+              <span>₱{transaction.amount_tendered.toFixed(2)}</span>
             </div>
             <div className="flex justify-between font-medium">
               <span className="text-muted-foreground">Change</span>
-              <span>₱{mockTransaction.changeAmount.toFixed(2)}</span>
+              <span>₱{transaction.change_amount.toFixed(2)}</span>
             </div>
           </CardContent>
         </Card>
 
-        {/* Void Action (admin only) */}
-        {canVoid && mockTransaction.status === 'completed' && (
+        {/* Void Action — admin only, completed transactions only */}
+        {canVoid && transaction.status === 'completed' && (
           <div className="flex items-end">
             <Button
               variant="destructive"
               className="gap-2"
-              onClick={() => {}}
+              onClick={() => setVoidOpen(true)}
             >
               <BanIcon className="h-4 w-4" />
               Void Transaction
@@ -200,6 +219,17 @@ export default function TransactionDetail({ canVoid, backHref }: TransactionDeta
           </div>
         )}
       </div>
+
+      {/* Void dialog */}
+      {canVoid && (
+        <VoidTransactionDialog
+          open={voidOpen}
+          onOpenChange={setVoidOpen}
+          transactionId={transaction.id}
+          transactionNumber={transaction.transaction_number}
+          onVoided={() => router.refresh()}
+        />
+      )}
     </div>
   )
 }

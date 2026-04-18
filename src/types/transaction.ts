@@ -20,8 +20,11 @@ export type Transaction = {
   void_reason: string | null
   created_at: string
   pharmacies?: { name: string } | null
+  // Explicit FK alias names from Supabase joins
   users?: { name: string; role: string } | null
   voided_by_user?: { name: string } | null
+  // For list view — count of items
+  transaction_items?: { id: string }[]
 }
 
 export type TransactionItem = {
@@ -39,6 +42,6 @@ export type TransactionItem = {
   created_at: string
 }
 
-export type TransactionWithItems = Transaction & {
+export type TransactionWithItems = Omit<Transaction, 'transaction_items'> & {
   transaction_items: TransactionItem[]
 }

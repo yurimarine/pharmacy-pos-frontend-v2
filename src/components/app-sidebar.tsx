@@ -123,7 +123,12 @@ const logs: LogItem[] = [
     icon: <FilePenLine />,
     roles: ["admin"],
   },
-  { name: "Transaction Logs", url: "#", icon: <Receipt /> },
+  {
+    name: "Transactions",
+    url: "/admin/transactions",
+    icon: <Receipt />,
+    roles: ["admin", "pharmacist"],
+  },
   { name: "Time Logs", url: "#", icon: <ClipboardClock /> },
 ];
 
