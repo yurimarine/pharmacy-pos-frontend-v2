@@ -1,22 +1,22 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { ShoppingCartIcon } from 'lucide-react'
-import { usePOS } from '@/context/POSContext'
-import { POSCartItem } from './POSCartItem'
-import { POSCartTotals } from './POSCartTotals'
-import { POSPaymentSection } from './POSPaymentSection'
-import { POSCartActions } from './POSCartActions'
+import { useState } from "react";
+import { ShoppingCartIcon } from "lucide-react";
+import { usePOS } from "@/context/POSContext";
+import { POSCartItem } from "./POSCartItem";
+import { POSCartTotals } from "./POSCartTotals";
+import { POSPaymentSection } from "./POSPaymentSection";
+import { POSCartActions } from "./POSCartActions";
 
 type POSCartPanelProps = {
-  pharmacyId: string
-}
+  pharmacyId: string;
+};
 
 export function POSCartPanel({ pharmacyId }: POSCartPanelProps) {
-  const { cartItems, itemCount, subtotal, totalAmount } = usePOS()
-  const [amountTendered, setAmountTendered] = useState(0)
+  const { cartItems, itemCount, subtotal, totalAmount } = usePOS();
+  const [amountTendered, setAmountTendered] = useState(0);
 
-  const hasItems = cartItems.length > 0
+  const hasItems = cartItems.length > 0;
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden bg-muted/20">
@@ -25,7 +25,7 @@ export function POSCartPanel({ pharmacyId }: POSCartPanelProps) {
         <ShoppingCartIcon className="size-4 text-muted-foreground" />
         <span className="font-medium text-sm">Cart</span>
         <span className="ml-auto text-xs text-muted-foreground">
-          {itemCount} item{itemCount !== 1 ? 's' : ''}
+          {itemCount} item{itemCount !== 1 ? "s" : ""}
         </span>
       </div>
 
@@ -59,5 +59,5 @@ export function POSCartPanel({ pharmacyId }: POSCartPanelProps) {
         />
       </div>
     </div>
-  )
+  );
 }

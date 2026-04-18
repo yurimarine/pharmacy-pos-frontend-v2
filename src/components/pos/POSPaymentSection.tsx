@@ -1,34 +1,31 @@
-'use client'
+"use client";
 
-import { BanknoteIcon } from 'lucide-react'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { BanknoteIcon } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 type POSPaymentSectionProps = {
-  totalAmount: number
-  amountTendered: number
-  onAmountTenderedChange: (amount: number) => void
-}
+  totalAmount: number;
+  amountTendered: number;
+  onAmountTenderedChange: (amount: number) => void;
+};
 
 export function POSPaymentSection({
   totalAmount,
   amountTendered,
   onAmountTenderedChange,
 }: POSPaymentSectionProps) {
-  const change = amountTendered - totalAmount
-  const isInsufficient = amountTendered > 0 && amountTendered < totalAmount
+  const change = amountTendered - totalAmount;
+  const isInsufficient = amountTendered > 0 && amountTendered < totalAmount;
 
   return (
     <div className="flex flex-col gap-3 py-3 border-t">
-      {/* Payment method — cash only */}
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <BanknoteIcon className="size-4" />
-        <span>Cash payment</span>
-      </div>
-
       {/* Tendered */}
       <div className="flex flex-col gap-1">
-        <Label htmlFor="amount-tendered" className="text-xs text-muted-foreground">
+        <Label
+          htmlFor="amount-tendered"
+          className="text-xs text-muted-foreground"
+        >
           Amount Tendered
         </Label>
         <Input
@@ -36,10 +33,12 @@ export function POSPaymentSection({
           type="number"
           min={0}
           step={0.01}
-          value={amountTendered || ''}
-          onChange={e => onAmountTenderedChange(parseFloat(e.target.value) || 0)}
-          className="text-right font-mono"
-          placeholder={`₱${totalAmount.toFixed(2)}`}
+          value={amountTendered || ""}
+          onChange={e =>
+            onAmountTenderedChange(parseFloat(e.target.value) || 0)
+          }
+          className="text-center md:text-2xl font-mono"
+          placeholder={`${totalAmount.toFixed(2)}`}
         />
       </div>
 
@@ -57,5 +56,5 @@ export function POSPaymentSection({
         )}
       </div>
     </div>
-  )
+  );
 }

@@ -1,17 +1,17 @@
-'use client'
+"use client";
 
-import { Trash2Icon, MinusIcon, PlusIcon } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import type { CartItem } from '@/types/cart'
-import { usePOS } from '@/context/POSContext'
+import { Trash2Icon, MinusIcon, PlusIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import type { CartItem } from "@/types/cart";
+import { usePOS } from "@/context/POSContext";
 
 type POSCartItemProps = {
-  item: CartItem
-}
+  item: CartItem;
+};
 
 export function POSCartItem({ item }: POSCartItemProps) {
-  const { removeFromCart, updateQuantity } = usePOS()
+  const { removeFromCart, updateQuantity } = usePOS();
 
   return (
     <div className="flex flex-col gap-1.5 py-3 border-b last:border-b-0">
@@ -83,5 +83,5 @@ export function POSCartItem({ item }: POSCartItemProps) {
         </span>
       </div>
     </div>
-  )
+  );
 }

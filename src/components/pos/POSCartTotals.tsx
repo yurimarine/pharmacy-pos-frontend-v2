@@ -1,9 +1,9 @@
-import { Separator } from '@/components/ui/separator'
+import { Separator } from "@/components/ui/separator";
 
 type POSCartTotalsProps = {
-  subtotal: number
-  totalAmount: number
-}
+  subtotal: number;
+  totalAmount: number;
+};
 
 export function POSCartTotals({ subtotal, totalAmount }: POSCartTotalsProps) {
   return (
@@ -17,10 +17,10 @@ export function POSCartTotals({ subtotal, totalAmount }: POSCartTotalsProps) {
         <span>₱0.00</span>
       </div>
       <Separator />
-      <div className="flex justify-between font-semibold text-base">
+      <div className="flex justify-between font-semibold text-2xl">
         <span>Total</span>
         <span>₱{totalAmount.toFixed(2)}</span>
       </div>
     </div>
-  )
+  );
 }
