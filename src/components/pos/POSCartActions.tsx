@@ -57,20 +57,20 @@ export function POSCartActions({
   };
 
   return (
-    <div className="flex gap-2 pt-3">
+    <div className="flex pt-3">
       <Button
         variant="outline"
         size="sm"
-        className=" gap-1.5 text-destructive hover:text-destructive"
+        className="shrink-0 gap-1.5 text-destructive hover:text-destructive"
         disabled={isCartEmpty || isPending}
         onClick={clearCart}
       >
         <Trash2Icon className="size-3.5" />
-        Clear Cart
+        Clear
       </Button>
 
       <Button
-        className="text-base font-bold"
+        className="flex-1 ml-2 text-base font-bold"
         size="sm"
         disabled={isDisabled}
         onClick={handleProcessSale}
