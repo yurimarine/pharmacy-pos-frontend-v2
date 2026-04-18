@@ -1,8 +1,8 @@
-import { Skeleton } from '@/components/ui/skeleton'
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function POSTerminalLoading() {
   return (
-    <div className="flex flex-1 h-full gap-0 overflow-hidden">
+    <div className="flex flex-1 h-full gap-0 overflow-hidden w-full">
       {/* Left panel skeleton */}
       <div className="flex flex-col flex-1 border-r p-4 gap-4 overflow-hidden">
         <Skeleton className="h-10 w-full" />
@@ -12,7 +12,7 @@ export default function POSTerminalLoading() {
       </div>
 
       {/* Right panel skeleton */}
-      <div className="flex flex-col w-[420px] shrink-0 p-4 gap-4">
+      <div className="flex flex-col w-105 shrink-0 p-4 gap-4">
         <Skeleton className="h-8 w-32" />
         <Skeleton className="h-4 w-16" />
         {Array.from({ length: 3 }).map((_, i) => (
@@ -25,5 +25,5 @@ export default function POSTerminalLoading() {
         </div>
       </div>
     </div>
-  )
+  );
 }

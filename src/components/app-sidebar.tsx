@@ -37,6 +37,7 @@ import {
   FilePenLine,
   Receipt,
   UsersIcon,
+  MonitorSmartphone,
 } from "lucide-react";
 
 type Role = "admin" | "pharmacist" | "pharmacy_assistant";
@@ -46,6 +47,7 @@ type NavItem = {
   url: string;
   icon: React.ReactNode;
   roles?: Role[];
+  external?: boolean;
 };
 
 type LogItem = {
@@ -80,6 +82,13 @@ const navMain: NavItem[] = [
     title: "Order",
     url: "/admin/orders",
     icon: <NotebookPen />,
+  },
+  {
+    title: "POS Terminal",
+    url: "/pos-terminal",
+    icon: <MonitorSmartphone />,
+    roles: ["pharmacist"],
+    external: true,
   },
 ];
 

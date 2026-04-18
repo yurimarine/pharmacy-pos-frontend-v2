@@ -1,19 +1,19 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { BanIcon } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { BanIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card'
+} from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -21,25 +21,25 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
-import type { TransactionWithItems } from '@/types/transaction'
-import { ROLE_LABELS } from '@/types/user'
-import { VoidTransactionDialog } from './VoidTransactionDialog'
+} from "@/components/ui/table";
+import type { TransactionWithItems } from "@/types/transaction";
+import { ROLE_LABELS } from "@/types/user";
+import { VoidTransactionDialog } from "./VoidTransactionDialog";
 
 type TransactionDetailProps = {
-  transaction: TransactionWithItems
-  canVoid: boolean
-  backHref: string
-}
+  transaction: TransactionWithItems;
+  canVoid: boolean;
+  backHref: string;
+};
 
 function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  return new Date(dateStr).toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 export default function TransactionDetail({
@@ -47,11 +47,11 @@ export default function TransactionDetail({
   canVoid,
   backHref,
 }: TransactionDetailProps) {
-  const router = useRouter()
-  const [voidOpen, setVoidOpen] = useState(false)
+  const router = useRouter();
+  const [voidOpen, setVoidOpen] = useState(false);
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <div className="flex flex-col gap-6 p-6 w-full overflow-hidden">
       {/* Back button */}
       <Button
         variant="ghost"
@@ -74,8 +74,10 @@ export default function TransactionDetail({
                 {formatDate(transaction.created_at)}
               </CardDescription>
             </div>
-            {transaction.status === 'completed' ? (
-              <Badge className="bg-green-500 hover:bg-green-500">Completed</Badge>
+            {transaction.status === "completed" ? (
+              <Badge className="bg-green-500 hover:bg-green-500">
+                Completed
+              </Badge>
             ) : (
               <Badge variant="destructive">Voided</Badge>
             )}
@@ -86,31 +88,40 @@ export default function TransactionDetail({
             <div className="flex flex-col gap-1">
               <span className="text-muted-foreground text-xs">Pharmacy</span>
               <span className="font-medium">
-                {transaction.pharmacies?.name ?? '—'}
+                {transaction.pharmacies?.name ?? "—"}
               </span>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-muted-foreground text-xs">Processed By</span>
+              <span className="text-muted-foreground text-xs">
+                Processed By
+              </span>
               <span className="font-medium">
-                {transaction.users?.name ?? '—'}
+                {transaction.users?.name ?? "—"}
               </span>
               {transaction.users?.role && (
                 <span className="text-xs text-muted-foreground">
-                  {ROLE_LABELS[transaction.users.role as keyof typeof ROLE_LABELS] ??
-                    transaction.users.role}
+                  {ROLE_LABELS[
+                    transaction.users.role as keyof typeof ROLE_LABELS
+                  ] ?? transaction.users.role}
                 </span>
               )}
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-muted-foreground text-xs">Payment Method</span>
-              <Badge variant="secondary" className="w-fit">Cash</Badge>
+              <span className="text-muted-foreground text-xs">
+                Payment Method
+              </span>
+              <Badge variant="secondary" className="w-fit">
+                Cash
+              </Badge>
             </div>
           </div>
 
           {/* Voided info */}
-          {transaction.status === 'voided' && (
+          {transaction.status === "voided" && (
             <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm">
-              <p className="font-medium text-destructive mb-1">Voided Transaction</p>
+              <p className="font-medium text-destructive mb-1">
+                Voided Transaction
+              </p>
               {transaction.voided_by_user?.name && (
                 <p className="text-muted-foreground">
                   Voided by: {transaction.voided_by_user.name}
@@ -151,12 +162,14 @@ export default function TransactionDetail({
             <TableBody>
               {transaction.transaction_items.map(item => (
                 <TableRow key={item.id}>
-                  <TableCell className="font-medium">{item.product_name}</TableCell>
+                  <TableCell className="font-medium">
+                    {item.product_name}
+                  </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {item.product_generic_name ?? '—'}
+                    {item.product_generic_name ?? "—"}
                   </TableCell>
                   <TableCell className="font-mono text-xs">
-                    {item.product_sku ?? '—'}
+                    {item.product_sku ?? "—"}
                   </TableCell>
                   <TableCell className="text-right">{item.quantity}</TableCell>
                   <TableCell className="text-right">
@@ -206,7 +219,7 @@ export default function TransactionDetail({
         </Card>
 
         {/* Void Action — admin only, completed transactions only */}
-        {canVoid && transaction.status === 'completed' && (
+        {canVoid && transaction.status === "completed" && (
           <div className="flex items-end">
             <Button
               variant="destructive"
@@ -231,5 +244,5 @@ export default function TransactionDetail({
         />
       )}
     </div>
-  )
+  );
 }

@@ -29,14 +29,14 @@ export default async function POSTerminalLayout({
   }
 
   return (
-    <div className="flex h-screen flex-col bg-background overflow-hidden">
+    <div className="flex h-screen flex-col bg-background overflow-hidden w-full">
       <POSHeader
         userName={currentUser.name}
         userRole={currentUser.role}
         pharmacyName={pharmacyName}
       />
       <POSProvider pharmacyName={pharmacyName} userName={currentUser.name}>
-        <main className="flex flex-1 overflow-hidden">{children}</main>
+        <main className="flex flex-1 overflow-hidden w-full">{children}</main>
       </POSProvider>
     </div>
   );

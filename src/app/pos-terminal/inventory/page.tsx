@@ -38,7 +38,7 @@ export default async function POSInventoryPage() {
   const pharmacyName = pharmacyResult.data?.name ?? "your pharmacy";
 
   return (
-    <div className="flex flex-col h-full p-6 gap-6 overflow-hidden">
+    <div className="flex flex-col h-full p-6 gap-6 overflow-hidden w-full">
       {/* Page header */}
       <div className="flex items-center justify-between shrink-0">
         <div>

@@ -22,6 +22,8 @@ const ADMIN_PHARMACIST_ROUTES = [
   "/admin/reports",
 ];
 
+const POS_ROUTES = ["/pos-terminal"];
+
 const PUBLIC_ROUTES = ["/auth/login", "/auth/deactivated", "/unauthorized"];
 
 export async function updateSession(request: NextRequest) {
@@ -52,6 +54,27 @@ export async function updateSession(request: NextRequest) {
 
   // Always allow public routes through
   if (PUBLIC_ROUTES.some((r) => path.startsWith(r))) {
+    // Redirect authenticated users away from login
+    if (path.startsWith("/auth/login")) {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        const { data: userData } = await supabase
+          .from("users")
+          .select("role, is_active")
+          .eq("auth_id", user.id)
+          .single();
+        if (userData && userData.is_active !== false) {
+          const url = request.nextUrl.clone();
+          url.pathname =
+            userData.role === "pharmacy_assistant"
+              ? "/pos-terminal"
+              : "/admin/dashboard";
+          return NextResponse.redirect(url);
+        }
+      }
+    }
     return supabaseResponse;
   }
 
@@ -89,6 +112,17 @@ export async function updateSession(request: NextRequest) {
   }
 
   const role = userData.role;
+
+  // POS Terminal routes: admin → redirect to dashboard; pharmacist/PA → allow
+  const isPOSRoute = POS_ROUTES.some((r) => path.startsWith(r));
+  if (isPOSRoute) {
+    if (role === "admin") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/admin/dashboard";
+      return NextResponse.redirect(url);
+    }
+    return supabaseResponse;
+  }
 
   // Pharmacy Assistant → cannot access /admin at all
   if (role === "pharmacy_assistant" && path.startsWith("/admin")) {
