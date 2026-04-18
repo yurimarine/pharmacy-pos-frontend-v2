@@ -1,72 +1,39 @@
+'use client'
+
+import { useState } from 'react'
 import { ShoppingCartIcon } from 'lucide-react'
+import { usePOS } from '@/context/POSContext'
 import { POSCartItem } from './POSCartItem'
 import { POSCartTotals } from './POSCartTotals'
 import { POSPaymentSection } from './POSPaymentSection'
 import { POSCartActions } from './POSCartActions'
 
-const MOCK_CART_ITEMS = [
-  {
-    id: '1',
-    productName: 'Amoxicillin 500mg Capsule',
-    genericName: 'Amoxicillin',
-    sku: 'AMX-500-CAP',
-    quantity: 2,
-    unitPrice: 12.5,
-    totalPrice: 25.0,
-    maxQuantity: 240,
-  },
-  {
-    id: '2',
-    productName: 'Biogesic Paracetamol 500mg',
-    genericName: 'Paracetamol',
-    sku: 'BIO-500-TAB',
-    quantity: 3,
-    unitPrice: 6.75,
-    totalPrice: 20.25,
-    maxQuantity: 8,
-  },
-  {
-    id: '3',
-    productName: 'Cetirizine 10mg Tablet',
-    genericName: 'Cetirizine Hydrochloride',
-    sku: 'CET-010-TAB',
-    quantity: 1,
-    unitPrice: 9.25,
-    totalPrice: 9.25,
-    maxQuantity: 54,
-  },
-]
-
-const MOCK_TOTALS = {
-  subtotal: 54.5,
-  discountAmount: 0,
-  totalAmount: 54.5,
-  amountTendered: 100,
-  changeAmount: 45.5,
+type POSCartPanelProps = {
+  pharmacyId: string
 }
 
-export function POSCartPanel() {
-  const hasItems = MOCK_CART_ITEMS.length > 0
-  const isValid = hasItems && MOCK_TOTALS.amountTendered >= MOCK_TOTALS.totalAmount
+export function POSCartPanel({ pharmacyId }: POSCartPanelProps) {
+  const { cartItems, itemCount, subtotal, totalAmount } = usePOS()
+  const [amountTendered, setAmountTendered] = useState(0)
+
+  const hasItems = cartItems.length > 0
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden bg-muted/20">
       {/* Cart header */}
       <div className="flex items-center gap-2 border-b px-4 py-3">
         <ShoppingCartIcon className="size-4 text-muted-foreground" />
-        <span className="font-medium text-sm">
-          Cart
-        </span>
+        <span className="font-medium text-sm">Cart</span>
         <span className="ml-auto text-xs text-muted-foreground">
-          {MOCK_CART_ITEMS.length} item{MOCK_CART_ITEMS.length !== 1 ? 's' : ''}
+          {itemCount} item{itemCount !== 1 ? 's' : ''}
         </span>
       </div>
 
       {/* Items list */}
       {hasItems ? (
         <div className="flex-1 overflow-y-auto px-4">
-          {MOCK_CART_ITEMS.map((item) => (
-            <POSCartItem key={item.id} {...item} />
+          {cartItems.map(item => (
+            <POSCartItem key={item.inventoryId} item={item} />
           ))}
         </div>
       ) : (
@@ -79,17 +46,17 @@ export function POSCartPanel() {
 
       {/* Footer: totals + payment + actions */}
       <div className="shrink-0 border-t px-4 pb-4">
-        <POSCartTotals
-          subtotal={MOCK_TOTALS.subtotal}
-          discountAmount={MOCK_TOTALS.discountAmount}
-          totalAmount={MOCK_TOTALS.totalAmount}
-        />
+        <POSCartTotals subtotal={subtotal} totalAmount={totalAmount} />
         <POSPaymentSection
-          totalAmount={MOCK_TOTALS.totalAmount}
-          amountTendered={MOCK_TOTALS.amountTendered}
-          changeAmount={MOCK_TOTALS.changeAmount}
+          totalAmount={totalAmount}
+          amountTendered={amountTendered}
+          onAmountTenderedChange={setAmountTendered}
         />
-        <POSCartActions hasItems={hasItems} isValid={isValid} />
+        <POSCartActions
+          pharmacyId={pharmacyId}
+          amountTendered={amountTendered}
+          onSaleComplete={() => setAmountTendered(0)}
+        />
       </div>
     </div>
   )

@@ -1,41 +1,33 @@
+'use client'
+
 import { Trash2Icon, MinusIcon, PlusIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import type { CartItem } from '@/types/cart'
+import { usePOS } from '@/context/POSContext'
 
 type POSCartItemProps = {
-  productName: string
-  genericName: string | null
-  sku: string | null
-  quantity: number
-  unitPrice: number
-  totalPrice: number
-  maxQuantity: number
+  item: CartItem
 }
 
-export function POSCartItem({
-  productName,
-  genericName,
-  sku,
-  quantity,
-  unitPrice,
-  totalPrice,
-  maxQuantity,
-}: POSCartItemProps) {
+export function POSCartItem({ item }: POSCartItemProps) {
+  const { removeFromCart, updateQuantity } = usePOS()
+
   return (
     <div className="flex flex-col gap-1.5 py-3 border-b last:border-b-0">
       <div className="flex items-start justify-between gap-2">
         <div className="flex flex-col gap-0.5 min-w-0">
           <span className="text-sm font-medium leading-tight truncate">
-            {productName}
+            {item.productName}
           </span>
-          {genericName && (
+          {item.productGenericName && (
             <span className="text-xs text-muted-foreground truncate">
-              {genericName}
+              {item.productGenericName}
             </span>
           )}
-          {sku && (
+          {item.productSku && (
             <span className="font-mono text-xs text-muted-foreground">
-              {sku}
+              {item.productSku}
             </span>
           )}
         </div>
@@ -43,6 +35,7 @@ export function POSCartItem({
           variant="ghost"
           size="icon"
           className="size-7 shrink-0 text-muted-foreground hover:text-destructive"
+          onClick={() => removeFromCart(item.inventoryId)}
         >
           <Trash2Icon className="size-3.5" />
           <span className="sr-only">Remove</span>
@@ -56,31 +49,37 @@ export function POSCartItem({
             variant="outline"
             size="icon"
             className="size-7"
-            disabled={quantity <= 1}
+            onClick={() => updateQuantity(item.inventoryId, item.quantity - 1)}
           >
             <MinusIcon className="size-3" />
           </Button>
           <Input
             className="w-12 h-7 text-center text-sm p-0"
-            value={quantity}
-            readOnly
+            type="number"
+            min={1}
+            max={item.maxQuantity}
+            value={item.quantity}
+            onChange={e =>
+              updateQuantity(item.inventoryId, parseInt(e.target.value) || 1)
+            }
           />
           <Button
             variant="outline"
             size="icon"
             className="size-7"
-            disabled={quantity >= maxQuantity}
+            disabled={item.quantity >= item.maxQuantity}
+            onClick={() => updateQuantity(item.inventoryId, item.quantity + 1)}
           >
             <PlusIcon className="size-3" />
           </Button>
           <span className="text-xs text-muted-foreground">
-            × ₱{unitPrice.toFixed(2)}
+            × ₱{item.unitPrice.toFixed(2)}
           </span>
         </div>
 
         {/* Line total */}
         <span className="font-semibold text-sm shrink-0">
-          ₱{totalPrice.toFixed(2)}
+          ₱{item.totalPrice.toFixed(2)}
         </span>
       </div>
     </div>

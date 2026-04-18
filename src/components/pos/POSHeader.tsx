@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button'
 import {
   Avatar,
   AvatarFallback,
-  AvatarImage,
 } from '@/components/ui/avatar'
 import {
   DropdownMenu,
@@ -30,12 +29,9 @@ const ROLE_LABELS: Record<Role, string> = {
 }
 
 type POSHeaderProps = {
-  user: {
-    name: string
-    email: string
-    avatar: string
-    role: Role
-  }
+  userName: string
+  userRole: Role
+  pharmacyName: string
 }
 
 function LiveClock() {
@@ -63,11 +59,11 @@ function LiveClock() {
   )
 }
 
-export function POSHeader({ user }: POSHeaderProps) {
+export function POSHeader({ userName, userRole, pharmacyName }: POSHeaderProps) {
   const pathname = usePathname()
   const router = useRouter()
 
-  const initials = user.name
+  const initials = userName
     .split(' ')
     .map((n) => n[0])
     .join('')
@@ -85,33 +81,23 @@ export function POSHeader({ user }: POSHeaderProps) {
   }
 
   const navLinks = [
-    {
-      href: '/pos-terminal',
-      label: 'POS',
-      icon: ShoppingCartIcon,
-      exact: true,
-    },
-    {
-      href: '/pos-terminal/inventory',
-      label: 'Inventory',
-      icon: PackageIcon,
-      exact: false,
-    },
-    {
-      href: '/pos-terminal/transactions',
-      label: 'Transactions',
-      icon: ClockIcon,
-      exact: false,
-    },
+    { href: '/pos-terminal', label: 'POS', icon: ShoppingCartIcon, exact: true },
+    { href: '/pos-terminal/inventory', label: 'Inventory', icon: PackageIcon, exact: false },
+    { href: '/pos-terminal/transactions', label: 'Transactions', icon: ClockIcon, exact: false },
   ]
 
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b bg-background px-4 gap-4">
-      {/* Brand */}
+      {/* Brand + clock */}
       <div className="flex items-center gap-3">
-        <span className="font-semibold text-base tracking-tight">
-          PharmaMed <span className="text-muted-foreground font-normal">POS</span>
-        </span>
+        <div className="flex flex-col leading-tight">
+          <span className="font-semibold text-sm tracking-tight">
+            PharmaMed <span className="text-muted-foreground font-normal">POS</span>
+          </span>
+          <span className="text-xs text-muted-foreground truncate max-w-[180px]">
+            {pharmacyName}
+          </span>
+        </div>
         <LiveClock />
       </div>
 
@@ -151,22 +137,20 @@ export function POSHeader({ user }: POSHeaderProps) {
         <DropdownMenu>
           <DropdownMenuTrigger render={<Button variant="ghost" size="sm" className="gap-2" />}>
             <Avatar className="size-6">
-              <AvatarImage src={user.avatar} alt={user.name} />
               <AvatarFallback className="text-xs">{initials}</AvatarFallback>
             </Avatar>
-            <span className="text-sm font-medium">{user.name}</span>
+            <span className="text-sm font-medium">{userName}</span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-48">
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-2 py-2">
                 <Avatar className="size-8">
-                  <AvatarImage src={user.avatar} alt={user.name} />
                   <AvatarFallback className="text-xs">{initials}</AvatarFallback>
                 </Avatar>
                 <div className="grid text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{user.name}</span>
+                  <span className="truncate font-medium">{userName}</span>
                   <span className="truncate text-xs text-muted-foreground">
-                    {ROLE_LABELS[user.role]}
+                    {ROLE_LABELS[userRole]}
                   </span>
                 </div>
               </div>

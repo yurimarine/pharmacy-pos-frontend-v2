@@ -7,17 +7,20 @@ import { Label } from '@/components/ui/label'
 type POSPaymentSectionProps = {
   totalAmount: number
   amountTendered: number
-  changeAmount: number
+  onAmountTenderedChange: (amount: number) => void
 }
 
 export function POSPaymentSection({
   totalAmount,
   amountTendered,
-  changeAmount,
+  onAmountTenderedChange,
 }: POSPaymentSectionProps) {
+  const change = amountTendered - totalAmount
+  const isInsufficient = amountTendered > 0 && amountTendered < totalAmount
+
   return (
     <div className="flex flex-col gap-3 py-3 border-t">
-      {/* Payment method — cash only for now */}
+      {/* Payment method — cash only */}
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <BanknoteIcon className="size-4" />
         <span>Cash payment</span>
@@ -31,10 +34,10 @@ export function POSPaymentSection({
         <Input
           id="amount-tendered"
           type="number"
-          min={totalAmount}
+          min={0}
           step={0.01}
           value={amountTendered || ''}
-          readOnly
+          onChange={e => onAmountTenderedChange(parseFloat(e.target.value) || 0)}
           className="text-right font-mono"
           placeholder={`₱${totalAmount.toFixed(2)}`}
         />
@@ -43,9 +46,15 @@ export function POSPaymentSection({
       {/* Change */}
       <div className="flex justify-between items-center text-sm">
         <span className="text-muted-foreground">Change</span>
-        <span className={`font-semibold font-mono ${changeAmount < 0 ? 'text-destructive' : 'text-green-600'}`}>
-          ₱{Math.max(0, changeAmount).toFixed(2)}
-        </span>
+        {isInsufficient ? (
+          <span className="font-semibold text-destructive text-xs">
+            Insufficient amount
+          </span>
+        ) : (
+          <span className="font-semibold font-mono text-green-600">
+            ₱{Math.max(0, change).toFixed(2)}
+          </span>
+        )}
       </div>
     </div>
   )

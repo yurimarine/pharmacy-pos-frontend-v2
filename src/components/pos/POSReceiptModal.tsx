@@ -2,54 +2,63 @@
 
 import { PrinterIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { usePOS } from '@/context/POSContext'
+import type { Transaction } from '@/types/transaction'
+import type { CartItem } from '@/types/cart'
 import { POSReceipt } from './POSReceipt'
-
-const mockReceipt = {
-  transactionNumber: 'TXN-000001',
-  pharmacy: 'MediCare Pharmacy',
-  cashier: 'Juan dela Cruz',
-  date: 'April 16, 2026',
-  time: '2:34 PM',
-  items: [
-    {
-      name: 'Biogesic 500mg',
-      genericName: 'Paracetamol',
-      quantity: 2,
-      unitPrice: 10.2,
-      totalPrice: 20.4,
-    },
-    {
-      name: 'Amoxicillin 500mg',
-      genericName: 'Amoxicillin',
-      quantity: 1,
-      unitPrice: 14.4,
-      totalPrice: 14.4,
-    },
-    {
-      name: 'Cetirizine 10mg',
-      genericName: 'Cetirizine HCl',
-      quantity: 3,
-      unitPrice: 4.0,
-      totalPrice: 12.0,
-    },
-  ],
-  subtotal: 46.8,
-  discountAmount: 0.0,
-  totalAmount: 46.8,
-  amountTendered: 50.0,
-  changeAmount: 3.2,
-}
 
 type POSReceiptModalProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
+  transaction: Transaction | null
+  receiptItems: CartItem[]
+  onNewTransaction: () => void
 }
 
-export function POSReceiptModal({ open, onOpenChange }: POSReceiptModalProps) {
+export function POSReceiptModal({
+  open,
+  onOpenChange,
+  transaction,
+  receiptItems,
+  onNewTransaction,
+}: POSReceiptModalProps) {
+  const { pharmacyName, userName } = usePOS()
+
+  if (!transaction) return null
+
+  const createdAt = new Date(transaction.created_at)
+  const date = createdAt.toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  })
+  const time = createdAt.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  })
+
+  const receiptData = {
+    transactionNumber: transaction.transaction_number,
+    pharmacy: pharmacyName,
+    cashier: userName,
+    date,
+    time,
+    items: receiptItems.map(item => ({
+      name: item.productName,
+      genericName: item.productGenericName,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      totalPrice: item.totalPrice,
+    })),
+    subtotal: transaction.subtotal,
+    discountAmount: transaction.discount_amount,
+    totalAmount: transaction.total_amount,
+    amountTendered: transaction.amount_tendered,
+    changeAmount: transaction.change_amount,
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -58,7 +67,7 @@ export function POSReceiptModal({ open, onOpenChange }: POSReceiptModalProps) {
       >
         {/* Scrollable receipt area */}
         <div className="max-h-[70vh] overflow-y-auto">
-          <POSReceipt data={mockReceipt} />
+          <POSReceipt data={receiptData} />
         </div>
 
         {/* Action buttons outside the receipt paper */}
@@ -66,15 +75,12 @@ export function POSReceiptModal({ open, onOpenChange }: POSReceiptModalProps) {
           <Button
             variant="outline"
             className="flex-1"
-            onClick={() => {}}
+            onClick={() => window.print()}
           >
             <PrinterIcon className="h-4 w-4 mr-2" />
             Print
           </Button>
-          <Button
-            className="flex-1"
-            onClick={() => onOpenChange(false)}
-          >
+          <Button className="flex-1" onClick={onNewTransaction}>
             New Transaction
           </Button>
         </div>
