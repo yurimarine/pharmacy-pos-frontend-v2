@@ -113,6 +113,9 @@ export function POSPaymentModal({
               step={0.01}
               value={amountTendered || ""}
               onChange={e => setAmountTendered(parseFloat(e.target.value) || 0)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !isInsufficient && !isPending) handleConfirm()
+              }}
               className="h-auto text-center md:text-4xl font-mono"
               placeholder={totalAmount.toFixed(2)}
               disabled={isPending}

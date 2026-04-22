@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { PrinterIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
@@ -24,6 +25,18 @@ export function POSReceiptModal({
   onNewTransaction,
 }: POSReceiptModalProps) {
   const { pharmacyName, userName } = usePOS()
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (!open) return
+      if (e.key === 'F4') {
+        e.preventDefault()
+        onNewTransaction()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [open, onNewTransaction])
 
   if (!transaction) return null
 
