@@ -26,15 +26,17 @@ export function POSQuantityModal({
   item,
 }: POSQuantityModalProps) {
   const { addToCartWithQuantity, cartItems } = usePOS();
-  const [quantity, setQuantity] = useState(1);
+  const [rawQty, setRawQty] = useState('1');
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
-      setQuantity(1);
+      setRawQty('1');
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [open]);
+
+  const quantity = parseInt(rawQty) || 0;
 
   if (!item) return null;
 
@@ -98,8 +100,8 @@ export function POSQuantityModal({
               type="number"
               min={1}
               max={maxQty}
-              value={quantity}
-              onChange={e => setQuantity(parseInt(e.target.value) || 1)}
+              value={rawQty}
+              onChange={e => setRawQty(e.target.value)}
               onKeyDown={e => {
                 if (e.key === "Enter") handleConfirm();
               }}
