@@ -1,3 +1,20 @@
+export type POSInventoryTableItem = {
+  id: string
+  productId: string
+  productName: string
+  productGenericName: string | null
+  productSku: string | null
+  category: string | null
+  requiresPrescription: boolean
+  packagingLabel: string | null
+  dispensingUnit: string | null
+  quantity: number
+  sellingPrice: number
+  lowStockThreshold: number
+  expiryDate: string | null
+  lastRestockedAt: string | null
+}
+
 export type StockStatus =
   | 'in_stock'
   | 'low_stock'
