@@ -30,7 +30,7 @@ No test suite is configured yet.
 ```
 src/app/
   layout.tsx                    # Root layout: fonts, TooltipProvider
-  page.tsx                      # Root redirect → /admin/dashboard or /auth/login
+  page.tsx                      # Root redirect → role-based (/pos-terminal or /admin/dashboard)
   auth/login/page.tsx           # Public login page
   auth/deactivated/page.tsx     # Shown when account is deactivated
   unauthorized/page.tsx         # Shown when role lacks permission
@@ -42,12 +42,21 @@ src/app/
     batches/page.tsx + actions.ts
     batches/[id]/page.tsx       # Batch detail with items
     inventory-logs/page.tsx + actions.ts
+    transactions/page.tsx + actions.ts
+    transactions/[id]/page.tsx  # Transaction detail with void support
     users/page.tsx + actions.ts # User management (admin only)
     manufacturers/page.tsx + actions.ts
     pharmacies/page.tsx + actions.ts
     suppliers/page.tsx + actions.ts
     orders/page.tsx             # Stub (not yet implemented)
     product-classes/, product-categories/, packaging-units/, dispensing-units/
+  pos-terminal/
+    layout.tsx                  # POS shell: POSHeader + POSProvider (no admin sidebar)
+    page.tsx                    # Main POS terminal: search panel + cart panel
+    actions.ts                  # getPOSInventory, processTransaction
+    inventory/page.tsx + actions.ts  # Read-only inventory view for POS users
+    transactions/page.tsx + actions.ts
+    transactions/[id]/page.tsx  # Shared TransactionDetail component
 ```
 
 ### Domain model
@@ -63,6 +72,7 @@ The app is a multi-pharmacy POS system. Key entities and relationships:
   - `markup_change`: updates `inventory.markup_percentage` + recalculates `selling_price` at a specific pharmacy. `batch_items.unit_cost` stores the new markup %.
   - `base_price_change`: updates `products.base_price` globally, recalculates `selling_price` across all pharmacies. `pharmacy_id` is null on the batch.
 - **InventoryLog** — written on every `updateInventoryEntry` call; tracks who changed what and why.
+- **Transaction** — a completed sale. Has `transaction_items[]`, `amount_tendered`, `change_amount`, `status` (`completed` | `voided`). Voiding restores inventory.
 - **User** — `role` is `admin | pharmacist | pharmacy_assistant`. Non-admin users have `pharmacy_id`. `is_active` gates login.
 - **Supplier / Manufacturer** — reference data linked to products and batch items.
 
@@ -74,32 +84,70 @@ Pages are async RSCs. They call Server Actions in `actions.ts` co-located in the
 page.tsx (RSC) → actions.ts ("use server") → Supabase → Client Component
 ```
 
-**URL search params pattern** — Inventory, Products, and Users pages use URL-based filtering, search, and pagination instead of client-side state. `searchParams` is awaited in the RSC, passed to the action, and the Client Component uses `useRouter` + `useSearchParams` to push URL updates. Search is debounced 400ms via `useDebouncedCallback`. `useTransition` wraps `router.push` to get an `isPending` flag for table dimming. When adding this pattern to a new page:
+**URL search params pattern** — Inventory, Products, Users, and Transactions pages use URL-based filtering, search, and pagination instead of client-side state. `searchParams` is awaited in the RSC, passed to the action, and the Client Component uses `useRouter` + `useSearchParams` to push URL updates. Search is debounced 400ms via `useDebouncedCallback`. `useTransition` wraps `router.push` to get an `isPending` flag for table dimming. When adding this pattern to a new page:
 - `searchParams` must be `await`ed in Next.js 16+ — type it as `Promise<{...}>`
 - Use controlled input state (`useState`) for search to avoid Base UI's uncontrolled-to-controlled warning
 - Actions return `{ data, count }` when pagination is needed — use `{ count: "exact" }` in the Supabase select and `.range(from, to)` for the slice
 
 ### Auth and role-based access
 
-**Middleware** — `src/lib/supabase/middleware.ts` runs `updateSession()` on every request. It calls `supabase.auth.getUser()` then does one DB query to fetch `role`, `is_active`, and `pharmacy_id` from the `users` table. Route gating:
+**Middleware** — `src/lib/supabase/middleware.ts` runs `updateSession()` on every request. Route gating logic order:
 
-| Routes | Allowed roles |
+1. Public routes (`/auth/login`, `/auth/deactivated`, `/unauthorized`) — allowed through; authenticated users hitting `/auth/login` are redirected role-based.
+2. Unauthenticated → `/auth/login`
+3. DB query for `role`, `is_active`, `pharmacy_id`
+4. User record not found → `/auth/login`
+5. Deactivated (`is_active = false`) → `/auth/deactivated`
+6. **POS routes** (`/pos-terminal`): admin → `/admin/dashboard`; pharmacist/PA → allow
+7. Pharmacy Assistant on `/admin/*` → `/unauthorized`
+8. `ADMIN_ONLY_ROUTES` and non-admin → `/unauthorized`
+9. `ADMIN_PHARMACIST_ROUTES` and non-admin/pharmacist → `/unauthorized`
+
+| Route group | Allowed roles |
 |---|---|
-| `ADMIN_ONLY_ROUTES` (`/admin/users`, `/admin/suppliers`, `/admin/manufacturers`, `/admin/pharmacies`, `/admin/product-classes`, `/admin/product-categories`, `/admin/packaging-units`, `/admin/dispensing-units`) | `admin` only |
-| `ADMIN_PHARMACIST_ROUTES` (`/admin/dashboard`, `/admin/inventory`, `/admin/batches`, `/admin/inventory-logs`, `/admin/products`) | `admin`, `pharmacist` |
-| `/admin/*` (anything else) | blocked for `pharmacy_assistant` |
-| `PUBLIC_ROUTES` (`/auth/login`, `/auth/deactivated`, `/unauthorized`) | always allowed |
+| `ADMIN_ONLY_ROUTES` (users, suppliers, manufacturers, pharmacies, product-classes, product-categories, packaging-units, dispensing-units) | `admin` only |
+| `ADMIN_PHARMACIST_ROUTES` (dashboard, inventory, batches, inventory-logs, transactions, products, reports) | `admin`, `pharmacist` |
+| `POS_ROUTES` (`/pos-terminal`) | `pharmacist`, `pharmacy_assistant` |
+| `PUBLIC_ROUTES` | always |
 
-Deactivated accounts (`is_active = false`) are redirected to `/auth/deactivated` before any route check.
+**Login redirects** — both `src/app/page.tsx` (root) and `src/app/auth/login/actions.ts` (post-login) redirect based on role: `pharmacy_assistant` → `/pos-terminal`, all others → `/admin/dashboard`.
 
-**`src/lib/get-current-user.ts`** — shared helper used in Server Actions and page RSCs to resolve the authenticated Supabase user to the app's `users` row. Exports `getCurrentUser()`, `isAdmin()`, `isPharmacist()`, `isPharmacyAssistant()`, `hasPharmacyAccess()`. Throws if not authenticated, user record not found, or account deactivated. **All mutation server actions must call `getCurrentUser()` and check role before proceeding.**
+**`src/lib/get-current-user.ts`** — shared helper used in Server Actions and page RSCs. Exports `getCurrentUser()`, `isAdmin()`, `isPharmacist()`, `isPharmacyAssistant()`, `hasPharmacyAccess()`. Throws if not authenticated, user record not found, or account deactivated. **All mutation server actions must call `getCurrentUser()` and check role before proceeding.**
 
-**`src/lib/supabase/admin.ts`** — service-role client (`SUPABASE_SERVICE_ROLE_KEY`). Only imported in server action files. Used in `users/actions.ts` for Supabase Auth admin operations (create user, reset password, ban/unban).
+**`src/lib/supabase/admin.ts`** — service-role client. Only used in `users/actions.ts` for Supabase Auth admin operations and in `voidTransaction` for admin credential re-auth.
 
 Three regular Supabase client factories:
 - `src/lib/supabase/client.ts` — browser (Client Components)
 - `src/lib/supabase/server.ts` — RSC / Server Actions
 - `src/lib/supabase/middleware.ts` — middleware only; never reuse across requests
+
+### POS Terminal
+
+The POS terminal is a separate layout (`/pos-terminal`) with its own shell — no admin sidebar. It uses `POSContext` for shared cart state.
+
+**`src/context/POSContext.tsx`** — React context wrapping the entire POS layout. Holds:
+- `inventory: POSInventoryItem[]` — seeded from the RSC via `POSProvider` props
+- Cart state: `cartItems`, `addToCart`, `removeFromCart`, `updateQuantity`, `clearCart`
+- Computed: `subtotal`, `totalAmount`, `itemCount`
+- Search: `searchQuery`, `setSearchQuery`
+
+`addToCart` guards: out-of-stock/expired items are rejected with a toast; quantity is capped at available stock with a toast.
+
+**`processTransaction`** (`src/app/pos-terminal/actions.ts`) — validates role → validates cart → validates tendered amount → checks stock for ALL items (collects all errors before throwing) → generates TXN number via Supabase RPC → inserts transaction → inserts items → deducts inventory (no rollback on deduction for audit integrity) → revalidates.
+
+**`voidTransaction`** (`src/app/admin/transactions/actions.ts`) — re-authenticates the admin via `adminClient.auth.signInWithPassword` → verifies admin role in DB → restores inventory BEFORE marking voided (if restoration fails, status is NOT changed).
+
+**POS cart panel layout** — `POSCartPanel` uses `flex flex-col` with:
+- Items area: `flex-1 min-h-0 overflow-y-auto` — grows to fill all space
+- Footer (totals + buttons): `shrink-0` — anchored at bottom, natural height only
+
+Payment is handled via **`POSPaymentModal`** — a Dialog that opens when "PROCESS SALE" is clicked. Contains amount tendered input (autofocused on open, reset on each open), change display, and the Confirm & Process button. Receipt logic and `POSReceiptModal` are mounted inside `POSPaymentModal`, not the cart panel.
+
+**Shared components** between `/admin/transactions` and `/pos-terminal/transactions`:
+- `src/components/transactions/TransactionsTable.tsx` — accepts `basePath` prop for detail page navigation
+- `src/components/pos/TransactionDetail.tsx` — full detail view with void support; uses `TransactionWithItems` type
+
+**`TransactionWithItems`** — defined as `Omit<Transaction, 'transaction_items'> & { transaction_items: TransactionItem[] }` to properly override the narrow `{ id: string }[]` type on the base `Transaction`.
 
 ### Role-scoped UI pattern
 
@@ -127,26 +175,24 @@ Each domain has a folder under `src/components/<domain>/` containing:
 Shared utilities:
 - `src/lib/inventory-utils.ts` — `getStockStatus(quantity, threshold, expiryDate?)` returns one of 5 statuses including `near_expiry` (≤60 days) and `expired`. `stockStatusConfig` maps status → badge props.
 - `src/types/user.ts` — `AppUser`, `UserRole`, `ROLE_LABELS` for the users module.
+- `src/types/transaction.ts` — `Transaction`, `TransactionItem`, `TransactionWithItems`.
+- `src/types/inventory.ts` — `POSInventoryTableItem`, `Inventory`, `StockStatus`.
+
+### Admin layout and sidebar
+
+`AppSidebar` (`src/components/app-sidebar.tsx`) receives the current user's `role` from `layout.tsx` and filters nav items using a `roles?: Role[]` field on each item. The `NavItem` type includes `external?: boolean` — items with `external: true` render as `<a target="_blank">` instead of a Next.js `<Link>` (used for the POS Terminal link in the pharmacist sidebar).
+
+Nav sections:
+- `NavMain` — Dashboard, Inventory, Products, Batches, Order, POS Terminal (pharmacist only, external)
+- References group — Suppliers, Manufacturers, Pharmacies, Users (admin only)
+- `NavLogs` — Inventory Logs (admin only), Transactions (admin + pharmacist), Time Logs
+- `NavSecondary` — Settings, Help, Search
 
 ### SelectValue display fix
 
 This shadcn version uses `@base-ui/react/select`. `SelectValue` does not auto-render the selected item's label — it renders the raw value string. Always pass the resolved label as children:
 - UUID selects: `{items.find(i => i.id === field.value)?.name}`
 - Enum selects: `{LABEL_MAP[field.value]}` — define a static `Record<string, string>` map
-
-### Admin layout and sidebar
-
-`AppSidebar` (`src/components/app-sidebar.tsx`) receives the current user's `role` from `layout.tsx` and filters nav items using a `roles?: Role[]` field on each item. Items without `roles` are visible to all. Nav sections:
-- `NavMain` — Dashboard, Inventory, Products, Batches, Order (all roles)
-- References group — Suppliers, Manufacturers, Pharmacies, Users (admin only)
-- `NavLogs` — Inventory Logs (admin only), Transaction Logs, Time Logs
-- `NavSecondary` — Settings, Help, Search (all roles)
-
-`NavUser` (`src/components/nav-user.tsx`) shows `ROLE_LABELS[role]` as the subtitle in the sidebar footer trigger and in the dropdown header.
-
-The sidebar width and header height are set as CSS custom properties on `SidebarProvider`:
-- `--sidebar-width: calc(var(--spacing) * 72)`
-- `--header-height: calc(var(--spacing) * 12)`
 
 ### shadcn/ui API differences
 
