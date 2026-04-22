@@ -143,48 +143,42 @@ export default function TransactionDetail({
       </Card>
 
       {/* Items Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Items</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Product</TableHead>
-                <TableHead>Generic Name</TableHead>
-                <TableHead>SKU</TableHead>
-                <TableHead className="text-right">Qty</TableHead>
-                <TableHead className="text-right">Unit Price</TableHead>
-                <TableHead className="text-right">Total</TableHead>
+      <div className="overflow-x-auto rounded-md border transition-opacity">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Product</TableHead>
+              <TableHead>Generic Name</TableHead>
+              <TableHead>SKU</TableHead>
+              <TableHead className="text-right">Qty</TableHead>
+              <TableHead className="text-right">Unit Price</TableHead>
+              <TableHead className="text-right">Total</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {transaction.transaction_items.map(item => (
+              <TableRow key={item.id}>
+                <TableCell className="font-medium">
+                  {item.product_name}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {item.product_generic_name ?? "—"}
+                </TableCell>
+                <TableCell className="font-mono text-xs">
+                  {item.product_sku ?? "—"}
+                </TableCell>
+                <TableCell className="text-right">{item.quantity}</TableCell>
+                <TableCell className="text-right">
+                  ₱{item.unit_price.toFixed(2)}
+                </TableCell>
+                <TableCell className="text-right font-medium">
+                  ₱{item.total_price.toFixed(2)}
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {transaction.transaction_items.map(item => (
-                <TableRow key={item.id}>
-                  <TableCell className="font-medium">
-                    {item.product_name}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {item.product_generic_name ?? "—"}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs">
-                    {item.product_sku ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-right">{item.quantity}</TableCell>
-                  <TableCell className="text-right">
-                    ₱{item.unit_price.toFixed(2)}
-                  </TableCell>
-                  <TableCell className="text-right font-medium">
-                    ₱{item.total_price.toFixed(2)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
+            ))}
+          </TableBody>
+        </Table>
+      </div>
       {/* Totals + Actions Row */}
       <div className="flex flex-col md:flex-row justify-between gap-6">
         {/* Summary Card */}
@@ -202,9 +196,11 @@ export default function TransactionDetail({
               <span>₱{transaction.discount_amount.toFixed(2)}</span>
             </div>
             <Separator />
-            <div className="flex justify-between font-bold text-base">
+            <div className="flex items-center justify-between font-bold text-base">
               <span>Total</span>
-              <span>₱{transaction.total_amount.toFixed(2)}</span>
+              <span className="text-2xl text-blue-600">
+                ₱{transaction.total_amount.toFixed(2)}
+              </span>
             </div>
             <Separator />
             <div className="flex justify-between">
@@ -213,7 +209,9 @@ export default function TransactionDetail({
             </div>
             <div className="flex justify-between font-medium">
               <span className="text-muted-foreground">Change</span>
-              <span>₱{transaction.change_amount.toFixed(2)}</span>
+              <span className="text-green-600 font-medium">
+                ₱{transaction.change_amount.toFixed(2)}
+              </span>
             </div>
           </CardContent>
         </Card>
