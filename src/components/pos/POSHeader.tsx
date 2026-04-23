@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { createClient } from "@/lib/supabase/client";
 import { usePOS } from "@/context/POSContext";
+import { TillSessionIndicator } from "@/components/pos/TillSessionIndicator";
 
 type Role = "admin" | "pharmacist" | "pharmacy_assistant";
 
@@ -140,6 +141,7 @@ export function POSHeader() {
 
       {/* Right side */}
       <div className="flex items-center gap-2">
+        <TillSessionIndicator />
         <Button
           variant="ghost"
           size="sm"
