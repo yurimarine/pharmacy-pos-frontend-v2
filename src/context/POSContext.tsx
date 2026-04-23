@@ -37,6 +37,7 @@ type POSContextType = {
   // Cart
   cartItems: CartItem[]
   addToCart: (item: POSInventoryItem) => void
+  addToCartWithQuantity: (item: POSInventoryItem, quantity: number) => void
   removeFromCart: (inventoryId: string) => void
   updateQuantity: (inventoryId: string, quantity: number) => void
   clearCart: () => void
@@ -129,6 +130,54 @@ export function POSProvider({
     })
   }, [])
 
+  const addToCartWithQuantity = useCallback((item: POSInventoryItem, quantity: number) => {
+    if (item.quantity === 0) {
+      toast.error(`${item.productName} is out of stock.`)
+      return
+    }
+    if (item.expiryDate) {
+      const expiry = new Date(item.expiryDate)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      if (expiry < today) {
+        toast.error(`${item.productName} is expired.`)
+        return
+      }
+    }
+    setCartItems(prev => {
+      const existing = prev.find(c => c.inventoryId === item.inventoryId)
+      if (existing) {
+        const newQty = Math.min(existing.quantity + quantity, item.quantity)
+        if (existing.quantity + quantity > item.quantity) {
+          toast.warning(`Only ${item.quantity - existing.quantity} more unit(s) available.`)
+        }
+        return prev.map(c =>
+          c.inventoryId === item.inventoryId
+            ? { ...c, quantity: newQty, totalPrice: newQty * c.unitPrice }
+            : c
+        )
+      }
+      const cappedQty = Math.min(quantity, item.quantity)
+      const stockStatus = getStockStatus(item.quantity, item.lowStockThreshold, item.expiryDate)
+      return [
+        ...prev,
+        {
+          inventoryId: item.inventoryId,
+          productId: item.productId,
+          productName: item.productName,
+          productGenericName: item.productGenericName,
+          productSku: item.productSku,
+          requiresPrescription: item.requiresPrescription,
+          quantity: cappedQty,
+          unitPrice: item.sellingPrice,
+          totalPrice: cappedQty * item.sellingPrice,
+          maxQuantity: item.quantity,
+          stockStatus,
+        },
+      ]
+    })
+  }, [])
+
   const removeFromCart = useCallback((inventoryId: string) => {
     setCartItems(prev => prev.filter(c => c.inventoryId !== inventoryId))
   }, [])
@@ -177,6 +226,7 @@ export function POSProvider({
         setInventory,
         cartItems,
         addToCart,
+        addToCartWithQuantity,
         removeFromCart,
         updateQuantity,
         clearCart,

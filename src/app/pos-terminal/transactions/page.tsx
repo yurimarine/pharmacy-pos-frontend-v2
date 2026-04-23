@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/get-current-user";
 import { getTransactions } from "@/app/admin/transactions/actions";
-import { TransactionsTable } from "@/components/transactions/TransactionsTable";
+import { POSTransactionsList } from "@/components/pos/POSTransactionsList";
 
 export default async function POSTransactionsPage({
   searchParams,
@@ -53,9 +53,8 @@ export default async function POSTransactionsPage({
         </p>
       </div>
 
-      <TransactionsTable
+      <POSTransactionsList
         transactions={transactions}
-        pharmacies={[]}
         totalCount={count}
         currentPage={page}
         pageSize={pageSize}
@@ -64,9 +63,7 @@ export default async function POSTransactionsPage({
         currentPharmacyId={currentUser.pharmacy_id}
         currentDateFrom={params.dateFrom ?? ""}
         currentDateTo={params.dateTo ?? ""}
-        isAdmin={false}
         currentUserId={currentUser.id}
-        basePath="/pos-terminal/transactions"
       />
     </div>
   );

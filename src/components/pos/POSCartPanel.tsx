@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { ShoppingCartIcon, Trash2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePOS } from "@/context/POSContext";
@@ -10,11 +9,12 @@ import { POSPaymentModal } from "./POSPaymentModal";
 
 type POSCartPanelProps = {
   pharmacyId: string;
+  paymentOpen: boolean;
+  onPaymentOpenChange: (open: boolean) => void;
 };
 
-export function POSCartPanel({ pharmacyId }: POSCartPanelProps) {
+export function POSCartPanel({ pharmacyId, paymentOpen, onPaymentOpenChange }: POSCartPanelProps) {
   const { cartItems, itemCount, subtotal, totalAmount, clearCart } = usePOS();
-  const [paymentOpen, setPaymentOpen] = useState(false);
 
   const hasItems = cartItems.length > 0;
 
@@ -61,7 +61,7 @@ export function POSCartPanel({ pharmacyId }: POSCartPanelProps) {
             className="flex-1 font-bold text-base"
             size="lg"
             disabled={!hasItems}
-            onClick={() => setPaymentOpen(true)}
+            onClick={() => onPaymentOpenChange(true)}
           >
             PROCESS SALE
           </Button>
@@ -70,7 +70,7 @@ export function POSCartPanel({ pharmacyId }: POSCartPanelProps) {
 
       <POSPaymentModal
         open={paymentOpen}
-        onOpenChange={setPaymentOpen}
+        onOpenChange={onPaymentOpenChange}
         pharmacyId={pharmacyId}
       />
     </div>

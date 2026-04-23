@@ -74,6 +74,7 @@ type TransactionsTableProps = {
   isAdmin: boolean;
   currentUserId: string;
   basePath?: string;
+  onRowClick?: (transaction: Transaction) => void;
 };
 
 export function TransactionsTable({
@@ -89,6 +90,7 @@ export function TransactionsTable({
   currentDateTo,
   isAdmin,
   basePath = "/admin/transactions",
+  onRowClick,
 }: TransactionsTableProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -126,6 +128,14 @@ export function TransactionsTable({
 
   const totalPages = Math.ceil(totalCount / pageSize);
 
+  const navigate = (transaction: Transaction) => {
+    if (onRowClick) {
+      onRowClick(transaction);
+    } else {
+      router.push(`${basePath}/${transaction.id}`);
+    }
+  };
+
   const columns = useMemo<ColumnDef<Transaction>[]>(() => {
     const cols: ColumnDef<Transaction>[] = [
       {
@@ -134,7 +144,7 @@ export function TransactionsTable({
         cell: ({ row }) => (
           <span
             className="font-mono font-semibold text-sm cursor-pointer hover:underline"
-            onClick={() => router.push(`${basePath}/${row.original.id}`)}
+            onClick={e => { e.stopPropagation(); navigate(row.original); }}
           >
             {row.getValue("transaction_number")}
           </span>
@@ -223,7 +233,7 @@ export function TransactionsTable({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem
-                onClick={() => router.push(`${basePath}/${row.original.id}`)}
+                onClick={e => { e.stopPropagation(); navigate(row.original); }}
               >
                 View
               </DropdownMenuItem>
@@ -233,7 +243,7 @@ export function TransactionsTable({
       },
     ];
     return cols;
-  }, [isAdmin, router, basePath]);
+  }, [isAdmin, router, basePath, onRowClick]);
 
   const table = useReactTable({
     data: transactions,
@@ -359,7 +369,7 @@ export function TransactionsTable({
                 <TableRow
                   key={row.id}
                   className="cursor-pointer"
-                  onClick={() => router.push(`${basePath}/${row.original.id}`)}
+                  onClick={() => navigate(row.original)}
                 >
                   {row.getVisibleCells().map(cell => (
                     <TableCell key={cell.id}>

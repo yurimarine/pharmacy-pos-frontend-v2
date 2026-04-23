@@ -1,25 +1,29 @@
 'use client'
 
-import { useMemo } from 'react'
+import type { RefObject } from 'react'
 import { SearchIcon } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-import { usePOS } from '@/context/POSContext'
+import { usePOS, type POSInventoryItem } from '@/context/POSContext'
 import { POSProductResultsList } from './POSProductResultsList'
 
-export function POSSearchPanel() {
-  const { inventory, searchQuery, setSearchQuery, addToCart } = usePOS()
+type POSSearchPanelProps = {
+  searchInputRef: RefObject<HTMLInputElement | null>
+  filteredItems: POSInventoryItem[]
+  focusedProductIndex: number
+  setFocusedProductIndex: (i: number) => void
+  onSelectProduct: (item: POSInventoryItem) => void
+}
 
-  const filtered = useMemo(() => {
-    if (!searchQuery.trim()) return inventory
-    const q = searchQuery.toLowerCase()
-    return inventory.filter(
-      item =>
-        item.productName.toLowerCase().includes(q) ||
-        item.productGenericName?.toLowerCase().includes(q)
-    )
-  }, [inventory, searchQuery])
+export function POSSearchPanel({
+  searchInputRef,
+  filteredItems,
+  focusedProductIndex,
+  setFocusedProductIndex,
+  onSelectProduct: _onSelectProduct,
+}: POSSearchPanelProps) {
+  const { searchQuery, setSearchQuery, addToCart } = usePOS()
 
-  const isEmpty = searchQuery.trim() !== '' && filtered.length === 0
+  const isEmpty = searchQuery.trim() !== '' && filteredItems.length === 0
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -28,7 +32,8 @@ export function POSSearchPanel() {
         <div className="relative">
           <SearchIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search by product name or generic name..."
+            ref={searchInputRef}
+            placeholder="Search by product name or generic name... (F2)"
             className="pl-9"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
@@ -39,10 +44,12 @@ export function POSSearchPanel() {
       {/* Results */}
       <div className="flex-1 overflow-y-auto p-3">
         <POSProductResultsList
-          items={filtered}
+          items={filteredItems}
           onAddToCart={addToCart}
           isEmpty={isEmpty}
           searchQuery={searchQuery}
+          focusedProductIndex={focusedProductIndex}
+          setFocusedProductIndex={setFocusedProductIndex}
         />
       </div>
     </div>

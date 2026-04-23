@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/table";
 import type { TransactionWithItems } from "@/types/transaction";
 import { ROLE_LABELS } from "@/types/user";
-import { VoidTransactionDialog } from "./VoidTransactionDialog";
+import { VoidTransactionDialog } from "@/components/pos/VoidTransactionDialog";
 
 type TransactionDetailProps = {
   transaction: TransactionWithItems;

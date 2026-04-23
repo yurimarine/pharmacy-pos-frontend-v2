@@ -50,7 +50,6 @@ export function POSInventoryTable({ inventory }: POSInventoryTableProps) {
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({
     category: false,
     sku: false,
-    selling_price: false,
   });
 
   const filtered = useMemo(() => {
