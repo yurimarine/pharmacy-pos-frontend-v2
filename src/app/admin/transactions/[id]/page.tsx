@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { getCurrentUser } from '@/lib/get-current-user'
 import { getTransactionById } from '../actions'
 import { Button } from '@/components/ui/button'
-import TransactionDetail from '@/components/pos/TransactionDetail'
+import TransactionDetail from '@/components/transactions/TransactionDetail'
 
 export default async function AdminTransactionDetailPage({
   params,
