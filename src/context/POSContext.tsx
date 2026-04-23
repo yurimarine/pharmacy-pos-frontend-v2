@@ -9,6 +9,7 @@ import {
 } from 'react'
 import { toast } from 'sonner'
 import type { CartItem } from '@/types/cart'
+import type { TillSession } from '@/types/till-session'
 import { getStockStatus } from '@/lib/inventory-utils'
 
 export type POSInventoryItem = {
@@ -29,6 +30,12 @@ type POSContextType = {
   // Static metadata
   pharmacyName: string
   userName: string
+  pharmacyId: string
+  userRole: 'pharmacist' | 'pharmacy_assistant'
+
+  // Till session
+  tillSession: TillSession | null
+  setTillSession: (session: TillSession | null) => void
 
   // Inventory
   inventory: POSInventoryItem[]
@@ -58,12 +65,21 @@ export function POSProvider({
   children,
   pharmacyName,
   userName,
+  pharmacyId,
+  userRole,
+  initialTillSession,
+  initialInventory,
 }: {
   children: React.ReactNode
   pharmacyName: string
   userName: string
+  pharmacyId: string
+  userRole: 'pharmacist' | 'pharmacy_assistant'
+  initialTillSession: TillSession | null
+  initialInventory: POSInventoryItem[]
 }) {
-  const [inventory, setInventory] = useState<POSInventoryItem[]>([])
+  const [inventory, setInventory] = useState<POSInventoryItem[]>(initialInventory)
+  const [tillSession, setTillSession] = useState<TillSession | null>(initialTillSession)
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -222,6 +238,10 @@ export function POSProvider({
       value={{
         pharmacyName,
         userName,
+        pharmacyId,
+        userRole,
+        tillSession,
+        setTillSession,
         inventory,
         setInventory,
         cartItems,

@@ -1,17 +1,24 @@
-import { redirect } from 'next/navigation'
-import { getCurrentUser } from '@/lib/get-current-user'
-import { getPOSInventory } from './actions'
+'use client'
+
+import { useState } from 'react'
+import { usePOS } from '@/context/POSContext'
 import { POSLayout } from '@/components/pos/POSLayout'
+import { OpenTillModal } from '@/components/pos/OpenTillModal'
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardFooter,
+} from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { LockKeyholeIcon } from 'lucide-react'
 
-export default async function POSTerminalPage() {
-  let currentUser
-  try {
-    currentUser = await getCurrentUser()
-  } catch {
-    redirect('/auth/login')
-  }
+export default function POSTerminalPage() {
+  const { tillSession, pharmacyId, inventory } = usePOS()
+  const [openTillModalOpen, setOpenTillModalOpen] = useState(false)
 
-  if (!currentUser.pharmacy_id) {
+  if (!pharmacyId) {
     return (
       <div className="flex flex-1 items-center justify-center text-muted-foreground p-8">
         <p className="text-center text-sm">
@@ -23,12 +30,33 @@ export default async function POSTerminalPage() {
     )
   }
 
-  const inventory = await getPOSInventory(currentUser.pharmacy_id)
+  if (!tillSession) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-8">
+        <Card className="w-full max-w-md">
+          <CardHeader className="items-center text-center">
+            <LockKeyholeIcon className="size-12 text-muted-foreground mb-2" />
+            <CardTitle>Till is Not Open</CardTitle>
+            <CardDescription>
+              Open the till to start processing sales for your shift.
+            </CardDescription>
+          </CardHeader>
+          <CardFooter className="justify-center">
+            <Button
+              className="w-full"
+              onClick={() => setOpenTillModalOpen(true)}
+            >
+              Open Till
+            </Button>
+          </CardFooter>
+        </Card>
+        <OpenTillModal
+          open={openTillModalOpen}
+          onOpenChange={setOpenTillModalOpen}
+        />
+      </div>
+    )
+  }
 
-  return (
-    <POSLayout
-      inventory={inventory}
-      pharmacyId={currentUser.pharmacy_id}
-    />
-  )
+  return <POSLayout inventory={inventory} pharmacyId={pharmacyId} />
 }
