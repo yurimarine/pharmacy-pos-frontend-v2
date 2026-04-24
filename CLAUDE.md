@@ -49,11 +49,14 @@ src/app/
     pharmacies/page.tsx + actions.ts
     suppliers/page.tsx + actions.ts
     orders/page.tsx             # Stub (not yet implemented)
+    till-sessions/page.tsx + actions.ts  # Admin view of all sessions; force-close
+    time-logs/page.tsx + actions.ts      # Attendance-focused read-only view (admin only)
     product-classes/, product-categories/, packaging-units/, dispensing-units/
   pos-terminal/
     layout.tsx                  # POS shell: POSHeader + POSProvider (no admin sidebar)
-    page.tsx                    # Main POS terminal: search panel + cart panel
+    page.tsx                    # Client component; renders gate or POSLayout based on tillSession
     actions.ts                  # getPOSInventory, processTransaction
+    till-session-actions.ts     # getActiveTillSession, openTillSession, getSessionSummary, closeTillSession
     inventory/page.tsx + actions.ts  # Read-only inventory view for POS users
     transactions/page.tsx + actions.ts
     transactions/[id]/page.tsx  # Shared TransactionDetail component
@@ -74,6 +77,7 @@ The app is a multi-pharmacy POS system. Key entities and relationships:
 - **InventoryLog** — written on every `updateInventoryEntry` call; tracks who changed what and why.
 - **Transaction** — a completed sale. Has `transaction_items[]`, `amount_tendered`, `change_amount`, `status` (`completed` | `voided`). Voiding restores inventory.
 - **User** — `role` is `admin | pharmacist | pharmacy_assistant`. Non-admin users have `pharmacy_id`. `is_active` gates login.
+- **TillSession** — tracks a staff member's shift at a pharmacy. `status`: `open | closed | force_closed`. Holds `opening_cash` / `closing_cash` / `expected_cash` / `discrepancy` (all nullable except opening), `opening_cash_breakdown` / `closing_cash_breakdown` (JSON), `transaction_count`. A user may only have one open session per pharmacy at a time; opening a new session force-closes any prior open session for the same user. `processTransaction` requires an open session and stamps `till_session_id` on the transaction.
 - **Supplier / Manufacturer** — reference data linked to products and batch items.
 
 ### Data fetching pattern
@@ -105,7 +109,7 @@ page.tsx (RSC) → actions.ts ("use server") → Supabase → Client Component
 
 | Route group | Allowed roles |
 |---|---|
-| `ADMIN_ONLY_ROUTES` (users, suppliers, manufacturers, pharmacies, product-classes, product-categories, packaging-units, dispensing-units) | `admin` only |
+| `ADMIN_ONLY_ROUTES` (users, suppliers, manufacturers, pharmacies, product-classes, product-categories, packaging-units, dispensing-units, till-sessions, time-logs) | `admin` only |
 | `ADMIN_PHARMACIST_ROUTES` (dashboard, inventory, batches, inventory-logs, transactions, products, reports) | `admin`, `pharmacist` |
 | `POS_ROUTES` (`/pos-terminal`) | `pharmacist`, `pharmacy_assistant` |
 | `PUBLIC_ROUTES` | always |
@@ -126,14 +130,18 @@ Three regular Supabase client factories:
 The POS terminal is a separate layout (`/pos-terminal`) with its own shell — no admin sidebar. It uses `POSContext` for shared cart state.
 
 **`src/context/POSContext.tsx`** — React context wrapping the entire POS layout. Holds:
-- `inventory: POSInventoryItem[]` — seeded from the RSC via `POSProvider` props
-- Cart state: `cartItems`, `addToCart`, `removeFromCart`, `updateQuantity`, `clearCart`
+- Static metadata: `pharmacyName`, `userName`, `pharmacyId`, `userRole`
+- `tillSession: TillSession | null` + `setTillSession` — seeded from layout RSC
+- `inventory: POSInventoryItem[]` — seeded from layout RSC via `POSProvider` props
+- Cart state: `cartItems`, `addToCart`, `addToCartWithQuantity`, `removeFromCart`, `updateQuantity`, `clearCart`
 - Computed: `subtotal`, `totalAmount`, `itemCount`
 - Search: `searchQuery`, `setSearchQuery`
 
 `addToCart` guards: out-of-stock/expired items are rejected with a toast; quantity is capped at available stock with a toast.
 
-**`processTransaction`** (`src/app/pos-terminal/actions.ts`) — validates role → validates cart → validates tendered amount → checks stock for ALL items (collects all errors before throwing) → generates TXN number via Supabase RPC → inserts transaction → inserts items → deducts inventory (no rollback on deduction for audit integrity) → revalidates.
+**Till session lifecycle (POS)** — `pos-terminal/layout.tsx` (RSC) fetches both inventory and the active till session, seeds them into `POSProvider`. `pos-terminal/page.tsx` is a Client Component that reads `tillSession` from context: if null, renders the gate page (card + Open Till button + `OpenTillModal`); otherwise renders `<POSLayout />`. `TillSessionIndicator` (inside `POSHeader`) shows elapsed time and an "End Shift" button that opens `CloseTillModal`. `CloseTillModal` has two stages: `input` (reconciliation form) and `summary` (shift report with print support). The "Done" button on stage 2 calls `setTillSession(null)` to return to the gate page.
+
+**`processTransaction`** (`src/app/pos-terminal/actions.ts`) — validates role → **validates open till session** → validates cart → validates tendered amount → checks stock for ALL items (collects all errors before throwing) → generates TXN number via Supabase RPC → inserts transaction (with `till_session_id`) → inserts items → deducts inventory (no rollback on deduction for audit integrity) → revalidates.
 
 **`voidTransaction`** (`src/app/admin/transactions/actions.ts`) — re-authenticates the admin via `adminClient.auth.signInWithPassword` → verifies admin role in DB → restores inventory BEFORE marking voided (if restoration fails, status is NOT changed).
 
@@ -185,7 +193,7 @@ Shared utilities:
 Nav sections:
 - `NavMain` — Dashboard, Inventory, Products, Batches, Order, POS Terminal (pharmacist only, external)
 - References group — Suppliers, Manufacturers, Pharmacies, Users (admin only)
-- `NavLogs` — Inventory Logs (admin only), Transactions (admin + pharmacist), Time Logs
+- `NavLogs` — Inventory Logs (admin only), Transactions (admin + pharmacist), Till Sessions (admin only), Time Logs (admin only)
 - `NavSecondary` — Settings, Help, Search
 
 ### SelectValue display fix
@@ -203,3 +211,13 @@ This version of shadcn has breaking API changes from common training data:
 - `Button` with `render={<Link />}`: add `nativeButton={false}` to suppress Base UI warning about non-`<button>` rendering.
 - `Select`: `onValueChange` receives `string | null`, not `string` — guard against null before using the value.
 - `Checkbox`: accepts `indeterminate` prop directly (not via `ref`).
+
+### Known pitfalls
+
+**PostgREST joined-column filtering** — You cannot use `.eq()` or `.ilike()` on columns from an embedded relation (e.g. `opened_by_user.name`). Workaround: pre-resolve matching IDs with a separate `users` query, then use `.in('opened_by', userIds)` on the parent table. If the user query returns zero rows, return `{ data: [], count: 0 }` immediately to skip the main query.
+
+**react-compiler: synchronous `setState` in `useEffect`** — The react-compiler ESLint rule treats any synchronous `setState()` call directly in the `useEffect` body as an error ("Calling setState synchronously within an effect"). Avoid reset `useEffect`s that call multiple setters. Instead, reset modal state by remounting the component via a `key` prop (increment a `modalKey` counter in the parent on each open) so initial `useState` values serve as the reset. Only call `setState` inside async `.then()` / `.catch()` / `.finally()` chains within effects.
+
+**Modal state reset via `key` remount** — Rather than a `useEffect` that resets a modal's state on open/close, increment a `key` integer in the parent each time the modal is opened. React will unmount and remount the component, so all `useState` initializers re-run. This is the preferred pattern for CloseTillModal and similar two-stage modals.
+
+**Print isolation** — To print a specific section of the page, give it `id="section-id"` and add a `@media print` block in `globals.css` that hides everything else (`body > * { display: none }`) and shows only `#section-id`. See the shift summary print block at the bottom of `globals.css`.
