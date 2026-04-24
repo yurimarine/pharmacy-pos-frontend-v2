@@ -179,7 +179,6 @@ export function CloseTillModal({ open, onOpenChange }: Props) {
           closingNotes: closingNotes.trim() || undefined,
         });
         setClosedSession(result);
-        setTillSession(null);
         setStage("summary");
         toast.success("Till closed successfully. Shift ended.");
       } catch (err) {
@@ -346,7 +345,14 @@ export function CloseTillModal({ open, onOpenChange }: Props) {
               <PrinterIcon className="size-4" />
               Print Summary
             </Button>
-            <Button onClick={() => onOpenChange(false)}>Done</Button>
+            <Button
+              onClick={() => {
+                setTillSession(null);
+                onOpenChange(false);
+              }}
+            >
+              Done
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

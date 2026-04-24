@@ -61,7 +61,7 @@ export function TillSessionIndicator() {
       <CloseTillModal
         key={modalKey}
         open={closeTillModalOpen}
-        onOpenChange={setCloseTillModalOpen}
+        onOpenChange={(open) => setCloseTillModalOpen(open)}
       />
     </div>
   )
