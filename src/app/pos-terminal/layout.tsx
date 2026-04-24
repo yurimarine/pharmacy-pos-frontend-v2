@@ -18,10 +18,11 @@ export default async function POSTerminalLayout({
     redirect("/auth/login");
   }
 
+  const supabase = await createClient();
+
   // Fetch pharmacy name for the header and receipt
   let pharmacyName = "My Pharmacy";
   if (currentUser.pharmacy_id) {
-    const supabase = await createClient();
     const { data: pharmacy } = await supabase
       .from("pharmacies")
       .select("name")
@@ -39,6 +40,14 @@ export default async function POSTerminalLayout({
     currentUser.id
   );
 
+  const { data: activeDiscountsData } = await supabase
+    .from("discounts")
+    .select("*")
+    .eq("is_active", true)
+    .order("name", { ascending: true });
+
+  const activeDiscounts = activeDiscountsData ?? [];
+
   return (
     <POSProvider
       pharmacyName={pharmacyName}
@@ -47,6 +56,7 @@ export default async function POSTerminalLayout({
       userRole={currentUser.role as "pharmacist" | "pharmacy_assistant"}
       initialTillSession={activeTillSession}
       initialInventory={inventory}
+      activeDiscounts={activeDiscounts}
     >
       <div className="flex h-screen flex-col bg-background overflow-hidden w-full">
         <POSHeader />
