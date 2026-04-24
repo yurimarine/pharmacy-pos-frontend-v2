@@ -145,7 +145,7 @@ const logs: LogItem[] = [
     icon: <LandmarkIcon />,
     roles: ["admin"],
   },
-  { name: "Time Logs", url: "#", icon: <ClipboardClock /> },
+  { name: "Time Logs", url: "/admin/time-logs", icon: <ClipboardClock />, roles: ["admin"] },
 ];
 
 function filterByRole<T extends { roles?: Role[] }>(items: T[], role: Role): T[] {
