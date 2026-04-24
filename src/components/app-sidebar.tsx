@@ -38,6 +38,7 @@ import {
   Receipt,
   UsersIcon,
   MonitorSmartphone,
+  LandmarkIcon,
 } from "lucide-react";
 
 type Role = "admin" | "pharmacist" | "pharmacy_assistant";
@@ -138,7 +139,13 @@ const logs: LogItem[] = [
     icon: <Receipt />,
     roles: ["admin", "pharmacist"],
   },
-  { name: "Time Logs", url: "#", icon: <ClipboardClock /> },
+  {
+    name: "Till Sessions",
+    url: "/admin/till-sessions",
+    icon: <LandmarkIcon />,
+    roles: ["admin"],
+  },
+  { name: "Time Logs", url: "/admin/time-logs", icon: <ClipboardClock />, roles: ["admin"] },
 ];
 
 function filterByRole<T extends { roles?: Role[] }>(items: T[], role: Role): T[] {

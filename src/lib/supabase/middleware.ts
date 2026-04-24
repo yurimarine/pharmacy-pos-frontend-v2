@@ -10,6 +10,8 @@ const ADMIN_ONLY_ROUTES = [
   "/admin/product-categories",
   "/admin/packaging-units",
   "/admin/dispensing-units",
+  "/admin/till-sessions",
+  "/admin/time-logs",
 ];
 
 const ADMIN_PHARMACIST_ROUTES = [

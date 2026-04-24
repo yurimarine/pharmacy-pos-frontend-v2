@@ -96,18 +96,33 @@ export async function processTransaction(data: {
     throw new Error('Unauthorized: Only pharmacists and pharmacy assistants can process transactions.')
   }
 
-  // 2. Validate cart is not empty
+  // 2. Validate active till session for this user
+  const { data: tillSession, error: tillError } = await supabase
+    .from('till_sessions')
+    .select('id')
+    .eq('pharmacy_id', data.pharmacyId)
+    .eq('opened_by', currentUser.id)
+    .eq('status', 'open')
+    .single()
+
+  if (tillError || !tillSession) {
+    throw new Error(
+      'No active till session. Open the till before processing sales.'
+    )
+  }
+
+  // 3. Validate cart is not empty
   if (data.cartItems.length === 0) {
     throw new Error('Cart is empty.')
   }
 
-  // 3. Validate amount tendered
+  // 4. Validate amount tendered
   const total = data.cartItems.reduce((sum, item) => sum + item.totalPrice, 0)
   if (data.amountTendered < total) {
     throw new Error('Insufficient amount tendered.')
   }
 
-  // 4. Stock validation — check ALL items, collect all errors before throwing
+  // 5. Stock validation — check ALL items, collect all errors before throwing
   const errors: string[] = []
   const validatedItems: Array<{ cartItem: CartItem; currentQuantity: number }> = []
 
@@ -130,16 +145,16 @@ export async function processTransaction(data: {
 
   if (errors.length > 0) throw new Error(errors.join('\n'))
 
-  // 5. Generate transaction number
+  // 6. Generate transaction number
   const { data: txnNumber } = await supabase.rpc('generate_transaction_number')
 
-  // 6. Compute totals
+  // 7. Compute totals
   const subtotal = data.cartItems.reduce((sum, item) => sum + item.totalPrice, 0)
   const discountAmount = 0
   const totalAmount = subtotal - discountAmount
   const changeAmount = data.amountTendered - totalAmount
 
-  // 7. Insert transaction record
+  // 8. Insert transaction record
   const { data: transaction, error: txnError } = await supabase
     .from('transactions')
     .insert({
@@ -154,13 +169,14 @@ export async function processTransaction(data: {
       amount_tendered: data.amountTendered,
       change_amount: changeAmount,
       notes: data.notes ?? null,
+      till_session_id: tillSession.id,
     })
     .select()
     .single()
 
   if (txnError) throw new Error(txnError.message)
 
-  // 8. Insert transaction items
+  // 9. Insert transaction items
   const itemsToInsert = data.cartItems.map(item => ({
     transaction_id: transaction.id,
     product_id: item.productId,
@@ -184,7 +200,7 @@ export async function processTransaction(data: {
     throw new Error(itemsError.message)
   }
 
-  // 9. Deduct inventory — do not rollback if this fails (transaction already recorded)
+  // 10. Deduct inventory — do not rollback if this fails (transaction already recorded)
   for (const { cartItem, currentQuantity } of validatedItems) {
     const { error: invError } = await supabase
       .from('inventory')
@@ -203,11 +219,11 @@ export async function processTransaction(data: {
     }
   }
 
-  // 10. Revalidate
+  // 11. Revalidate
   revalidatePath('/pos-terminal')
   revalidatePath('/admin/transactions')
   revalidatePath('/admin/inventory')
 
-  // 11. Return completed transaction
+  // 12. Return completed transaction
   return transaction as unknown as Transaction
 }

@@ -128,3 +128,36 @@
     @apply font-sans;
   }
 }
+
+@media print {
+  /* Hide everything on the page when printing */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Show only the shift summary content */
+  #shift-summary-print,
+  #shift-summary-print * {
+    visibility: visible;
+  }
+
+  /* Position the summary at the top of the page */
+  #shift-summary-print {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 2rem;
+    font-family: monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    color: black;
+    background: white;
+  }
+
+  /* Hide dialog overlay and backdrop when printing */
+  [data-radix-dialog-overlay],
+  [data-radix-dialog-backdrop] {
+    display: none !important;
+  }
+}
