@@ -40,3 +40,9 @@ export type TillSessionWithRelations = TillSession & {
   opened_by_user: { name: string; role: string } | null
   closed_by_user: { name: string } | null
 }
+
+export const TILL_SESSION_STATUS_LABELS: Record<TillSessionStatus, string> = {
+  open: 'Open',
+  closed: 'Closed',
+  force_closed: 'Force Closed',
+}
