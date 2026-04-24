@@ -12,6 +12,7 @@ const ADMIN_ONLY_ROUTES = [
   "/admin/dispensing-units",
   "/admin/till-sessions",
   "/admin/time-logs",
+  "/admin/discounts",
 ];
 
 const ADMIN_PHARMACIST_ROUTES = [
