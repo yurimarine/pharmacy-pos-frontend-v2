@@ -9,8 +9,11 @@ export type Transaction = {
   till_session_id: string | null
   status: TransactionStatus
   payment_method: PaymentMethod
-  subtotal: number
+  subtotal: number | null
+  discount_id: string | null
   discount_amount: number
+  reference_id: string | null
+  reference_name: string | null
   total_amount: number
   amount_tendered: number
   change_amount: number
@@ -37,6 +40,7 @@ export type TransactionItem = {
   product_sku: string | null
   quantity: number
   unit_price: number
+  discount_id: string | null
   discount_amount: number
   total_price: number
   created_at: string

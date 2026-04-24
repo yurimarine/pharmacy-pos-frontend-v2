@@ -56,7 +56,7 @@ export function POSTransactionReceiptModal({
       unitPrice: item.unit_price,
       totalPrice: item.total_price,
     })),
-    subtotal: transaction.subtotal,
+    subtotal: transaction.subtotal ?? transaction.total_amount,
     discountAmount: transaction.discount_amount,
     totalAmount: transaction.total_amount,
     amountTendered: transaction.amount_tendered,

@@ -189,7 +189,7 @@ export default function TransactionDetail({
           <CardContent className="flex flex-col gap-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Subtotal</span>
-              <span>₱{transaction.subtotal.toFixed(2)}</span>
+              <span>₱{(transaction.subtotal ?? transaction.total_amount).toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Discount</span>
