@@ -30,7 +30,7 @@ export function POSPaymentModal({
   onOpenChange,
   pharmacyId,
 }: POSPaymentModalProps) {
-  const { cartItems, itemCount, totalAmount, clearCart } = usePOS();
+  const { cartItems, itemCount, subtotal, totalAmount, totalDiscountAmount, discountMode, clearCart } = usePOS();
   const [amountTendered, setAmountTendered] = useState(0);
   const [isPending, startTransition] = useTransition();
   const [receiptOpen, setReceiptOpen] = useState(false);
@@ -85,12 +85,17 @@ export function POSPaymentModal({
           {/* Order summary */}
           <div className="flex flex-col gap-2 rounded-lg bg-muted/40 px-4 py-3 text-sm">
             <div className="flex justify-between text-muted-foreground">
-              <span>
-                {itemCount} item{itemCount !== 1 ? "s" : ""}
-              </span>
+              <span>{itemCount} item{itemCount !== 1 ? "s" : ""}</span>
+              <span>₱{subtotal.toFixed(2)}</span>
             </div>
+            {totalDiscountAmount > 0 && (
+              <div className={`flex justify-between ${discountMode === 'whole_cart' ? 'text-amber-600' : 'text-green-600'}`}>
+                <span>Discount</span>
+                <span>-₱{totalDiscountAmount.toFixed(2)}</span>
+              </div>
+            )}
             <div className="flex justify-between items-center font-semibold text-4xl">
-              <span className="text-sm">Total Due</span>
+              <span className="text-sm">Amount Due</span>
               <span>{totalAmount.toFixed(2)}</span>
             </div>
           </div>
