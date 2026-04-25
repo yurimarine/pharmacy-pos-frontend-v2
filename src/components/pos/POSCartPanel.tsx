@@ -1,11 +1,15 @@
 "use client";
 
-import { ShoppingCartIcon, Trash2Icon } from "lucide-react";
+import { useState } from "react";
+import { ShoppingCartIcon, Trash2Icon, TagIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverTrigger } from "@/components/ui/popover";
 import { usePOS } from "@/context/POSContext";
+import { cn } from "@/lib/utils";
 import { POSCartItem } from "./POSCartItem";
 import { POSCartTotals } from "./POSCartTotals";
 import { POSPaymentModal } from "./POSPaymentModal";
+import { CartDiscountPopover } from "./CartDiscountPopover";
 
 type POSCartPanelProps = {
   pharmacyId: string;
@@ -14,9 +18,11 @@ type POSCartPanelProps = {
 };
 
 export function POSCartPanel({ pharmacyId, paymentOpen, onPaymentOpenChange }: POSCartPanelProps) {
-  const { cartItems, itemCount, subtotal, totalAmount, clearCart } = usePOS();
+  const { cartItems, itemCount, clearCart, cartDiscount, discountMode } = usePOS();
+  const [cartDiscountOpen, setCartDiscountOpen] = useState(false);
 
   const hasItems = cartItems.length > 0;
+  const isCartDiscountLocked = discountMode === 'per_item';
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden bg-muted/90">
@@ -46,8 +52,40 @@ export function POSCartPanel({ pharmacyId, paymentOpen, onPaymentOpenChange }: P
 
       {/* Footer: totals + process sale — anchored at bottom */}
       <div className="shrink-0 border-t px-4 pb-4">
-        <POSCartTotals subtotal={subtotal} totalAmount={totalAmount} />
+        <POSCartTotals />
         <div className="flex gap-2">
+          {/* Cart discount button */}
+          <Popover open={cartDiscountOpen} onOpenChange={setCartDiscountOpen}>
+            <PopoverTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn(
+                    "shrink-0",
+                    cartDiscount !== null
+                      ? "border-amber-300 bg-amber-50 text-amber-600 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400"
+                      : isCartDiscountLocked
+                        ? "border-border bg-muted text-muted-foreground opacity-40 cursor-not-allowed"
+                        : "border-border bg-background text-muted-foreground",
+                  )}
+                  disabled={isCartDiscountLocked}
+                  title={
+                    cartDiscount !== null
+                      ? "Change or remove cart discount"
+                      : isCartDiscountLocked
+                        ? "Per-item discounts are active"
+                        : "Apply cart discount"
+                  }
+                />
+              }
+            >
+              <TagIcon className="size-3.5" />
+            </PopoverTrigger>
+            <CartDiscountPopover onClose={() => setCartDiscountOpen(false)} />
+          </Popover>
+
+          {/* Clear cart button */}
           <Button
             variant="outline"
             size="sm"
@@ -57,6 +95,7 @@ export function POSCartPanel({ pharmacyId, paymentOpen, onPaymentOpenChange }: P
           >
             <Trash2Icon className="size-3.5" />
           </Button>
+
           <Button
             className="flex-1 font-bold text-base"
             size="lg"

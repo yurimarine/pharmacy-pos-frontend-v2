@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BanIcon } from "lucide-react";
+import { BanIcon, TagIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -22,12 +22,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { TransactionWithItems } from "@/types/transaction";
+import type { TransactionWithDetails } from "@/types/transaction";
 import { ROLE_LABELS } from "@/types/user";
 import { VoidTransactionDialog } from "@/components/pos/VoidTransactionDialog";
 
 type TransactionDetailProps = {
-  transaction: TransactionWithItems;
+  transaction: TransactionWithDetails;
   canVoid: boolean;
   backHref: string;
 };
@@ -49,6 +49,13 @@ export default function TransactionDetail({
 }: TransactionDetailProps) {
   const router = useRouter();
   const [voidOpen, setVoidOpen] = useState(false);
+
+  const itemDiscountTotal = transaction.transaction_items.reduce(
+    (sum, item) => sum + (item.discount_amount ?? 0),
+    0,
+  )
+  const hasWholeCartDiscount = transaction.discount_amount > 0
+  const hasItemDiscounts = !hasWholeCartDiscount && itemDiscountTotal > 0
 
   return (
     <div className="flex flex-col gap-6 p-6 w-full overflow-hidden">
@@ -152,33 +159,60 @@ export default function TransactionDetail({
               <TableHead>SKU</TableHead>
               <TableHead className="text-right">Qty</TableHead>
               <TableHead className="text-right">Unit Price</TableHead>
+              <TableHead>Discount</TableHead>
               <TableHead className="text-right">Total</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {transaction.transaction_items.map(item => (
-              <TableRow key={item.id}>
-                <TableCell className="font-medium">
-                  {item.product_name}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {item.product_generic_name ?? "—"}
-                </TableCell>
-                <TableCell className="font-mono text-xs">
-                  {item.product_sku ?? "—"}
-                </TableCell>
-                <TableCell className="text-right">{item.quantity}</TableCell>
-                <TableCell className="text-right">
-                  ₱{item.unit_price.toFixed(2)}
-                </TableCell>
-                <TableCell className="text-right font-medium">
-                  ₱{item.total_price.toFixed(2)}
-                </TableCell>
-              </TableRow>
-            ))}
+            {transaction.transaction_items.map(item => {
+              const discountAmt = item.discount_amount ?? 0
+              const discountedTotal = item.total_price - discountAmt
+              return (
+                <TableRow key={item.id}>
+                  <TableCell className="font-medium">
+                    {item.product_name}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {item.product_generic_name ?? "—"}
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {item.product_sku ?? "—"}
+                  </TableCell>
+                  <TableCell className="text-right">{item.quantity}</TableCell>
+                  <TableCell className="text-right">
+                    ₱{item.unit_price.toFixed(2)}
+                  </TableCell>
+                  <TableCell>
+                    {discountAmt > 0 ? (
+                      <div className="text-sm text-green-600">
+                        <div>{item.item_discount?.name ?? "Discount"}</div>
+                        <div className="font-medium">
+                          -₱{discountAmt.toFixed(2)}
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right font-medium">
+                    {discountAmt > 0 ? (
+                      <div className="flex flex-col items-end">
+                        <span className="text-xs text-muted-foreground line-through">
+                          ₱{item.total_price.toFixed(2)}
+                        </span>
+                        <span>₱{discountedTotal.toFixed(2)}</span>
+                      </div>
+                    ) : (
+                      `₱${item.total_price.toFixed(2)}`
+                    )}
+                  </TableCell>
+                </TableRow>
+              )
+            })}
           </TableBody>
         </Table>
       </div>
+
       {/* Totals + Actions Row */}
       <div className="flex flex-col md:flex-row justify-between gap-6">
         {/* Summary Card */}
@@ -189,12 +223,37 @@ export default function TransactionDetail({
           <CardContent className="flex flex-col gap-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Subtotal</span>
-              <span>₱{transaction.subtotal.toFixed(2)}</span>
+              <span>₱{(transaction.subtotal ?? transaction.total_amount).toFixed(2)}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Discount</span>
-              <span>₱{transaction.discount_amount.toFixed(2)}</span>
-            </div>
+
+            {hasWholeCartDiscount && (
+              <>
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1 text-muted-foreground">
+                    <TagIcon className="size-3.5" />
+                    {transaction.transaction_discount?.name ?? "Discount"}
+                  </span>
+                  <span className="text-amber-600">
+                    -₱{transaction.discount_amount.toFixed(2)}
+                  </span>
+                </div>
+                {transaction.reference_id && transaction.reference_name && (
+                  <div className="text-xs text-muted-foreground pl-5">
+                    ID: {transaction.reference_id} · {transaction.reference_name}
+                  </div>
+                )}
+              </>
+            )}
+
+            {hasItemDiscounts && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Item discounts</span>
+                <span className="text-green-600">
+                  -₱{itemDiscountTotal.toFixed(2)}
+                </span>
+              </div>
+            )}
+
             <Separator />
             <div className="flex items-center justify-between font-bold text-base">
               <span>Total</span>

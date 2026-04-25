@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getCurrentUser } from '@/lib/get-current-user'
 import { revalidatePath } from 'next/cache'
-import type { Transaction, TransactionWithItems } from '@/types/transaction'
+import type { Transaction, TransactionWithDetails } from '@/types/transaction'
 
 export async function getTransactions(options: {
   pharmacyId?: string
@@ -67,7 +67,7 @@ export async function getTransactions(options: {
   return { data: (data ?? []) as unknown as Transaction[], count: count ?? 0 }
 }
 
-export async function getTransactionById(id: string): Promise<TransactionWithItems | null> {
+export async function getTransactionById(id: string): Promise<TransactionWithDetails | null> {
   const supabase = await createClient()
 
   const { data, error } = await supabase
@@ -78,6 +78,9 @@ export async function getTransactionById(id: string): Promise<TransactionWithIte
       pharmacies ( name ),
       users!transactions_processed_by_fkey ( name, role ),
       voided_by_user:users!transactions_voided_by_fkey ( name ),
+      transaction_discount:discounts!transactions_discount_id_fkey (
+        id, name, type, value, scope, requires_reference
+      ),
       transaction_items (
         id,
         product_id,
@@ -87,8 +90,12 @@ export async function getTransactionById(id: string): Promise<TransactionWithIte
         product_sku,
         quantity,
         unit_price,
+        discount_id,
         discount_amount,
-        total_price
+        total_price,
+        item_discount:discounts!transaction_items_discount_id_fkey (
+          id, name, type, value, scope
+        )
       )
     `,
     )
@@ -97,7 +104,7 @@ export async function getTransactionById(id: string): Promise<TransactionWithIte
 
   if (error) return null
 
-  return data as unknown as TransactionWithItems
+  return data as unknown as TransactionWithDetails
 }
 
 export async function getPharmaciesForTransactionFilter(): Promise<
@@ -111,6 +118,8 @@ export async function getPharmaciesForTransactionFilter(): Promise<
   return data ?? []
 }
 
+// Discount fields are audit records and are not reversed when a transaction is voided.
+// Inventory restoration is based on quantity only.
 export async function voidTransaction(data: {
   transactionId: string
   adminEmail: string

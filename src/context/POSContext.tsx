@@ -10,6 +10,8 @@ import {
 import { toast } from 'sonner'
 import type { CartItem } from '@/types/cart'
 import type { TillSession } from '@/types/till-session'
+import type { Discount } from '@/types/discount'
+import { computeDiscountAmount } from '@/types/discount'
 import { getStockStatus } from '@/lib/inventory-utils'
 
 export type POSInventoryItem = {
@@ -57,6 +59,29 @@ type POSContextType = {
   // Search
   searchQuery: string
   setSearchQuery: (query: string) => void
+
+  // Discounts — available list
+  activeDiscounts: Discount[]
+
+  // Discount mode (mutual exclusivity)
+  discountMode: 'per_item' | 'whole_cart' | null
+
+  // Whole-cart discount
+  cartDiscount: Discount | null
+  cartDiscountAmount: number
+
+  // Reference fields (shared for both modes)
+  referenceId: string
+  referenceName: string
+  setReference: (id: string, name: string) => void
+
+  // Discount actions
+  applyItemDiscount: (inventoryId: string, discount: Discount | null) => void
+  setCartDiscount: (discount: Discount | null) => void
+  clearAllDiscounts: () => void
+
+  // Computed discount total
+  totalDiscountAmount: number
 }
 
 const POSContext = createContext<POSContextType | null>(null)
@@ -69,6 +94,7 @@ export function POSProvider({
   userRole,
   initialTillSession,
   initialInventory,
+  activeDiscounts: initialActiveDiscounts,
 }: {
   children: React.ReactNode
   pharmacyName: string
@@ -77,11 +103,21 @@ export function POSProvider({
   userRole: 'pharmacist' | 'pharmacy_assistant'
   initialTillSession: TillSession | null
   initialInventory: POSInventoryItem[]
+  activeDiscounts: Discount[]
 }) {
   const [inventory, setInventory] = useState<POSInventoryItem[]>(initialInventory)
   const [tillSession, setTillSession] = useState<TillSession | null>(initialTillSession)
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [searchQuery, setSearchQuery] = useState('')
+
+  // Discount state
+  const [activeDiscounts] = useState<Discount[]>(initialActiveDiscounts)
+  const [cartDiscount, setCartDiscountState] = useState<Discount | null>(null)
+  const [cartDiscountAmount, setCartDiscountAmount] = useState<number>(0)
+  const [referenceId, setReferenceId] = useState<string>('')
+  const [referenceName, setReferenceName] = useState<string>('')
+
+  // ─── Cart actions ─────────────────────────────────────────────────────────
 
   const addToCart = useCallback((item: POSInventoryItem) => {
     // Guard: out of stock
@@ -141,6 +177,8 @@ export function POSProvider({
           totalPrice: item.sellingPrice,
           maxQuantity: item.quantity,
           stockStatus,
+          discount: null,
+          discountAmount: 0,
         },
       ]
     })
@@ -189,6 +227,8 @@ export function POSProvider({
           totalPrice: cappedQty * item.sellingPrice,
           maxQuantity: item.quantity,
           stockStatus,
+          discount: null,
+          discountAmount: 0,
         },
       ]
     })
@@ -222,15 +262,114 @@ export function POSProvider({
     [removeFromCart],
   )
 
+  // ─── Discount actions ─────────────────────────────────────────────────────
+
+  const clearAllDiscounts = useCallback(() => {
+    setCartItems(prev =>
+      prev.map(item => ({ ...item, discount: null, discountAmount: 0 }))
+    )
+    setCartDiscountState(null)
+    setCartDiscountAmount(0)
+    setReferenceId('')
+    setReferenceName('')
+  }, [])
+
   const clearCart = useCallback(() => {
     setCartItems([])
+    clearAllDiscounts()
+  }, [clearAllDiscounts])
+
+  const applyItemDiscount = useCallback(
+    (inventoryId: string, discount: Discount | null) => {
+      // Mutual exclusivity: clear cart discount when applying an item discount
+      if (discount !== null && cartDiscount !== null) {
+        setCartDiscountState(null)
+        setCartDiscountAmount(0)
+        setReferenceId('')
+        setReferenceName('')
+      }
+
+      setCartItems(prev =>
+        prev.map(item => {
+          if (item.inventoryId !== inventoryId) return item
+          if (discount === null) {
+            return { ...item, discount: null, discountAmount: 0 }
+          }
+          const itemTotal = item.unitPrice * item.quantity
+          const amount = computeDiscountAmount(discount, itemTotal)
+          return { ...item, discount, discountAmount: amount }
+        })
+      )
+    },
+    [cartDiscount],
+  )
+
+  const setCartDiscount = useCallback(
+    (discount: Discount | null) => {
+      if (discount === null) {
+        setCartDiscountState(null)
+        setCartDiscountAmount(0)
+        setReferenceId('')
+        setReferenceName('')
+        return
+      }
+
+      // Mutual exclusivity: clear all item discounts
+      setCartItems(prev =>
+        prev.map(item => ({ ...item, discount: null, discountAmount: 0 }))
+      )
+
+      // Compute current subtotal (before any discount)
+      const currentSubtotal = cartItems.reduce(
+        (sum, item) => sum + item.unitPrice * item.quantity,
+        0,
+      )
+
+      // Floor check: fixed discount cannot exceed subtotal
+      if (discount.type === 'fixed' && discount.value > currentSubtotal) {
+        throw new Error(
+          `Discount of ₱${discount.value.toFixed(2)} exceeds ` +
+            `the cart total of ₱${currentSubtotal.toFixed(2)}.`,
+        )
+      }
+
+      const amount = computeDiscountAmount(discount, currentSubtotal)
+      setCartDiscountState(discount)
+      setCartDiscountAmount(amount)
+    },
+    [cartItems],
+  )
+
+  const setReference = useCallback((id: string, name: string) => {
+    setReferenceId(id)
+    setReferenceName(name)
   }, [])
+
+  // ─── Derived discount mode ────────────────────────────────────────────────
+
+  const discountMode = useMemo<'per_item' | 'whole_cart' | null>(() => {
+    if (cartDiscount !== null) return 'whole_cart'
+    if (cartItems.some(item => item.discount !== null)) return 'per_item'
+    return null
+  }, [cartDiscount, cartItems])
+
+  // ─── Computed values ──────────────────────────────────────────────────────
 
   const subtotal = useMemo(
     () => cartItems.reduce((sum, item) => sum + item.totalPrice, 0),
     [cartItems],
   )
-  const totalAmount = subtotal
+
+  const totalDiscountAmount = useMemo(() => {
+    if (discountMode === 'whole_cart') return cartDiscountAmount
+    if (discountMode === 'per_item') {
+      return cartItems.reduce((sum, item) => sum + item.discountAmount, 0)
+    }
+    return 0
+  }, [discountMode, cartDiscountAmount, cartItems])
+
+  const totalAmount = Math.max(0, subtotal - totalDiscountAmount)
+
   const itemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0)
 
   return (
@@ -255,6 +394,17 @@ export function POSProvider({
         itemCount,
         searchQuery,
         setSearchQuery,
+        activeDiscounts,
+        discountMode,
+        cartDiscount,
+        cartDiscountAmount,
+        referenceId,
+        referenceName,
+        setReference,
+        applyItemDiscount,
+        setCartDiscount,
+        clearAllDiscounts,
+        totalDiscountAmount,
       }}
     >
       {children}

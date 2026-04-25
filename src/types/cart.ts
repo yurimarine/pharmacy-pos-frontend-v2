@@ -1,4 +1,5 @@
 import type { StockStatus } from '@/types/inventory'
+import type { Discount } from '@/types/discount'
 
 export type CartItem = {
   inventoryId: string
@@ -12,6 +13,8 @@ export type CartItem = {
   totalPrice: number
   maxQuantity: number      // current stock level — hard cap
   stockStatus: StockStatus
+  discount: Discount | null
+  discountAmount: number
 }
 
 export type Cart = {

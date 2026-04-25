@@ -39,6 +39,7 @@ import {
   UsersIcon,
   MonitorSmartphone,
   LandmarkIcon,
+  TagIcon,
 } from "lucide-react";
 
 type Role = "admin" | "pharmacist" | "pharmacy_assistant";
@@ -116,6 +117,12 @@ const navReferenceData: NavItem[] = [
     title: "Users",
     url: "/admin/users",
     icon: <UsersIcon />,
+    roles: ["admin"],
+  },
+  {
+    title: "Discounts",
+    url: "/admin/discounts",
+    icon: <TagIcon />,
     roles: ["admin"],
   },
 ];

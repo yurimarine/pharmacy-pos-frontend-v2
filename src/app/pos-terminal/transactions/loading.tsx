@@ -1,8 +1,8 @@
-import { Skeleton } from '@/components/ui/skeleton'
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function POSTransactionsLoading() {
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <div className="flex flex-col gap-6 p-6 w-full">
       {/* Header */}
       <div className="flex flex-col gap-2">
         <Skeleton className="h-8 w-48" />
@@ -45,5 +45,5 @@ export default function POSTransactionsLoading() {
         </div>
       </div>
     </div>
-  )
+  );
 }
