@@ -87,6 +87,11 @@ export async function processTransaction(data: {
   amountTendered: number
   pharmacyId: string
   notes?: string
+  subtotal: number
+  discount_id: string | null
+  discount_amount: number
+  reference_id: string | null
+  reference_name: string | null
 }): Promise<Transaction> {
   const supabase = await createClient()
 
@@ -116,9 +121,27 @@ export async function processTransaction(data: {
     throw new Error('Cart is empty.')
   }
 
-  // 4. Validate amount tendered
-  const total = data.cartItems.reduce((sum, item) => sum + item.totalPrice, 0)
-  if (data.amountTendered < total) {
+  // 3b. Server-side floor check for whole-cart fixed discounts
+  if (
+    data.discount_id !== null &&
+    data.discount_amount > data.subtotal
+  ) {
+    throw new Error(
+      'Cart discount exceeds the cart subtotal. ' +
+      'Please remove the discount and try again.'
+    )
+  }
+
+  // 4. Validate amount tendered (post-discount total)
+  const itemDiscountTotal = data.cartItems.reduce(
+    (sum, item) => sum + (item.discountAmount ?? 0),
+    0,
+  )
+  const totalDue = Math.max(
+    0,
+    data.subtotal - (data.discount_amount ?? 0) - itemDiscountTotal,
+  )
+  if (data.amountTendered < totalDue) {
     throw new Error('Insufficient amount tendered.')
   }
 
@@ -149,9 +172,8 @@ export async function processTransaction(data: {
   const { data: txnNumber } = await supabase.rpc('generate_transaction_number')
 
   // 7. Compute totals
-  const subtotal = data.cartItems.reduce((sum, item) => sum + item.totalPrice, 0)
-  const discountAmount = 0
-  const totalAmount = subtotal - discountAmount
+  const totalDiscountValue = (data.discount_amount ?? 0) + itemDiscountTotal
+  const totalAmount = Math.max(0, data.subtotal - totalDiscountValue)
   const changeAmount = data.amountTendered - totalAmount
 
   // 8. Insert transaction record
@@ -163,8 +185,11 @@ export async function processTransaction(data: {
       processed_by: currentUser.id,
       status: 'completed',
       payment_method: 'cash',
-      subtotal,
-      discount_amount: discountAmount,
+      subtotal: data.subtotal,
+      discount_id: data.discount_id ?? null,
+      discount_amount: data.discount_amount ?? 0,
+      reference_id: data.reference_id ?? null,
+      reference_name: data.reference_name ?? null,
       total_amount: totalAmount,
       amount_tendered: data.amountTendered,
       change_amount: changeAmount,
@@ -186,7 +211,8 @@ export async function processTransaction(data: {
     product_sku: item.productSku,
     quantity: item.quantity,
     unit_price: item.unitPrice,
-    discount_amount: 0,
+    discount_id: item.discount?.id ?? null,
+    discount_amount: item.discountAmount ?? 0,
     total_price: item.totalPrice,
   }))
 

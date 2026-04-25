@@ -3,6 +3,8 @@
 import { PrinterIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { usePOS } from '@/context/POSContext'
+import { formatDiscountLabel } from '@/types/discount'
 import { POSReceipt } from './POSReceipt'
 import type { TransactionWithItems } from '@/types/transaction'
 
@@ -17,6 +19,8 @@ export function POSTransactionReceiptModal({
   onOpenChange,
   transaction,
 }: POSTransactionReceiptModalProps) {
+  const { activeDiscounts } = usePOS()
+
   if (!open) return null
 
   if (!transaction) {
@@ -43,21 +47,36 @@ export function POSTransactionReceiptModal({
     hour12: true,
   })
 
+  const cartDiscountName = transaction.discount_id
+    ? (activeDiscounts.find(d => d.id === transaction.discount_id)?.name ?? 'Discount')
+    : null
+
   const receiptData = {
     transactionNumber: transaction.transaction_number,
     pharmacy: transaction.pharmacies?.name ?? '',
     cashier: transaction.users?.name ?? '',
     date,
     time,
-    items: transaction.transaction_items.map(item => ({
-      name: item.product_name,
-      genericName: item.product_generic_name ?? null,
-      quantity: item.quantity,
-      unitPrice: item.unit_price,
-      totalPrice: item.total_price,
-    })),
+    items: transaction.transaction_items.map(item => {
+      const discount = item.discount_id
+        ? activeDiscounts.find(d => d.id === item.discount_id) ?? null
+        : null
+      return {
+        name: item.product_name,
+        genericName: item.product_generic_name ?? null,
+        quantity: item.quantity,
+        unitPrice: item.unit_price,
+        totalPrice: item.total_price,
+        discountAmount: item.discount_amount,
+        discountLabel: discount ? formatDiscountLabel(discount) : null,
+      }
+    }),
     subtotal: transaction.subtotal ?? transaction.total_amount,
-    discountAmount: transaction.discount_amount,
+    discountId: transaction.discount_id,
+    discountAmount: transaction.discount_amount ?? 0,
+    discountName: cartDiscountName,
+    referenceId: transaction.reference_id,
+    referenceName: transaction.reference_name,
     totalAmount: transaction.total_amount,
     amountTendered: transaction.amount_tendered,
     changeAmount: transaction.change_amount,

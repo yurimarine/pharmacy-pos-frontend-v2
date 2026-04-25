@@ -7,6 +7,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { usePOS } from '@/context/POSContext'
 import type { Transaction } from '@/types/transaction'
 import type { CartItem } from '@/types/cart'
+import { formatDiscountLabel } from '@/types/discount'
 import { POSReceipt } from './POSReceipt'
 
 type POSReceiptModalProps = {
@@ -24,7 +25,7 @@ export function POSReceiptModal({
   receiptItems,
   onNewTransaction,
 }: POSReceiptModalProps) {
-  const { pharmacyName, userName } = usePOS()
+  const { pharmacyName, userName, activeDiscounts } = usePOS()
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -52,6 +53,10 @@ export function POSReceiptModal({
     hour12: true,
   })
 
+  const cartDiscountName = transaction.discount_id
+    ? (activeDiscounts.find(d => d.id === transaction.discount_id)?.name ?? 'Discount')
+    : null
+
   const receiptData = {
     transactionNumber: transaction.transaction_number,
     pharmacy: pharmacyName,
@@ -64,9 +69,15 @@ export function POSReceiptModal({
       quantity: item.quantity,
       unitPrice: item.unitPrice,
       totalPrice: item.totalPrice,
+      discountAmount: item.discountAmount,
+      discountLabel: item.discount ? formatDiscountLabel(item.discount) : null,
     })),
     subtotal: transaction.subtotal ?? transaction.total_amount,
-    discountAmount: transaction.discount_amount,
+    discountId: transaction.discount_id,
+    discountAmount: transaction.discount_amount ?? 0,
+    discountName: cartDiscountName,
+    referenceId: transaction.reference_id,
+    referenceName: transaction.reference_name,
     totalAmount: transaction.total_amount,
     amountTendered: transaction.amount_tendered,
     changeAmount: transaction.change_amount,

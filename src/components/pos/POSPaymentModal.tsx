@@ -30,7 +30,19 @@ export function POSPaymentModal({
   onOpenChange,
   pharmacyId,
 }: POSPaymentModalProps) {
-  const { cartItems, itemCount, subtotal, totalAmount, totalDiscountAmount, discountMode, clearCart } = usePOS();
+  const {
+    cartItems,
+    itemCount,
+    subtotal,
+    totalAmount,
+    totalDiscountAmount,
+    cartDiscount,
+    cartDiscountAmount,
+    discountMode,
+    referenceId,
+    referenceName,
+    clearCart,
+  } = usePOS();
   const [amountTendered, setAmountTendered] = useState(0);
   const [isPending, startTransition] = useTransition();
   const [receiptOpen, setReceiptOpen] = useState(false);
@@ -59,6 +71,11 @@ export function POSPaymentModal({
           cartItems: itemSnapshot,
           amountTendered,
           pharmacyId,
+          subtotal,
+          discount_id: discountMode === 'whole_cart' ? (cartDiscount?.id ?? null) : null,
+          discount_amount: discountMode === 'whole_cart' ? cartDiscountAmount : 0,
+          reference_id: referenceId.trim() || null,
+          reference_name: referenceName.trim() || null,
         });
         setCompletedTransaction(result);
         setReceiptItems(itemSnapshot);
