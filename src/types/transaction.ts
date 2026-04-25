@@ -1,3 +1,5 @@
+import type { DiscountType, DiscountScope } from '@/types/discount'
+
 export type TransactionStatus = 'completed' | 'voided'
 export type PaymentMethod = 'cash'
 
@@ -48,4 +50,39 @@ export type TransactionItem = {
 
 export type TransactionWithItems = Omit<Transaction, 'transaction_items'> & {
   transaction_items: TransactionItem[]
+}
+
+// ── Discount-joined types for detail views ────────────────────────────────────
+
+export type TransactionItemWithDiscount = TransactionItem & {
+  item_discount: {
+    id: string
+    name: string
+    type: DiscountType
+    value: number
+    scope: DiscountScope
+  } | null
+}
+
+export type TransactionWithDiscount = Transaction & {
+  transaction_discount: {
+    id: string
+    name: string
+    type: DiscountType
+    value: number
+    scope: DiscountScope
+    requires_reference: boolean
+  } | null
+}
+
+export type TransactionWithDetails = Omit<Transaction, 'transaction_items'> & {
+  transaction_discount: {
+    id: string
+    name: string
+    type: DiscountType
+    value: number
+    scope: DiscountScope
+    requires_reference: boolean
+  } | null
+  transaction_items: TransactionItemWithDiscount[]
 }

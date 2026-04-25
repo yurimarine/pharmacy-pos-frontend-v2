@@ -202,6 +202,22 @@ export function TransactionsTable({
         ),
       },
       {
+        id: "discount",
+        header: "Discount",
+        cell: ({ row }) => {
+          const amt = row.original.discount_amount ?? 0
+          if (amt === 0) {
+            return <span className="text-muted-foreground">—</span>
+          }
+          const isWholeCart = row.original.discount_id !== null
+          return (
+            <span className={`text-sm font-medium ${isWholeCart ? "text-amber-600" : "text-green-600"}`}>
+              -₱{amt.toFixed(2)}
+            </span>
+          )
+        },
+      },
+      {
         accessorKey: "payment_method",
         header: "Payment",
         cell: () => <Badge variant="secondary">Cash</Badge>,
