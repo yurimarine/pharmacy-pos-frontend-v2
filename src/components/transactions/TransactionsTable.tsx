@@ -144,7 +144,10 @@ export function TransactionsTable({
         cell: ({ row }) => (
           <span
             className="font-mono font-semibold text-sm cursor-pointer hover:underline"
-            onClick={e => { e.stopPropagation(); navigate(row.original); }}
+            onClick={e => {
+              e.stopPropagation();
+              navigate(row.original);
+            }}
           >
             {row.getValue("transaction_number")}
           </span>
@@ -205,16 +208,18 @@ export function TransactionsTable({
         id: "discount",
         header: "Discount",
         cell: ({ row }) => {
-          const amt = row.original.discount_amount ?? 0
+          const amt = row.original.discount_amount ?? 0;
           if (amt === 0) {
-            return <span className="text-muted-foreground">—</span>
+            return <span className="text-muted-foreground">—</span>;
           }
-          const isWholeCart = row.original.discount_id !== null
+          const isWholeCart = row.original.discount_id !== null;
           return (
-            <span className={`text-sm font-medium ${isWholeCart ? "text-amber-600" : "text-green-600"}`}>
+            <span
+              className={`text-sm font-medium ${isWholeCart ? "text-amber-600" : "text-green-600"}`}
+            >
               -₱{amt.toFixed(2)}
             </span>
-          )
+          );
         },
       },
       {
@@ -234,27 +239,6 @@ export function TransactionsTable({
           <span className="text-sm text-muted-foreground whitespace-nowrap">
             {formatDate(row.getValue("created_at"))}
           </span>
-        ),
-      },
-      {
-        id: "actions",
-        header: "",
-        cell: ({ row }) => (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={<Button variant="ghost" size="icon" />}
-            >
-              <EllipsisVerticalIcon className="size-4" />
-              <span className="sr-only">Open menu</span>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={e => { e.stopPropagation(); navigate(row.original); }}
-              >
-                View
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         ),
       },
     ];
