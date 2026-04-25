@@ -49,6 +49,7 @@ src/app/
     pharmacies/page.tsx + actions.ts
     suppliers/page.tsx + actions.ts
     orders/page.tsx             # Stub (not yet implemented)
+    discounts/page.tsx + actions.ts      # Admin CRUD for discount definitions (admin only)
     till-sessions/page.tsx + actions.ts  # Admin view of all sessions; force-close
     time-logs/page.tsx + actions.ts      # Attendance-focused read-only view (admin only)
     product-classes/, product-categories/, packaging-units/, dispensing-units/
@@ -75,7 +76,9 @@ The app is a multi-pharmacy POS system. Key entities and relationships:
   - `markup_change`: updates `inventory.markup_percentage` + recalculates `selling_price` at a specific pharmacy. `batch_items.unit_cost` stores the new markup %.
   - `base_price_change`: updates `products.base_price` globally, recalculates `selling_price` across all pharmacies. `pharmacy_id` is null on the batch.
 - **InventoryLog** — written on every `updateInventoryEntry` call; tracks who changed what and why.
-- **Transaction** — a completed sale. Has `transaction_items[]`, `amount_tendered`, `change_amount`, `status` (`completed` | `voided`). Voiding restores inventory.
+- **Transaction** — a completed sale. Has `transaction_items[]`, `amount_tendered`, `change_amount`, `status` (`completed` | `voided`). Holds `subtotal`, `discount_id` (nullable FK → discounts), `discount_amount`, `reference_id`, `reference_name`. Voiding restores inventory; discount fields are audit records and are NOT reversed on void.
+- **TransactionItem** — holds `discount_id` (nullable FK → discounts) and `discount_amount` per item. `total_price` is the pre-discount line total; the discounted price is `total_price - discount_amount`.
+- **Discount** — `type` (`percentage` | `fixed`), `scope` (`per_item` | `whole_cart`), `value`, `requires_reference` (bool), `is_active`. Managed at `/admin/discounts`. Loaded into `POSProvider` at layout time for the entire POS session.
 - **User** — `role` is `admin | pharmacist | pharmacy_assistant`. Non-admin users have `pharmacy_id`. `is_active` gates login.
 - **TillSession** — tracks a staff member's shift at a pharmacy. `status`: `open | closed | force_closed`. Holds `opening_cash` / `closing_cash` / `expected_cash` / `discrepancy` (all nullable except opening), `opening_cash_breakdown` / `closing_cash_breakdown` (JSON), `transaction_count`. A user may only have one open session per pharmacy at a time; opening a new session force-closes any prior open session for the same user. `processTransaction` requires an open session and stamps `till_session_id` on the transaction.
 - **Supplier / Manufacturer** — reference data linked to products and batch items.
@@ -109,7 +112,7 @@ page.tsx (RSC) → actions.ts ("use server") → Supabase → Client Component
 
 | Route group | Allowed roles |
 |---|---|
-| `ADMIN_ONLY_ROUTES` (users, suppliers, manufacturers, pharmacies, product-classes, product-categories, packaging-units, dispensing-units, till-sessions, time-logs) | `admin` only |
+| `ADMIN_ONLY_ROUTES` (users, suppliers, manufacturers, pharmacies, discounts, product-classes, product-categories, packaging-units, dispensing-units, till-sessions, time-logs) | `admin` only |
 | `ADMIN_PHARMACIST_ROUTES` (dashboard, inventory, batches, inventory-logs, transactions, products, reports) | `admin`, `pharmacist` |
 | `POS_ROUTES` (`/pos-terminal`) | `pharmacist`, `pharmacy_assistant` |
 | `PUBLIC_ROUTES` | always |
@@ -134,14 +137,17 @@ The POS terminal is a separate layout (`/pos-terminal`) with its own shell — n
 - `tillSession: TillSession | null` + `setTillSession` — seeded from layout RSC
 - `inventory: POSInventoryItem[]` — seeded from layout RSC via `POSProvider` props
 - Cart state: `cartItems`, `addToCart`, `addToCartWithQuantity`, `removeFromCart`, `updateQuantity`, `clearCart`
-- Computed: `subtotal`, `totalAmount`, `itemCount`
+- Discount state: `activeDiscounts`, `cartDiscount`, `cartDiscountAmount`, `referenceId`, `referenceName`, `applyItemDiscount`, `setCartDiscount`, `setReference`, `clearAllDiscounts`
+- Computed: `subtotal`, `totalAmount`, `itemCount`, `totalDiscountAmount`, `discountMode` (`'per_item' | 'whole_cart' | null`)
 - Search: `searchQuery`, `setSearchQuery`
+
+**Discount mutual exclusivity** — `discountMode` is derived via `useMemo` (never stored). Applying an item discount clears the cart discount and vice versa. `setCartDiscount` throws synchronously if a fixed discount exceeds the cart subtotal (client-side floor check); `processTransaction` repeats this check server-side. `CartItem` carries `discount: Discount | null` and `discountAmount: number`. Per-item discount amounts are computed from `item.unitPrice * item.quantity`; the whole-cart discount amount is stored separately in `cartDiscountAmount`.
 
 `addToCart` guards: out-of-stock/expired items are rejected with a toast; quantity is capped at available stock with a toast.
 
 **Till session lifecycle (POS)** — `pos-terminal/layout.tsx` (RSC) fetches both inventory and the active till session, seeds them into `POSProvider`. `pos-terminal/page.tsx` is a Client Component that reads `tillSession` from context: if null, renders the gate page (card + Open Till button + `OpenTillModal`); otherwise renders `<POSLayout />`. `TillSessionIndicator` (inside `POSHeader`) shows elapsed time and an "End Shift" button that opens `CloseTillModal`. `CloseTillModal` has two stages: `input` (reconciliation form) and `summary` (shift report with print support). The "Done" button on stage 2 calls `setTillSession(null)` to return to the gate page.
 
-**`processTransaction`** (`src/app/pos-terminal/actions.ts`) — validates role → **validates open till session** → validates cart → validates tendered amount → checks stock for ALL items (collects all errors before throwing) → generates TXN number via Supabase RPC → inserts transaction (with `till_session_id`) → inserts items → deducts inventory (no rollback on deduction for audit integrity) → revalidates.
+**`processTransaction`** (`src/app/pos-terminal/actions.ts`) — validates role → **validates open till session** → validates cart → server-side floor check (fixed cart discount > subtotal throws) → validates tendered amount (post-discount total) → checks stock for ALL items (collects all errors before throwing) → generates TXN number via Supabase RPC → inserts transaction (with `till_session_id`, `subtotal`, `discount_id`, `discount_amount`, `reference_id`, `reference_name`) → inserts items (with `discount_id`, `discount_amount` per item) → deducts inventory (no rollback on deduction for audit integrity) → revalidates. Input receives discount fields from `POSPaymentModal`; per-item discounts travel through `CartItem.discount`/`CartItem.discountAmount`.
 
 **`voidTransaction`** (`src/app/admin/transactions/actions.ts`) — re-authenticates the admin via `adminClient.auth.signInWithPassword` → verifies admin role in DB → restores inventory BEFORE marking voided (if restoration fails, status is NOT changed).
 
@@ -152,10 +158,13 @@ The POS terminal is a separate layout (`/pos-terminal`) with its own shell — n
 Payment is handled via **`POSPaymentModal`** — a Dialog that opens when "PROCESS SALE" is clicked. Contains amount tendered input (autofocused on open, reset on each open), change display, and the Confirm & Process button. Receipt logic and `POSReceiptModal` are mounted inside `POSPaymentModal`, not the cart panel.
 
 **Shared components** between `/admin/transactions` and `/pos-terminal/transactions`:
-- `src/components/transactions/TransactionsTable.tsx` — accepts `basePath` prop for detail page navigation
-- `src/components/pos/TransactionDetail.tsx` — full detail view with void support; uses `TransactionWithItems` type
+- `src/components/transactions/TransactionsTable.tsx` — accepts `basePath` prop for detail page navigation; both routes use `getTransactions` from `src/app/admin/transactions/actions.ts`
+- `src/components/transactions/TransactionDetail.tsx` — full detail view with void support; uses `TransactionWithDetails` type
 
-**`TransactionWithItems`** — defined as `Omit<Transaction, 'transaction_items'> & { transaction_items: TransactionItem[] }` to properly override the narrow `{ id: string }[]` type on the base `Transaction`.
+**Transaction types** (`src/types/transaction.ts`):
+- `TransactionWithItems` — `Omit<Transaction, 'transaction_items'> & { transaction_items: TransactionItem[] }` — used by `POSTransactionReceiptModal`
+- `TransactionWithDetails` — includes `transaction_discount` join (nullable) and `transaction_items: TransactionItemWithDiscount[]` (each item includes `item_discount` join) — returned by `getTransactionById`, consumed by `TransactionDetail`
+- `TransactionItemWithDiscount` — extends `TransactionItem` with `item_discount: { id, name, type, value, scope } | null`
 
 ### Role-scoped UI pattern
 
@@ -183,7 +192,8 @@ Each domain has a folder under `src/components/<domain>/` containing:
 Shared utilities:
 - `src/lib/inventory-utils.ts` — `getStockStatus(quantity, threshold, expiryDate?)` returns one of 5 statuses including `near_expiry` (≤60 days) and `expired`. `stockStatusConfig` maps status → badge props.
 - `src/types/user.ts` — `AppUser`, `UserRole`, `ROLE_LABELS` for the users module.
-- `src/types/transaction.ts` — `Transaction`, `TransactionItem`, `TransactionWithItems`.
+- `src/types/transaction.ts` — `Transaction`, `TransactionItem`, `TransactionWithItems`, `TransactionWithDetails`, `TransactionItemWithDiscount`.
+- `src/types/discount.ts` — `Discount`, `DiscountType`, `DiscountScope`, `computeDiscountAmount(discount, baseAmount)`, `formatDiscountLabel(discount)`.
 - `src/types/inventory.ts` — `POSInventoryTableItem`, `Inventory`, `StockStatus`.
 
 ### Admin layout and sidebar
@@ -192,7 +202,7 @@ Shared utilities:
 
 Nav sections:
 - `NavMain` — Dashboard, Inventory, Products, Batches, Order, POS Terminal (pharmacist only, external)
-- References group — Suppliers, Manufacturers, Pharmacies, Users (admin only)
+- References group — Suppliers, Manufacturers, Pharmacies, Discounts, Users (admin only)
 - `NavLogs` — Inventory Logs (admin only), Transactions (admin + pharmacist), Till Sessions (admin only), Time Logs (admin only)
 - `NavSecondary` — Settings, Help, Search
 
@@ -208,9 +218,11 @@ This version of shadcn has breaking API changes from common training data:
 
 - `SidebarMenuButton`: use `render={<Link href="..." />}` (not `asChild`) to wrap with Next.js `<Link>`.
 - `DropdownMenuTrigger`: use `render={<Button ... />}` (not `asChild`).
+- `PopoverTrigger`: use `render={<Button ... />}` (not `asChild`) — same Base UI render prop pattern.
 - `Button` with `render={<Link />}`: add `nativeButton={false}` to suppress Base UI warning about non-`<button>` rendering.
 - `Select`: `onValueChange` receives `string | null`, not `string` — guard against null before using the value.
 - `Checkbox`: accepts `indeterminate` prop directly (not via `ref`).
+- `Popover` (`src/components/ui/popover.tsx`) — built from scratch using `@base-ui/react/popover`. Structure: `Popover` → `PopoverTrigger` (render prop) + `PopoverContent` → `Portal → Positioner → Popup`.
 
 ### Known pitfalls
 
@@ -221,3 +233,11 @@ This version of shadcn has breaking API changes from common training data:
 **Modal state reset via `key` remount** — Rather than a `useEffect` that resets a modal's state on open/close, increment a `key` integer in the parent each time the modal is opened. React will unmount and remount the component, so all `useState` initializers re-run. This is the preferred pattern for CloseTillModal and similar two-stage modals.
 
 **Print isolation** — To print a specific section of the page, give it `id="section-id"` and add a `@media print` block in `globals.css` that hides everything else (`body > * { display: none }`) and shows only `#section-id`. See the shift summary print block at the bottom of `globals.css`.
+
+**Supabase FK alias syntax for joins** — When two FK columns reference the same table (e.g. both `processed_by` and `voided_by` → `users`), Supabase requires a hint. Use the alias + FK constraint name syntax:
+```ts
+users!transactions_processed_by_fkey ( name, role )
+voided_by_user:users!transactions_voided_by_fkey ( name )
+transaction_discount:discounts!transactions_discount_id_fkey ( id, name, type )
+```
+The alias (left of `:`) becomes the key on the returned object. Without the FK hint, PostgREST throws an ambiguous join error.
