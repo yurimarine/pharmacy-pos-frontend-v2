@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback, useTransition } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { useDebouncedCallback } from 'use-debounce'
 import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from '@tanstack/react-table'
-import { SearchIcon, XCircleIcon } from 'lucide-react'
+import { SearchIcon, XCircleIcon, EllipsisVerticalIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { forceCloseTillSession } from '@/app/admin/till-sessions/actions'
 import {
@@ -32,6 +32,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -41,6 +47,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { TillSessionDetailDialog } from './TillSessionDetailDialog'
 
 type Props = {
   data: TillSessionWithRelations[]
@@ -55,14 +62,6 @@ type Props = {
   pageSize: number
 }
 
-function formatPeso(amount: number | null | undefined): string {
-  if (amount == null) return '—'
-  return `₱${amount.toLocaleString('en-PH', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`
-}
-
 function formatDateShort(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-US', {
     month: 'short',
@@ -73,19 +72,10 @@ function formatDateShort(dateStr: string): string {
 
 function formatTimeShort(dateStr: string): string {
   return new Date(dateStr).toLocaleTimeString('en-US', {
-    hour: '2-digit',
+    hour: 'numeric',
     minute: '2-digit',
+    hour12: true,
   })
-}
-
-function computeDuration(start: string, end: string | null): string {
-  if (!end) return 'In Progress'
-  const diffMins = Math.floor(
-    (new Date(end).getTime() - new Date(start).getTime()) / 60000,
-  )
-  const hours = Math.floor(diffMins / 60)
-  const mins = diffMins % 60
-  return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`
 }
 
 function StatusBadge({ status }: { status: TillSessionStatus }) {
@@ -104,27 +94,6 @@ function StatusBadge({ status }: { status: TillSessionStatus }) {
     )
   }
   return <Badge variant="secondary">{TILL_SESSION_STATUS_LABELS.closed}</Badge>
-}
-
-function DiscrepancyCell({ value }: { value: number | null }) {
-  if (value === null) return <span className="text-muted-foreground">—</span>
-  if (value > 0)
-    return (
-      <span className="text-green-600 tabular-nums">
-        +{formatPeso(value)}
-      </span>
-    )
-  if (value < 0)
-    return (
-      <span className="text-red-600 tabular-nums">
-        -{formatPeso(Math.abs(value))}
-      </span>
-    )
-  return (
-    <span className="text-muted-foreground tabular-nums">
-      {formatPeso(0)} Balanced
-    </span>
-  )
 }
 
 export function TillSessionsTable({
@@ -149,6 +118,8 @@ export function TillSessionsTable({
   const [dateTo, setDateTo] = useState(currentDateTo)
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set())
   const [forceCloseTarget, setForceCloseTarget] =
+    useState<TillSessionWithRelations | null>(null)
+  const [viewingSession, setViewingSession] =
     useState<TillSessionWithRelations | null>(null)
 
   const hasActiveFilters =
@@ -254,7 +225,12 @@ export function TillSessionsTable({
           const { status, closed_at } = row.original
           if (!closed_at) return <span className="text-muted-foreground">—</span>
           if (status === 'force_closed') {
-            return <span className="text-amber-600 text-sm">Auto-closed</span>
+            return (
+              <span className="text-sm tabular-nums">
+                {formatTimeShort(closed_at)}{' '}
+                <span className="text-amber-600 text-xs">(Auto)</span>
+              </span>
+            )
           }
           return (
             <span className="text-sm tabular-nums">
@@ -264,95 +240,38 @@ export function TillSessionsTable({
         },
       },
       {
-        id: 'duration',
-        header: 'Duration',
-        cell: ({ row }) => {
-          const dur = computeDuration(
-            row.original.opened_at,
-            row.original.closed_at,
-          )
-          if (dur === 'In Progress') {
-            return (
-              <span className="text-muted-foreground text-sm italic">
-                In Progress
-              </span>
-            )
-          }
-          return <span className="text-sm tabular-nums">{dur}</span>
-        },
-      },
-      {
-        id: 'opening_cash',
-        header: 'Opening Cash',
-        cell: ({ row }) => (
-          <span className="text-sm tabular-nums">
-            {formatPeso(row.original.opening_cash)}
-          </span>
-        ),
-      },
-      {
-        id: 'closing_cash',
-        header: 'Closing Cash',
-        cell: ({ row }) => (
-          <span className="text-sm tabular-nums">
-            {formatPeso(row.original.closing_cash)}
-          </span>
-        ),
-      },
-      {
-        id: 'expected_cash',
-        header: 'Expected Cash',
-        cell: ({ row }) => (
-          <span className="text-sm tabular-nums">
-            {formatPeso(row.original.expected_cash)}
-          </span>
-        ),
-      },
-      {
-        id: 'discrepancy',
-        header: 'Discrepancy',
-        cell: ({ row }) => (
-          <DiscrepancyCell value={row.original.discrepancy} />
-        ),
-      },
-      {
-        id: 'transaction_count',
-        header: 'Transactions',
-        cell: ({ row }) => (
-          <span className="text-sm tabular-nums">
-            {row.original.transaction_count}
-          </span>
-        ),
-      },
-      {
         id: 'status',
         header: 'Status',
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
       },
       {
-        id: 'closed_by',
-        header: 'Closed By',
-        cell: ({ row }) => (
-          <span className="text-sm">
-            {row.original.closed_by_user?.name ?? '—'}
-          </span>
-        ),
-      },
-      {
         id: 'actions',
         header: '',
         cell: ({ row }) => {
-          if (row.original.status !== 'open') return null
+          const isOpen = row.original.status === 'open'
           const isPending = pendingIds.has(row.original.id)
           return (
-            <Button
-              variant="destructive"
-              size="sm"
-              disabled={isPending}
-              onClick={() => setForceCloseTarget(row.original)}
-            >
-              {isPending ? 'Closing…' : 'Force Close'}
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={<Button variant="ghost" size="icon" disabled={isPending} />}
+              >
+                <EllipsisVerticalIcon className="size-4" />
+                <span className="sr-only">Open menu</span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setViewingSession(row.original)}>
+                  View
+                </DropdownMenuItem>
+                {isOpen && (
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => setForceCloseTarget(row.original)}
+                  >
+                    Force Close
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           )
         },
       },
@@ -562,6 +481,15 @@ export function TillSessionsTable({
           </div>
         </div>
       )}
+
+      {/* Session detail dialog */}
+      <TillSessionDetailDialog
+        session={viewingSession}
+        open={viewingSession !== null}
+        onOpenChange={(open) => {
+          if (!open) setViewingSession(null)
+        }}
+      />
 
       {/* Force-close confirmation dialog */}
       <AlertDialog
