@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ProductCombobox } from "@/components/ui/product-combobox";
 import { Textarea } from "@/components/ui/textarea";
 
 type Product = {
@@ -336,36 +337,19 @@ export function AddBatchItemModal({
         >
           {/* Product */}
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="mc_product_id">Product *</Label>
-            <Controller
-              control={markupChangeForm.control}
-              name="product_id"
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="mc_product_id" className="w-full">
-                    <SelectValue placeholder="Select product">
-                      {products.find(p => p.id === field.value)?.name}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent className="w-full">
-                    {products.length === 0 ? (
-                      <div className="px-3 py-2 text-sm text-muted-foreground">
-                        No products with inventory at this pharmacy
-                      </div>
-                    ) : (
-                      products.map(p => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.name}
-                          {p.generic_name ? ` (${p.generic_name})` : ""}
-                          {p.current_markup !== undefined
-                            ? ` — ${p.current_markup}% markup`
-                            : ""}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              )}
+            <Label>Product *</Label>
+            <ProductCombobox
+              options={products}
+              value={selectedProductIdMarkup ?? ""}
+              onChange={product => {
+                if (!product) {
+                  markupChangeForm.setValue("product_id", "")
+                  markupChangeForm.setValue("new_markup", 0)
+                  return
+                }
+                markupChangeForm.setValue("product_id", product.id)
+              }}
+              placeholder="Search and select a product..."
             />
             {markupChangeForm.formState.errors.product_id && (
               <p className="text-sm text-destructive">
@@ -449,34 +433,19 @@ export function AddBatchItemModal({
         >
           {/* Product */}
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="bp_product_id">Product *</Label>
-            <Controller
-              control={basePriceChangeForm.control}
-              name="product_id"
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="bp_product_id" className="w-full">
-                    <SelectValue placeholder="Select product">
-                      {products.find(p => p.id === field.value)?.name}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent className="w-full">
-                    {products.length === 0 ? (
-                      <div className="px-3 py-2 text-sm text-muted-foreground">
-                        No products available
-                      </div>
-                    ) : (
-                      products.map(p => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.name}
-                          {p.generic_name ? ` (${p.generic_name})` : ""}
-                          {" — "}₱{Number(p.base_price).toFixed(2)}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              )}
+            <Label>Product *</Label>
+            <ProductCombobox
+              options={products}
+              value={selectedProductIdBase ?? ""}
+              onChange={product => {
+                if (!product) {
+                  basePriceChangeForm.setValue("product_id", "")
+                  basePriceChangeForm.setValue("new_price", 0)
+                  return
+                }
+                basePriceChangeForm.setValue("product_id", product.id)
+              }}
+              placeholder="Search and select a product..."
             />
             {basePriceChangeForm.formState.errors.product_id && (
               <p className="text-sm text-destructive">
@@ -574,33 +543,19 @@ export function AddBatchItemModal({
         >
           {/* Product */}
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="product_id">Product *</Label>
-            <Controller
-              control={stockInForm.control}
-              name="product_id"
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="product_id" className="w-full">
-                    <SelectValue placeholder="Select product">
-                      {products.find(p => p.id === field.value)?.name}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent className="w-full">
-                    {products.length === 0 ? (
-                      <div className="px-3 py-2 text-sm text-muted-foreground">
-                        No products available
-                      </div>
-                    ) : (
-                      products.map(p => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.name}
-                          {p.generic_name ? ` (${p.generic_name})` : ""}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              )}
+            <Label>Product *</Label>
+            <ProductCombobox
+              options={products}
+              value={selectedProductIdIn ?? ""}
+              onChange={product => {
+                if (!product) {
+                  stockInForm.setValue("product_id", "")
+                  stockInForm.setValue("unit_cost", undefined)
+                  return
+                }
+                stockInForm.setValue("product_id", product.id)
+              }}
+              placeholder="Search and select a product..."
             />
             {stockInForm.formState.errors.product_id && (
               <p className="text-sm text-destructive">
@@ -737,35 +692,18 @@ export function AddBatchItemModal({
       >
         {/* Product */}
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="product_id_out">Product *</Label>
-          <Controller
-            control={stockOutForm.control}
-            name="product_id"
-            render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger id="product_id_out" className="w-full">
-                  <SelectValue placeholder="Select product">
-                    {products.find(p => p.id === field.value)?.name}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent className="w-full">
-                  {products.length === 0 ? (
-                    <div className="px-3 py-2 text-sm text-muted-foreground">
-                      No products with inventory at this pharmacy
-                    </div>
-                  ) : (
-                    products.map(p => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.name}
-                        {p.current_quantity !== undefined
-                          ? ` — ${p.current_quantity} in stock`
-                          : ""}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            )}
+          <Label>Product *</Label>
+          <ProductCombobox
+            options={products}
+            value={selectedProductIdOut ?? ""}
+            onChange={product => {
+              if (!product) {
+                stockOutForm.setValue("product_id", "")
+                return
+              }
+              stockOutForm.setValue("product_id", product.id)
+            }}
+            placeholder="Search and select a product..."
           />
           {stockOutForm.formState.errors.product_id && (
             <p className="text-sm text-destructive">
