@@ -16,6 +16,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -163,26 +164,30 @@ export function POSHeader() {
             <span className="text-sm font-medium">{userName}</span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-48">
-            <DropdownMenuLabel className="p-0 font-normal">
-              <div className="flex items-center gap-2 px-2 py-2">
-                <Avatar className="size-8">
-                  <AvatarFallback className="text-xs">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="grid text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{userName}</span>
-                  <span className="truncate text-xs text-muted-foreground">
-                    {ROLE_LABELS[userRole]}
-                  </span>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="p-0 font-normal">
+                <div className="flex items-center gap-2 px-2 py-2">
+                  <Avatar className="size-8">
+                    <AvatarFallback className="text-xs">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="grid text-left text-sm leading-tight">
+                    <span className="truncate font-medium">{userName}</span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {ROLE_LABELS[userRole]}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            </DropdownMenuLabel>
+              </DropdownMenuLabel>
+            </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout} variant="destructive">
-              <LogOutIcon className="size-4" />
-              Log out
-            </DropdownMenuItem>
+            <DropdownMenuGroup>
+              <DropdownMenuItem onClick={handleLogout} variant="destructive">
+                <LogOutIcon className="size-4" />
+                Log out
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
