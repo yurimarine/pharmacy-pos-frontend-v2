@@ -51,7 +51,8 @@ export async function getProducts(
     .range(from, to)
 
   if (search && search.trim()) {
-    query = query.ilike("name", `%${search.trim()}%`)
+    const term = search.trim()
+    query = query.or(`name.ilike.%${term}%,generic_name.ilike.%${term}%`)
   }
 
   const { data, error, count } = await query
