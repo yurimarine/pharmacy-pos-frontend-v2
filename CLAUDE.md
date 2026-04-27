@@ -92,6 +92,7 @@ page.tsx (RSC) → actions.ts ("use server") → Supabase → Client Component
 ```
 
 **URL search params pattern** — Inventory, Products, Users, and Transactions pages use URL-based filtering, search, and pagination instead of client-side state. `searchParams` is awaited in the RSC, passed to the action, and the Client Component uses `useRouter` + `useSearchParams` to push URL updates. Search is debounced 400ms via `useDebouncedCallback`. `useTransition` wraps `router.push` to get an `isPending` flag for table dimming. When adding this pattern to a new page:
+
 - `searchParams` must be `await`ed in Next.js 16+ — type it as `Promise<{...}>`
 - Use controlled input state (`useState`) for search to avoid Base UI's uncontrolled-to-controlled warning
 - Actions return `{ data, count }` when pagination is needed — use `{ count: "exact" }` in the Supabase select and `.range(from, to)` for the slice
@@ -110,12 +111,12 @@ page.tsx (RSC) → actions.ts ("use server") → Supabase → Client Component
 8. `ADMIN_ONLY_ROUTES` and non-admin → `/unauthorized`
 9. `ADMIN_PHARMACIST_ROUTES` and non-admin/pharmacist → `/unauthorized`
 
-| Route group | Allowed roles |
-|---|---|
-| `ADMIN_ONLY_ROUTES` (users, suppliers, manufacturers, pharmacies, discounts, product-classes, product-categories, packaging-units, dispensing-units, till-sessions, time-logs) | `admin` only |
-| `ADMIN_PHARMACIST_ROUTES` (dashboard, inventory, batches, inventory-logs, transactions, products, reports) | `admin`, `pharmacist` |
-| `POS_ROUTES` (`/pos-terminal`) | `pharmacist`, `pharmacy_assistant` |
-| `PUBLIC_ROUTES` | always |
+| Route group                                                                                                                                                                    | Allowed roles                      |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------- |
+| `ADMIN_ONLY_ROUTES` (users, suppliers, manufacturers, pharmacies, discounts, product-classes, product-categories, packaging-units, dispensing-units, till-sessions, time-logs) | `admin` only                       |
+| `ADMIN_PHARMACIST_ROUTES` (dashboard, inventory, batches, inventory-logs, transactions, products, reports)                                                                     | `admin`, `pharmacist`              |
+| `POS_ROUTES` (`/pos-terminal`)                                                                                                                                                 | `pharmacist`, `pharmacy_assistant` |
+| `PUBLIC_ROUTES`                                                                                                                                                                | always                             |
 
 **Login redirects** — both `src/app/page.tsx` (root) and `src/app/auth/login/actions.ts` (post-login) redirect based on role: `pharmacy_assistant` → `/pos-terminal`, all others → `/admin/dashboard`.
 
@@ -124,6 +125,7 @@ page.tsx (RSC) → actions.ts ("use server") → Supabase → Client Component
 **`src/lib/supabase/admin.ts`** — service-role client. Only used in `users/actions.ts` for Supabase Auth admin operations and in `voidTransaction` for admin credential re-auth.
 
 Three regular Supabase client factories:
+
 - `src/lib/supabase/client.ts` — browser (Client Components)
 - `src/lib/supabase/server.ts` — RSC / Server Actions
 - `src/lib/supabase/middleware.ts` — middleware only; never reuse across requests
@@ -133,6 +135,7 @@ Three regular Supabase client factories:
 The POS terminal is a separate layout (`/pos-terminal`) with its own shell — no admin sidebar. It uses `POSContext` for shared cart state.
 
 **`src/context/POSContext.tsx`** — React context wrapping the entire POS layout. Holds:
+
 - Static metadata: `pharmacyName`, `userName`, `pharmacyId`, `userRole`
 - `tillSession: TillSession | null` + `setTillSession` — seeded from layout RSC
 - `inventory: POSInventoryItem[]` — seeded from layout RSC via `POSProvider` props
@@ -152,16 +155,19 @@ The POS terminal is a separate layout (`/pos-terminal`) with its own shell — n
 **`voidTransaction`** (`src/app/admin/transactions/actions.ts`) — re-authenticates the admin via `adminClient.auth.signInWithPassword` → verifies admin role in DB → restores inventory BEFORE marking voided (if restoration fails, status is NOT changed).
 
 **POS cart panel layout** — `POSCartPanel` uses `flex flex-col` with:
+
 - Items area: `flex-1 min-h-0 overflow-y-auto` — grows to fill all space
 - Footer (totals + buttons): `shrink-0` — anchored at bottom, natural height only
 
 Payment is handled via **`POSPaymentModal`** — a Dialog that opens when "PROCESS SALE" is clicked. Contains amount tendered input (autofocused on open, reset on each open), change display, and the Confirm & Process button. Receipt logic and `POSReceiptModal` are mounted inside `POSPaymentModal`, not the cart panel.
 
 **Shared components** between `/admin/transactions` and `/pos-terminal/transactions`:
+
 - `src/components/transactions/TransactionsTable.tsx` — accepts `basePath` prop for detail page navigation; both routes use `getTransactions` from `src/app/admin/transactions/actions.ts`
 - `src/components/transactions/TransactionDetail.tsx` — full detail view with void support; uses `TransactionWithDetails` type
 
 **Transaction types** (`src/types/transaction.ts`):
+
 - `TransactionWithItems` — `Omit<Transaction, 'transaction_items'> & { transaction_items: TransactionItem[] }` — used by `POSTransactionReceiptModal`
 - `TransactionWithDetails` — includes `transaction_discount` join (nullable) and `transaction_items: TransactionItemWithDiscount[]` (each item includes `item_discount` join) — returned by `getTransactionById`, consumed by `TransactionDetail`
 - `TransactionItemWithDiscount` — extends `TransactionItem` with `item_discount: { id, name, type, value, scope } | null`
@@ -171,11 +177,12 @@ Payment is handled via **`POSPaymentModal`** — a Dialog that opens when "PROCE
 Pages that have per-role behavior pass `userRole` and `userPharmacyId` (from `getCurrentUser()`) as props to their Client Component tables. The convention:
 
 ```ts
-const canEdit   = userRole === 'admin' || userRole === 'pharmacist'
-const canDelete = userRole === 'admin'
+const canEdit = userRole === "admin" || userRole === "pharmacist";
+const canDelete = userRole === "admin";
 ```
 
 Actions columns use conditional spread to hide entirely when no actions are available:
+
 ```ts
 ...(canEdit ? [actionsColumn satisfies ColumnDef<T>] : [])
 ```
@@ -185,11 +192,13 @@ Pharmacy selectors: admin sees a `<Select>` to switch pharmacies; pharmacists se
 ### Component conventions
 
 Each domain has a folder under `src/components/<domain>/` containing:
+
 - `<Domain>Table.tsx` — Client Component using `@tanstack/react-table`; receives already-paginated data as props. Inventory and Products use URL search params for filtering/pagination — TanStack handles display only (`getCoreRowModel` only, no `getFilteredRowModel` or `getPaginationRowModel`).
 - `Add<Domain>Modal.tsx`, `Edit<Domain>Modal.tsx` — Dialog/Sheet wrappers with forms. Modal pattern: `DialogContent className="flex flex-col max-h-[90vh]"`, scrollable middle `<div className="flex-1 overflow-y-auto px-1">`, sticky `DialogHeader`/`DialogFooter` with `flex-shrink-0`. When the submit button is in the footer outside the `<form>`, link them with `id="form-id"` on the form and `form="form-id"` on the button.
 - `Delete/Deactivate<Domain>Dialog.tsx` — Confirmation dialogs using `AlertDialog`.
 
 Shared utilities:
+
 - `src/lib/inventory-utils.ts` — `getStockStatus(quantity, threshold, expiryDate?)` returns one of 5 statuses including `near_expiry` (≤60 days) and `expired`. `stockStatusConfig` maps status → badge props.
 - `src/types/user.ts` — `AppUser`, `UserRole`, `ROLE_LABELS` for the users module.
 - `src/types/transaction.ts` — `Transaction`, `TransactionItem`, `TransactionWithItems`, `TransactionWithDetails`, `TransactionItemWithDiscount`.
@@ -202,6 +211,7 @@ Shared utilities:
 `AppSidebar` (`src/components/app-sidebar.tsx`) receives the current user's `role` from `layout.tsx` and filters nav items using a `roles?: Role[]` field on each item. The `NavItem` type includes `external?: boolean` — items with `external: true` render as `<a target="_blank">` instead of a Next.js `<Link>` (used for the POS Terminal link in the pharmacist sidebar).
 
 Nav sections:
+
 - `NavMain` — Dashboard, Inventory, Products, Batches, Order, POS Terminal (pharmacist only, external)
 - References group — Suppliers, Manufacturers, Pharmacies, Discounts, Users (admin only)
 - `NavLogs` — Inventory Logs (admin only), Transactions (admin + pharmacist), Till Sessions (admin only), Time Logs (admin only)
@@ -210,6 +220,7 @@ Nav sections:
 ### SelectValue display fix
 
 This shadcn version uses `@base-ui/react/select`. `SelectValue` does not auto-render the selected item's label — it renders the raw value string. Always pass the resolved label as children:
+
 - UUID selects: `{items.find(i => i.id === field.value)?.name}`
 - Enum selects: `{LABEL_MAP[field.value]}` — define a static `Record<string, string>` map
 
@@ -237,9 +248,11 @@ This version of shadcn has breaking API changes from common training data:
 **Print isolation** — To print a specific section of the page, give it `id="section-id"` and add a `@media print` block in `globals.css` that hides everything else (`body > * { display: none }`) and shows only `#section-id`. See the shift summary print block at the bottom of `globals.css`.
 
 **Supabase FK alias syntax for joins** — When two FK columns reference the same table (e.g. both `processed_by` and `voided_by` → `users`), Supabase requires a hint. Use the alias + FK constraint name syntax:
+
 ```ts
 users!transactions_processed_by_fkey ( name, role )
 voided_by_user:users!transactions_voided_by_fkey ( name )
 transaction_discount:discounts!transactions_discount_id_fkey ( id, name, type )
 ```
+
 The alias (left of `:`) becomes the key on the returned object. Without the FK hint, PostgREST throws an ambiguous join error.
