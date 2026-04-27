@@ -35,6 +35,28 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+function computeEAN13CheckDigit(first12: string): string {
+  const sum = first12
+    .split("")
+    .reduce((acc, digit, index) => {
+      const multiplier = index % 2 === 0 ? 1 : 3;
+      return acc + parseInt(digit, 10) * multiplier;
+    }, 0);
+  const checkDigit = (10 - (sum % 10)) % 10;
+  return checkDigit.toString();
+}
+
+function generateEAN13(): string {
+  const prefix = "200";
+  const timestamp = Date.now().toString().slice(-6);
+  const random = Math.floor(Math.random() * 1000)
+    .toString()
+    .padStart(3, "0");
+  const body = timestamp + random;
+  const first12 = prefix + body;
+  return first12 + computeEAN13CheckDigit(first12);
+}
+
 const productSchema = z.object({
   name: z.string().min(1, "Name is required"),
   generic_name: z.string().optional(),
@@ -123,6 +145,10 @@ export function AddProductModal({ open, onOpenChange }: Props) {
       setCategories([]);
     }
   }, [watchedClassId, form]);
+
+  const handleGenerateBarcode = () => {
+    form.setValue("barcode", generateEAN13());
+  };
 
   const handleGenerateSku = async () => {
     const name = form.getValues("name");
@@ -243,11 +269,22 @@ export function AddProductModal({ open, onOpenChange }: Props) {
             {/* 4. Barcode */}
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="add-p-barcode">Barcode</Label>
-              <Input
-                id="add-p-barcode"
-                placeholder="e.g. 4800012345678"
-                {...form.register("barcode")}
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="add-p-barcode"
+                  placeholder="e.g. 4800012345678"
+                  className="flex-1"
+                  {...form.register("barcode")}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  title="Auto-generate EAN-13 barcode"
+                  onClick={handleGenerateBarcode}
+                >
+                  Generate
+                </Button>
+              </div>
             </div>
 
             {/* 5. Class */}
