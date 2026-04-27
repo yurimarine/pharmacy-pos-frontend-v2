@@ -195,6 +195,7 @@ Shared utilities:
 - `src/types/transaction.ts` — `Transaction`, `TransactionItem`, `TransactionWithItems`, `TransactionWithDetails`, `TransactionItemWithDiscount`.
 - `src/types/discount.ts` — `Discount`, `DiscountType`, `DiscountScope`, `computeDiscountAmount(discount, baseAmount)`, `formatDiscountLabel(discount)`.
 - `src/types/inventory.ts` — `POSInventoryTableItem`, `Inventory`, `StockStatus`.
+- `src/components/ui/product-combobox.tsx` — `ProductCombobox` + `ProductOption` type. Searchable product selector built on `Popover` + plain `<input>`. Use wherever a product dropdown would otherwise render 50+ items. Filters by `name` and `generic_name`. Exports `ProductOption` (id, name, generic_name, base_price, optional current_quantity/markup/selling_price) — the local `Product` type in batch modals is a structural superset and is assignable without casting.
 
 ### Admin layout and sidebar
 
@@ -222,7 +223,8 @@ This version of shadcn has breaking API changes from common training data:
 - `Button` with `render={<Link />}`: add `nativeButton={false}` to suppress Base UI warning about non-`<button>` rendering.
 - `Select`: `onValueChange` receives `string | null`, not `string` — guard against null before using the value.
 - `Checkbox`: accepts `indeterminate` prop directly (not via `ref`).
-- `Popover` (`src/components/ui/popover.tsx`) — built from scratch using `@base-ui/react/popover`. Structure: `Popover` → `PopoverTrigger` (render prop) + `PopoverContent` → `Portal → Positioner → Popup`.
+- `Popover` (`src/components/ui/popover.tsx`) — built from scratch using `@base-ui/react/popover`. Structure: `Popover` → `PopoverTrigger` (render prop) + `PopoverContent` → `Portal → Positioner → Popup`. To match popover width to its trigger, use `w-(--anchor-width)` on `PopoverContent` — the Base UI Positioner sets `--anchor-width` on itself (Tailwind v4 shorthand; `w-[var(--anchor-width)]` also works but triggers a lint warning).
+- `DropdownMenuLabel` and `DropdownMenuItem` must each be direct children of `DropdownMenuGroup` — Base UI's `MenuGroupRootContext` throws if they appear bare inside `DropdownMenuContent`. Always wrap content sections in `<DropdownMenuGroup>`.
 
 ### Known pitfalls
 
