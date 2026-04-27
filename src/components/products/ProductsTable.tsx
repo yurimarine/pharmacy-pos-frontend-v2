@@ -326,7 +326,7 @@ export function ProductsTable({
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-4">
         <Input
-          placeholder="Search by name…"
+          placeholder="Search by name or generic name…"
           value={searchValue}
           onChange={e => {
             setSearchValue(e.target.value);

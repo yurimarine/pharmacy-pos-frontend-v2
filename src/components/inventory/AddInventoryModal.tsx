@@ -9,6 +9,7 @@ import {
   createInventoryEntry,
   getActiveProductsForInventorySelect,
 } from "@/app/admin/inventory/actions";
+import { ProductCombobox, type ProductOption } from "@/components/ui/product-combobox";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -48,13 +49,6 @@ type AddInventoryModalProps = {
   userPharmacyId: string | null;
 };
 
-type ProductOption = {
-  id: string;
-  name: string;
-  generic_name: string | null;
-  base_price: number;
-};
-
 export function AddInventoryModal({
   open,
   onOpenChange,
@@ -65,6 +59,7 @@ export function AddInventoryModal({
   const isAdmin = userRole === "admin";
   const [isPending, startTransition] = useTransition();
   const [products, setProducts] = useState<ProductOption[]>([]);
+  const [productsLoading, setProductsLoading] = useState(false);
 
   const form = useForm<InventoryFormValues>({
     resolver: zodResolver(inventorySchema) as any, // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -81,9 +76,10 @@ export function AddInventoryModal({
 
   useEffect(() => {
     if (!open) return;
+    setProductsLoading(true);
     getActiveProductsForInventorySelect()
-      .then(setProducts)
-      .catch(() => {});
+      .then(data => { setProducts(data); setProductsLoading(false); })
+      .catch(() => { setProductsLoading(false); });
     // Pre-fill pharmacy for pharmacist
     if (!isAdmin && userPharmacyId) {
       form.setValue("pharmacy_id", userPharmacyId);
@@ -147,31 +143,19 @@ export function AddInventoryModal({
               <Label>
                 Product <span className="text-destructive">*</span>
               </Label>
-              <Controller
-                control={form.control}
-                name="product_id"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select product">
-                        {products.find(p => p.id === field.value)?.name}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {products.length === 0 ? (
-                        <p className="py-4 text-center text-sm text-muted-foreground">
-                          No products found.
-                        </p>
-                      ) : (
-                        products.map(p => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.name}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                )}
+              <ProductCombobox
+                options={products}
+                value={watchProductId ?? ""}
+                onChange={product => {
+                  if (!product) {
+                    form.setValue("product_id", "")
+                    form.setValue("selling_price", 0)
+                    return
+                  }
+                  form.setValue("product_id", product.id)
+                }}
+                placeholder="Search and select a product..."
+                disabled={productsLoading}
               />
               {form.formState.errors.product_id && (
                 <p className="text-sm text-destructive">
