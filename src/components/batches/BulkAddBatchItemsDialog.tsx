@@ -220,7 +220,7 @@ export function BulkAddBatchItemsDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="flex flex-col w-screen h-screen max-w-none max-h-none rounded-none p-0">
+      <DialogContent showCloseButton={false} className="flex flex-col w-[90vw] min-w-7xl min-h-[90vh] max-h-[90vh] overflow-hidden p-0">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
           <div>

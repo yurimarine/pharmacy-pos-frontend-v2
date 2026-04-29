@@ -72,10 +72,7 @@ export async function getInventory(
     query = query.in("product_id", matchingProductIds);
   }
 
-  // Step 5: sort by product name ascending
-  query = query.order("name", { referencedTable: "products", ascending: true });
-
-  // Step 6: pagination last, after all filters
+  // Step 5: pagination last, after all filters
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
   query = query.range(from, to);
@@ -83,7 +80,13 @@ export async function getInventory(
   const { data, error, count } = await query;
   if (error) throw new Error(error.message);
 
-  return { data: data ?? [], count: count ?? 0 };
+  const sorted = (data ?? []).sort((a, b) => {
+    const nameA = a.products?.name?.toLowerCase() ?? "";
+    const nameB = b.products?.name?.toLowerCase() ?? "";
+    return nameA.localeCompare(nameB);
+  });
+
+  return { data: sorted, count: count ?? 0 };
 }
 
 export async function getInventoryById(id: string): Promise<Inventory> {
