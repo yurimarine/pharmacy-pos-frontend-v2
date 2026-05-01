@@ -11,6 +11,7 @@ import {
 } from "@/app/admin/batches/actions";
 import type { BatchWithItems, BatchItem } from "@/types/batch";
 import { AddBatchItemModal } from "@/components/batches/AddBatchItemModal";
+import { BulkAddBatchItemsDialog } from "@/components/batches/BulkAddBatchItemsDialog";
 import { RemoveBatchItemDialog } from "@/components/batches/RemoveBatchItemDialog";
 import { FinalizeBatchDialog } from "@/components/batches/FinalizeBatchDialog";
 import { CancelBatchDialog } from "@/components/batches/CancelBatchDialog";
@@ -100,6 +101,7 @@ export function BatchDetail({
 }: BatchDetailProps) {
   const [batch, setBatch] = useState<BatchWithItems>(initialBatch);
   const [addOpen, setAddOpen] = useState(false);
+  const [bulkAddOpen, setBulkAddOpen] = useState(false);
   const [removeOpen, setRemoveOpen] = useState(false);
   const [finalizeOpen, setFinalizeOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -138,6 +140,18 @@ export function BatchDetail({
   const handleOpenAdd = () => {
     loadSelectData();
     setAddOpen(true);
+  };
+
+  const handleOpenBulkAdd = () => {
+    loadSelectData();
+    setBulkAddOpen(true);
+  };
+
+  const handleAllAdded = (items: BatchItem[]) => {
+    setBatch(prev => ({
+      ...prev,
+      batch_items: [...prev.batch_items, ...items],
+    }));
   };
 
   const handleOpenRemove = (item: BatchItem) => {
@@ -237,10 +251,15 @@ export function BatchDetail({
             {items.length} item{items.length !== 1 ? "s" : ""}
           </span>
           {isDraft && (
-            <Button size="sm" onClick={handleOpenAdd}>
-              <PlusIcon className="size-4 mr-1" />
-              Add Item
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={handleOpenBulkAdd}>
+                Bulk Add Items
+              </Button>
+              <Button size="sm" onClick={handleOpenAdd}>
+                <PlusIcon className="size-4 mr-1" />
+                Add Item
+              </Button>
+            </div>
           )}
         </div>
 
@@ -411,6 +430,13 @@ export function BatchDetail({
         suppliers={suppliers}
         manufacturers={manufacturers}
         onAdded={handleItemAdded}
+      />
+      <BulkAddBatchItemsDialog
+        open={bulkAddOpen}
+        onOpenChange={setBulkAddOpen}
+        batch={batch}
+        products={products}
+        onAllAdded={handleAllAdded}
       />
       <RemoveBatchItemDialog
         open={removeOpen}
