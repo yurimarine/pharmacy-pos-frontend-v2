@@ -1,25 +1,25 @@
-"use client";
+"use client"
 
-import { useState, useMemo, useTransition, useCallback } from "react";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { useDebouncedCallback } from "use-debounce";
+import dynamic from "next/dynamic"
+import { useState, useMemo, useTransition, useCallback } from "react"
+import { useRouter, usePathname, useSearchParams } from "next/navigation"
+import { useDebouncedCallback } from "use-debounce"
 import {
   flexRender,
   getCoreRowModel,
   useReactTable,
   type ColumnDef,
-  type VisibilityState,
-} from "@tanstack/react-table";
+} from "@tanstack/react-table"
 import {
   EllipsisVerticalIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  SlidersHorizontalIcon,
   PlusIcon,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+} from "lucide-react"
+import { toast } from "sonner"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
 import {
   Table,
   TableBody,
@@ -27,352 +27,443 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@/components/ui/table"
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import type { Product, ProductType, ProductStatus } from "@/types/product";
-import { AddProductModal } from "./AddProductModal";
-import { EditProductModal } from "./EditProductModal";
-import { DiscontinueProductDialog } from "./DiscontinueProductDialog";
+} from "@/components/ui/dropdown-menu"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
+  type Product,
+  type ProductType,
+  type ProductStatus,
+  PRODUCT_TYPE_LABELS,
+  PRODUCT_STATUS_LABELS,
+} from "@/types/product"
+import { deleteProduct, updateProductStatus } from "@/app/admin/products/actions"
+import type { UserRole } from "@/types/user"
 
-function formatPrice(value: number) {
-  return `₱${value.toFixed(2)}`;
+const AddProductModal = dynamic(() => import("./AddProductModal"), { ssr: false })
+const EditProductModal = dynamic(() => import("./EditProductModal"), { ssr: false })
+
+function formatCurrency(value: number): string {
+  return `₱${value.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`
 }
 
-function TypeBadge({ type }: { type: ProductType }) {
-  if (type === "branded") return <Badge variant="default">Branded</Badge>;
-  if (type === "generic") return <Badge variant="secondary">Generic</Badge>;
-  return <Badge variant="outline">N/A</Badge>;
+type Props = {
+  data: Product[]
+  count: number
+  page: number
+  pageSize: number
+  search?: string
+  type?: ProductType | ""
+  status?: ProductStatus | ""
+  category?: string
+  requires_prescription?: boolean
+  userRole: UserRole
 }
-
-function StatusBadge({ status }: { status: ProductStatus }) {
-  if (status === "active") return <Badge variant="default">Active</Badge>;
-  if (status === "inactive")
-    return (
-      <Badge
-        variant="outline"
-        className="border-yellow-500 text-yellow-600 bg-yellow-50"
-      >
-        Inactive
-      </Badge>
-    );
-  return <Badge variant="destructive">Discontinued</Badge>;
-}
-
-type ProductsTableProps = {
-  products: Product[];
-  totalCount: number;
-  currentPage: number;
-  pageSize: number;
-  currentSearch: string;
-  userRole: "admin" | "pharmacist" | "pharmacy_assistant";
-};
 
 export function ProductsTable({
-  products,
-  totalCount,
-  currentPage,
+  data,
+  count,
+  page,
   pageSize,
-  currentSearch,
+  search = "",
+  type = "",
+  status = "",
+  category = "",
+  requires_prescription,
   userRole,
-}: ProductsTableProps) {
-  const canEdit = userRole === "admin";
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const [isPending, startTransition] = useTransition();
+}: Props) {
+  const canEdit = userRole === "admin" || userRole === "pharmacist"
+  const canDelete = userRole === "admin"
 
-  const [searchValue, setSearchValue] = useState(currentSearch);
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({
-    sku: false,
-    barcode: false,
-    class: false,
-    category: false,
-    packaging: false,
-    supplier: false,
-    manufacturer: false,
-    requires_prescription: false,
-  });
-  const [addOpen, setAddOpen] = useState(false);
-  const [editOpen, setEditOpen] = useState(false);
-  const [discontinueOpen, setDiscontinueOpen] = useState(false);
-  const [selected, setSelected] = useState<Product | null>(null);
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const [isPending, startTransition] = useTransition()
+
+  const [searchValue, setSearchValue] = useState(search)
+
+  // modal state
+  const [addOpen, setAddOpen] = useState(false)
+  const [addModalKey, setAddModalKey] = useState(0)
+  const [editOpen, setEditOpen] = useState(false)
+  const [editModalKey, setEditModalKey] = useState(0)
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+
+  // discontinue dialog state
+  const [discontinueOpen, setDiscontinueOpen] = useState(false)
+  const [discontinueTarget, setDiscontinueTarget] = useState<Product | null>(null)
+  const [isDiscontinuing, setIsDiscontinuing] = useState(false)
 
   const updateParams = useCallback(
     (updates: Record<string, string | null>) => {
-      const params = new URLSearchParams(searchParams.toString());
-
-      Object.entries(updates).forEach(([key, value]) => {
+      const params = new URLSearchParams(searchParams.toString())
+      for (const [key, value] of Object.entries(updates)) {
         if (value === null || value === "") {
-          params.delete(key);
+          params.delete(key)
         } else {
-          params.set(key, value);
+          params.set(key, value)
         }
-      });
-
-      if (updates.search !== undefined) {
-        params.set("page", "1");
       }
-
+      const isFilterChange = Object.keys(updates).some(k => k !== "page")
+      if (isFilterChange) {
+        params.set("page", "1")
+      }
       startTransition(() => {
-        router.push(`${pathname}?${params.toString()}`);
-      });
+        router.push(`${pathname}?${params.toString()}`)
+      })
     },
     [searchParams, pathname, router],
-  );
+  )
 
   const handleSearch = useDebouncedCallback((value: string) => {
-    updateParams({ search: value || null });
-  }, 400);
+    updateParams({ search: value || null })
+  }, 400)
+
+  const handleTypeChange = (value: string | null) => {
+    if (value === null) return
+    updateParams({ type: value || null })
+  }
+
+  const handleStatusChange = (value: string | null) => {
+    if (value === null) return
+    updateParams({ status: value || null })
+  }
+
+  const handlePrescriptionChange = (value: string | null) => {
+    if (value === null) return
+    updateParams({ requires_prescription: value || null })
+  }
+
+  const handleStatusToggle = useCallback(async (product: Product) => {
+    const newStatus: ProductStatus = product.status === "active" ? "inactive" : "active"
+    const result = await updateProductStatus(product.id, newStatus)
+    if (result.success) {
+      toast.success(`${product.product_name} marked as ${newStatus}.`)
+    } else {
+      toast.error(result.error ?? "Failed to update status")
+    }
+  }, [])
+
+  const openEdit = useCallback((product: Product) => {
+    setSelectedProduct(product)
+    setEditModalKey(k => k + 1)
+    setEditOpen(true)
+  }, [])
+
+  const openDiscontinue = useCallback((product: Product) => {
+    setDiscontinueTarget(product)
+    setDiscontinueOpen(true)
+  }, [])
+
+  const handleDiscontinue = async () => {
+    if (!discontinueTarget) return
+    setIsDiscontinuing(true)
+    const result = await deleteProduct(discontinueTarget.id)
+    setIsDiscontinuing(false)
+    if (result.success) {
+      toast.success(`${discontinueTarget.product_name} has been discontinued.`)
+      setDiscontinueOpen(false)
+      setDiscontinueTarget(null)
+    } else {
+      toast.error(result.error ?? "Failed to discontinue product")
+    }
+  }
+
+  const prescriptionValue =
+    requires_prescription === true
+      ? "true"
+      : requires_prescription === false
+        ? "false"
+        : ""
 
   const columns = useMemo<ColumnDef<Product>[]>(
     () => [
       {
-        accessorKey: "sku",
+        id: "product_name",
+        header: "Product Name",
+        cell: ({ row }) => (
+          <div className="flex flex-col gap-0.5">
+            <span className="text-sm font-medium leading-snug">
+              {row.original.product_name}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {row.original.generic_name}
+            </span>
+          </div>
+        ),
+      },
+      {
+        id: "sku",
         header: "SKU",
-        cell: ({ row }) => {
-          const sku = row.getValue("sku") as string | null;
-          return sku ? (
-            <span className="font-mono text-sm">{sku}</span>
-          ) : (
-            <span className="text-muted-foreground">—</span>
-          );
-        },
-      },
-      {
-        accessorKey: "barcode",
-        header: "Barcode",
-        cell: ({ row }) => {
-          const barcode = row.getValue("barcode") as string | null;
-          return barcode ? (
-            <span className="font-mono text-sm">{barcode}</span>
-          ) : (
-            <span className="text-muted-foreground">—</span>
-          );
-        },
-      },
-      {
-        accessorKey: "name",
-        header: "Name",
         cell: ({ row }) => (
-          <span className="font-medium">{row.getValue("name")}</span>
+          <span className="text-xs font-mono text-muted-foreground">
+            {row.original.sku}
+          </span>
         ),
-      },
-      {
-        accessorKey: "generic_name",
-        header: "Generic Name",
-        cell: ({ row }) => (
-          <span className="font-medium">{row.getValue("generic_name")}</span>
-        ),
-      },
-      {
-        id: "class",
-        header: "Class",
-        cell: ({ row }) => {
-          const name = row.original.product_classes?.name;
-          return name ? (
-            <Badge variant="outline">{name}</Badge>
-          ) : (
-            <span className="text-muted-foreground">—</span>
-          );
-        },
       },
       {
         id: "category",
         header: "Category",
         cell: ({ row }) =>
-          row.original.product_categories?.name ?? (
+          row.original.category ? (
+            <span className="text-sm">{row.original.category}</span>
+          ) : (
             <span className="text-muted-foreground">—</span>
           ),
       },
       {
-        accessorKey: "type",
+        id: "type",
         header: "Type",
-        cell: ({ row }) => (
-          <TypeBadge type={row.getValue("type") as ProductType} />
-        ),
-      },
-      {
-        accessorKey: "base_price",
-        header: "Base Price",
-        cell: ({ row }) => formatPrice(row.getValue("base_price")),
+        cell: ({ row }) => {
+          const t = row.original.type
+          if (t === "branded") return <Badge variant="default">Branded</Badge>
+          if (t === "generic") return <Badge variant="secondary">Generic</Badge>
+          return <Badge variant="outline">OTC</Badge>
+        },
       },
       {
         id: "packaging",
         header: "Packaging",
         cell: ({ row }) => {
-          const pkg = row.original.packaging_units;
-          if (!pkg) return <span className="text-muted-foreground">—</span>;
+          const { packaging_type, unit_count } = row.original
           return (
-            <span className="font-mono text-sm">
-              {row.original.unit_count} {pkg.abbreviation}
+            <span className="text-sm">
+              {unit_count > 1 ? `${packaging_type} × ${unit_count}` : packaging_type}
             </span>
-          );
+          )
         },
       },
       {
-        id: "supplier",
-        header: "Supplier",
-        cell: ({ row }) =>
-          row.original.suppliers?.name ?? (
-            <span className="text-muted-foreground">—</span>
-          ),
-      },
-      {
-        id: "manufacturer",
-        header: "Manufacturer",
-        cell: ({ row }) =>
-          row.original.manufacturers?.name ?? (
-            <span className="text-muted-foreground">—</span>
-          ),
-      },
-      {
-        accessorKey: "requires_prescription",
-        header: "Prescription",
-        cell: ({ row }) => {
-          const req = row.getValue("requires_prescription") as boolean;
-          return (
-            <Badge variant={req ? "destructive" : "secondary"}>
-              {req ? "Yes" : "No"}
-            </Badge>
-          );
-        },
-      },
-      {
-        accessorKey: "status",
-        header: "Status",
+        id: "unit_cost",
+        header: "Unit Cost",
         cell: ({ row }) => (
-          <StatusBadge status={row.getValue("status") as ProductStatus} />
+          <span className="text-sm tabular-nums">
+            {formatCurrency(row.original.unit_cost)}
+          </span>
         ),
       },
-      ...(canEdit
+      {
+        id: "requires_prescription",
+        header: "Rx",
+        cell: ({ row }) =>
+          row.original.requires_prescription ? (
+            <Badge variant="destructive">Rx Required</Badge>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          ),
+      },
+      {
+        id: "status",
+        header: "Status",
+        cell: ({ row }) => {
+          const s = row.original.status
+          if (s === "active")
+            return (
+              <Badge variant="default" className="bg-green-600 hover:bg-green-700">
+                Active
+              </Badge>
+            )
+          if (s === "inactive") return <Badge variant="secondary">Inactive</Badge>
+          return (
+            <Badge
+              variant="outline"
+              className="border-destructive text-destructive"
+            >
+              Discontinued
+            </Badge>
+          )
+        },
+      },
+      ...(canEdit || canDelete
         ? [
             {
               id: "actions",
               header: "",
               enableHiding: false,
-              cell: ({ row }: { row: { original: Product } }) => (
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="Open actions"
-                      />
-                    }
-                  >
-                    <EllipsisVerticalIcon className="size-4" />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setSelected(row.original);
-                        setEditOpen(true);
-                      }}
+              cell: ({ row }: { row: { original: Product } }) => {
+                const product = row.original
+                return (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="Open actions"
+                        />
+                      }
                     >
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      variant="destructive"
-                      onClick={() => {
-                        setSelected(row.original);
-                        setDiscontinueOpen(true);
-                      }}
-                    >
-                      Discontinue
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ),
+                      <EllipsisVerticalIcon className="size-4" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {canEdit && (
+                        <DropdownMenuGroup>
+                          <DropdownMenuItem onClick={() => openEdit(product)}>
+                            Edit
+                          </DropdownMenuItem>
+                        </DropdownMenuGroup>
+                      )}
+                      {canEdit && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuGroup>
+                            <DropdownMenuItem
+                              onClick={() => handleStatusToggle(product)}
+                            >
+                              {product.status === "active"
+                                ? "Mark Inactive"
+                                : "Mark Active"}
+                            </DropdownMenuItem>
+                          </DropdownMenuGroup>
+                        </>
+                      )}
+                      {canDelete && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuGroup>
+                            <DropdownMenuItem
+                              variant="destructive"
+                              onClick={() => openDiscontinue(product)}
+                            >
+                              Discontinue
+                            </DropdownMenuItem>
+                          </DropdownMenuGroup>
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )
+              },
             } satisfies ColumnDef<Product>,
           ]
         : []),
     ],
-    [canEdit],
-  );
+    [canEdit, canDelete, openEdit, openDiscontinue, handleStatusToggle],
+  )
 
   const table = useReactTable({
-    data: products,
+    data,
     columns,
-    state: { columnVisibility },
-    onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
-    initialState: {
-      columnVisibility: {
-        sku: false,
-        barcode: false,
-        class: false,
-        category: false,
-        packaging: false,
-        supplier: false,
-        manufacturer: false,
-        requires_prescription: false,
-      },
-    },
-  });
+  })
 
-  const totalPages = Math.ceil(totalCount / pageSize);
+  const totalPages = Math.ceil(count / pageSize)
+  const fromItem = count === 0 ? 0 : (page - 1) * pageSize + 1
+  const toItem = Math.min(page * pageSize, count)
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between gap-4">
-        <Input
-          placeholder="Search by name or generic name…"
-          value={searchValue}
-          onChange={e => {
-            setSearchValue(e.target.value);
-            handleSearch(e.target.value);
-          }}
-          className="max-w-xs"
-        />
-        <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={<Button variant="outline" size="sm" />}
-            >
-              <SlidersHorizontalIcon />
-              Columns
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
-              {table
-                .getAllColumns()
-                .filter(col => col.getCanHide())
-                .map(col => (
-                  <DropdownMenuCheckboxItem
-                    key={col.id}
-                    className="capitalize"
-                    checked={col.getIsVisible()}
-                    onCheckedChange={value => col.toggleVisibility(!!value)}
-                  >
-                    {col.id.replace(/_/g, " ")}
-                  </DropdownMenuCheckboxItem>
-                ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {canEdit && (
-            <Button size="sm" onClick={() => setAddOpen(true)}>
-              <PlusIcon />
-              Add Product
-            </Button>
-          )}
+      {/* Filter bar */}
+      <div className="flex items-center gap-3 flex-wrap justify-between">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Input
+            placeholder="Search products…"
+            value={searchValue}
+            onChange={e => {
+              setSearchValue(e.target.value)
+              handleSearch(e.target.value)
+            }}
+            className="w-60"
+          />
+          <Select value={type} onValueChange={handleTypeChange}>
+            <SelectTrigger className="w-36">
+              <SelectValue>
+                {type ? PRODUCT_TYPE_LABELS[type as ProductType] : "All Types"}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All Types</SelectItem>
+              {(Object.entries(PRODUCT_TYPE_LABELS) as [ProductType, string][]).map(
+                ([val, label]) => (
+                  <SelectItem key={val} value={val}>
+                    {label}
+                  </SelectItem>
+                ),
+              )}
+            </SelectContent>
+          </Select>
+          <Select value={status} onValueChange={handleStatusChange}>
+            <SelectTrigger className="w-40">
+              <SelectValue>
+                {status
+                  ? PRODUCT_STATUS_LABELS[status as ProductStatus]
+                  : "All Statuses"}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All Statuses</SelectItem>
+              {(Object.entries(PRODUCT_STATUS_LABELS) as [ProductStatus, string][]).map(
+                ([val, label]) => (
+                  <SelectItem key={val} value={val}>
+                    {label}
+                  </SelectItem>
+                ),
+              )}
+            </SelectContent>
+          </Select>
+          <Select value={prescriptionValue} onValueChange={handlePrescriptionChange}>
+            <SelectTrigger className="w-44">
+              <SelectValue>
+                {requires_prescription === true
+                  ? "Prescription Only"
+                  : requires_prescription === false
+                    ? "No Prescription"
+                    : "All"}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All</SelectItem>
+              <SelectItem value="true">Prescription Only</SelectItem>
+              <SelectItem value="false">No Prescription</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
+        <Button
+          size="sm"
+          onClick={() => {
+            setAddModalKey(k => k + 1)
+            setAddOpen(true)
+          }}
+        >
+          <PlusIcon />
+          Add Product
+        </Button>
       </div>
 
       {/* Count */}
       <p className="text-sm text-muted-foreground">
-        {totalCount} {totalCount === 1 ? "product" : "products"} found
+        {count === 0
+          ? "No products found"
+          : `Showing ${fromItem}–${toItem} of ${count} products`}
       </p>
 
-      {/* Table — dims while loading */}
+      {/* Table */}
       <div
         className={`overflow-x-auto rounded-md border transition-opacity ${
           isPending ? "opacity-50 pointer-events-none" : ""
@@ -380,9 +471,9 @@ export function ProductsTable({
       >
         <Table>
           <TableHeader>
-            {table.getHeaderGroups().map(headerGroup => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map(header => (
+            {table.getHeaderGroups().map(hg => (
+              <TableRow key={hg.id}>
+                {hg.headers.map(header => (
                   <TableHead key={header.id} className="whitespace-nowrap">
                     {header.isPlaceholder
                       ? null
@@ -401,10 +492,7 @@ export function ProductsTable({
                 <TableRow key={row.id}>
                   {row.getVisibleCells().map(cell => (
                     <TableCell key={cell.id} className="whitespace-nowrap">
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
                 </TableRow>
@@ -427,14 +515,14 @@ export function ProductsTable({
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            Page {currentPage} of {totalPages}
+            Page {page} of {totalPages}
           </p>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => updateParams({ page: String(currentPage - 1) })}
-              disabled={currentPage <= 1 || isPending}
+              onClick={() => updateParams({ page: String(page - 1) })}
+              disabled={page <= 1 || isPending}
             >
               <ChevronLeftIcon />
               Previous
@@ -442,8 +530,8 @@ export function ProductsTable({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => updateParams({ page: String(currentPage + 1) })}
-              disabled={currentPage >= totalPages || isPending}
+              onClick={() => updateParams({ page: String(page + 1) })}
+              disabled={page >= totalPages || isPending}
             >
               Next
               <ChevronRightIcon />
@@ -452,18 +540,40 @@ export function ProductsTable({
         </div>
       )}
 
-      <AddProductModal open={addOpen} onOpenChange={setAddOpen} />
+      {/* Modals */}
+      <AddProductModal key={`add-${addModalKey}`} open={addOpen} onOpenChange={setAddOpen} />
       <EditProductModal
+        key={`edit-${editModalKey}`}
         open={editOpen}
         onOpenChange={setEditOpen}
-        product={selected}
+        product={selectedProduct}
       />
-      <DiscontinueProductDialog
-        open={discontinueOpen}
-        onOpenChange={setDiscontinueOpen}
-        productId={selected?.id ?? null}
-        productName={selected?.name ?? ""}
-      />
+
+      {/* Discontinue AlertDialog */}
+      <AlertDialog open={discontinueOpen} onOpenChange={setDiscontinueOpen}>
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discontinue Product</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will mark{" "}
+              <span className="font-medium text-foreground">
+                {discontinueTarget?.product_name}
+              </span>{" "}
+              as discontinued. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDiscontinuing}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={handleDiscontinue}
+              disabled={isDiscontinuing}
+            >
+              {isDiscontinuing ? "Discontinuing…" : "Discontinue"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
-  );
+  )
 }
