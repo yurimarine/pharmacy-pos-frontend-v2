@@ -1,16 +1,16 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useTransition } from "react"
-import { XIcon, PlusIcon } from "lucide-react"
-import { toast } from "sonner"
-import { createPurchaseOrder } from "@/app/admin/purchase-orders/actions"
-import { getProducts } from "@/app/admin/products/actions"
-import type { ProductOption } from "@/components/ui/product-combobox"
-import { ProductCombobox } from "@/components/ui/product-combobox"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import { useState, useEffect, useTransition } from "react";
+import { XIcon, PlusIcon } from "lucide-react";
+import { toast } from "sonner";
+import { createPurchaseOrder } from "@/app/admin/purchase-orders/actions";
+import { getProducts } from "@/app/admin/products/actions";
+import type { ProductOption } from "@/components/ui/product-combobox";
+import { ProductCombobox } from "@/components/ui/product-combobox";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -18,27 +18,33 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 
-type Supplier = { id: string; name: string }
+type Supplier = { id: string; name: string };
 
 type ItemRow = {
-  product_id: string
-  product_name: string
-  quantity: number
-  unit_cost: number
-  notes: string
-}
+  product_id: string;
+  product_name: string;
+  quantity: number;
+  unit_cost: number;
+  notes: string;
+};
 
 function emptyRow(): ItemRow {
-  return { product_id: "", product_name: "", quantity: 1, unit_cost: 0, notes: "" }
+  return {
+    product_id: "",
+    product_name: "",
+    quantity: 1,
+    unit_cost: 0,
+    notes: "",
+  };
 }
 
 export default function AddPurchaseOrderModal({
@@ -46,17 +52,17 @@ export default function AddPurchaseOrderModal({
   onOpenChange,
   suppliers,
 }: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  suppliers: Supplier[]
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  suppliers: Supplier[];
 }) {
-  const [supplierId, setSupplierId] = useState<string>("")
-  const [deliveryDate, setDeliveryDate] = useState<string>("")
-  const [notes, setNotes] = useState<string>("")
-  const [items, setItems] = useState<ItemRow[]>([emptyRow()])
-  const [itemsError, setItemsError] = useState<string | null>(null)
-  const [products, setProducts] = useState<ProductOption[]>([])
-  const [isPending, startTransition] = useTransition()
+  const [supplierId, setSupplierId] = useState<string>("");
+  const [deliveryDate, setDeliveryDate] = useState<string>("");
+  const [notes, setNotes] = useState<string>("");
+  const [items, setItems] = useState<ItemRow[]>([emptyRow()]);
+  const [itemsError, setItemsError] = useState<string | null>(null);
+  const [products, setProducts] = useState<ProductOption[]>([]);
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     getProducts({ status: "active", pageSize: 1000 })
@@ -68,31 +74,33 @@ export default function AddPurchaseOrderModal({
             generic_name: p.generic_name,
             base_price: p.unit_cost,
           })),
-        )
+        );
       })
-      .catch(() => {})
-  }, [])
+      .catch(() => {});
+  }, []);
 
   const updateItem = (index: number, patch: Partial<ItemRow>) => {
-    setItems(prev => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)))
-  }
+    setItems(prev =>
+      prev.map((row, i) => (i === index ? { ...row, ...patch } : row)),
+    );
+  };
 
   const removeItem = (index: number) => {
-    setItems(prev => prev.filter((_, i) => i !== index))
-  }
+    setItems(prev => prev.filter((_, i) => i !== index));
+  };
 
   const estimatedTotal = items.reduce(
     (sum, row) => sum + row.quantity * row.unit_cost,
     0,
-  )
+  );
 
   const handleSubmit = () => {
-    const validItems = items.filter(row => row.product_id !== "")
+    const validItems = items.filter(row => row.product_id !== "");
     if (validItems.length === 0) {
-      setItemsError("At least one item with a selected product is required.")
-      return
+      setItemsError("At least one item with a selected product is required.");
+      return;
     }
-    setItemsError(null)
+    setItemsError(null);
 
     startTransition(async () => {
       const result = await createPurchaseOrder({
@@ -105,22 +113,22 @@ export default function AddPurchaseOrderModal({
           unit_cost: row.unit_cost,
           notes: row.notes.trim() || null,
         })),
-      })
+      });
 
       if (result.success) {
-        toast.success("Purchase order created.")
-        onOpenChange(false)
+        toast.success("Purchase order created.");
+        onOpenChange(false);
       } else {
-        toast.error(result.error ?? "Failed to create purchase order.")
+        toast.error(result.error ?? "Failed to create purchase order.");
       }
-    })
-  }
+    });
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="flex flex-col max-h-[90vh] sm:max-w-3xl p-0"
+        className="flex flex-col max-h-[90vh] sm:max-w-3xl md:max-w-6xl p-0"
       >
         <DialogHeader className="shrink-0 px-6 pt-6 pb-0">
           <DialogTitle>New Purchase Order</DialogTitle>
@@ -141,7 +149,8 @@ export default function AddPurchaseOrderModal({
                 <SelectTrigger id="add-po-supplier">
                   <SelectValue>
                     {supplierId
-                      ? (suppliers.find(s => s.id === supplierId)?.name ?? "No Supplier")
+                      ? (suppliers.find(s => s.id === supplierId)?.name ??
+                        "No Supplier")
                       : "No Supplier"}
                   </SelectValue>
                 </SelectTrigger>
@@ -185,13 +194,18 @@ export default function AddPurchaseOrderModal({
             <div className="grid grid-cols-[1fr_80px_110px_140px_32px] gap-2 px-1">
               <span className="text-xs text-muted-foreground">Product</span>
               <span className="text-xs text-muted-foreground">Qty</span>
-              <span className="text-xs text-muted-foreground">Unit Cost (₱)</span>
+              <span className="text-xs text-muted-foreground">
+                Unit Cost (₱)
+              </span>
               <span className="text-xs text-muted-foreground">Note</span>
               <span />
             </div>
 
             {items.map((row, i) => (
-              <div key={i} className="grid grid-cols-[1fr_80px_110px_140px_32px] gap-2 items-center">
+              <div
+                key={i}
+                className="grid grid-cols-[1fr_80px_110px_140px_32px] gap-2 items-center"
+              >
                 <ProductCombobox
                   options={products}
                   value={row.product_id}
@@ -200,7 +214,7 @@ export default function AddPurchaseOrderModal({
                       product_id: p?.id ?? "",
                       product_name: p?.name ?? "",
                       unit_cost: p ? p.base_price : 0,
-                    })
+                    });
                   }}
                   placeholder="Search product…"
                 />
@@ -209,7 +223,9 @@ export default function AddPurchaseOrderModal({
                   min={1}
                   value={row.quantity}
                   onChange={e =>
-                    updateItem(i, { quantity: Math.max(1, Number(e.target.value)) })
+                    updateItem(i, {
+                      quantity: Math.max(1, Number(e.target.value)),
+                    })
                   }
                 />
                 <Input
@@ -217,7 +233,9 @@ export default function AddPurchaseOrderModal({
                   min={0}
                   step={0.01}
                   value={row.unit_cost}
-                  onChange={e => updateItem(i, { unit_cost: Number(e.target.value) })}
+                  onChange={e =>
+                    updateItem(i, { unit_cost: Number(e.target.value) })
+                  }
                   placeholder="0.00"
                 />
                 <Input
@@ -292,5 +310,5 @@ export default function AddPurchaseOrderModal({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

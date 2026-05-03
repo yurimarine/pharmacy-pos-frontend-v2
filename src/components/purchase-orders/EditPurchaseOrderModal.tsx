@@ -1,17 +1,17 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useTransition } from "react"
-import { XIcon, PlusIcon } from "lucide-react"
-import { toast } from "sonner"
-import { updatePurchaseOrder } from "@/app/admin/purchase-orders/actions"
-import { getProducts } from "@/app/admin/products/actions"
-import type { PurchaseOrderWithItems } from "@/types/purchase-order"
-import type { ProductOption } from "@/components/ui/product-combobox"
-import { ProductCombobox } from "@/components/ui/product-combobox"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import { useState, useEffect, useTransition } from "react";
+import { XIcon, PlusIcon } from "lucide-react";
+import { toast } from "sonner";
+import { updatePurchaseOrder } from "@/app/admin/purchase-orders/actions";
+import { getProducts } from "@/app/admin/products/actions";
+import type { PurchaseOrderWithItems } from "@/types/purchase-order";
+import type { ProductOption } from "@/components/ui/product-combobox";
+import { ProductCombobox } from "@/components/ui/product-combobox";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -19,27 +19,33 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 
-type Supplier = { id: string; name: string }
+type Supplier = { id: string; name: string };
 
 type ItemRow = {
-  product_id: string
-  product_name: string
-  quantity: number
-  unit_cost: number
-  notes: string
-}
+  product_id: string;
+  product_name: string;
+  quantity: number;
+  unit_cost: number;
+  notes: string;
+};
 
 function emptyRow(): ItemRow {
-  return { product_id: "", product_name: "", quantity: 1, unit_cost: 0, notes: "" }
+  return {
+    product_id: "",
+    product_name: "",
+    quantity: 1,
+    unit_cost: 0,
+    notes: "",
+  };
 }
 
 export default function EditPurchaseOrderModal({
@@ -48,16 +54,16 @@ export default function EditPurchaseOrderModal({
   po,
   suppliers,
 }: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  po: PurchaseOrderWithItems | null
-  suppliers: Supplier[]
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  po: PurchaseOrderWithItems | null;
+  suppliers: Supplier[];
 }) {
-  const [supplierId, setSupplierId] = useState<string>(po?.supplier_id ?? "")
+  const [supplierId, setSupplierId] = useState<string>(po?.supplier_id ?? "");
   const [deliveryDate, setDeliveryDate] = useState<string>(
     po?.expected_delivery_date ?? "",
-  )
-  const [notes, setNotes] = useState<string>(po?.notes ?? "")
+  );
+  const [notes, setNotes] = useState<string>(po?.notes ?? "");
   const [items, setItems] = useState<ItemRow[]>(
     po?.items?.length
       ? po.items.map(item => ({
@@ -68,10 +74,10 @@ export default function EditPurchaseOrderModal({
           notes: item.notes ?? "",
         }))
       : [emptyRow()],
-  )
-  const [itemsError, setItemsError] = useState<string | null>(null)
-  const [products, setProducts] = useState<ProductOption[]>([])
-  const [isPending, startTransition] = useTransition()
+  );
+  const [itemsError, setItemsError] = useState<string | null>(null);
+  const [products, setProducts] = useState<ProductOption[]>([]);
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     getProducts({ status: "active", pageSize: 1000 })
@@ -83,32 +89,34 @@ export default function EditPurchaseOrderModal({
             generic_name: p.generic_name,
             base_price: p.unit_cost,
           })),
-        )
+        );
       })
-      .catch(() => {})
-  }, [])
+      .catch(() => {});
+  }, []);
 
   const updateItem = (index: number, patch: Partial<ItemRow>) => {
-    setItems(prev => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)))
-  }
+    setItems(prev =>
+      prev.map((row, i) => (i === index ? { ...row, ...patch } : row)),
+    );
+  };
 
   const removeItem = (index: number) => {
-    setItems(prev => prev.filter((_, i) => i !== index))
-  }
+    setItems(prev => prev.filter((_, i) => i !== index));
+  };
 
   const estimatedTotal = items.reduce(
     (sum, row) => sum + row.quantity * row.unit_cost,
     0,
-  )
+  );
 
   const handleSubmit = () => {
-    if (!po) return
-    const validItems = items.filter(row => row.product_id !== "")
+    if (!po) return;
+    const validItems = items.filter(row => row.product_id !== "");
     if (validItems.length === 0) {
-      setItemsError("At least one item with a selected product is required.")
-      return
+      setItemsError("At least one item with a selected product is required.");
+      return;
     }
-    setItemsError(null)
+    setItemsError(null);
 
     startTransition(async () => {
       const result = await updatePurchaseOrder(po.id, {
@@ -121,22 +129,22 @@ export default function EditPurchaseOrderModal({
           unit_cost: row.unit_cost,
           notes: row.notes.trim() || null,
         })),
-      })
+      });
 
       if (result.success) {
-        toast.success("Purchase order updated.")
-        onOpenChange(false)
+        toast.success("Purchase order updated.");
+        onOpenChange(false);
       } else {
-        toast.error(result.error ?? "Failed to update purchase order.")
+        toast.error(result.error ?? "Failed to update purchase order.");
       }
-    })
-  }
+    });
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="flex flex-col max-h-[90vh] sm:max-w-3xl p-0"
+        className="flex flex-col max-h-[90vh] sm:max-w-3xl md:max-w-6xl p-0"
       >
         <DialogHeader className="shrink-0 px-6 pt-6 pb-0">
           <DialogTitle>Edit Purchase Order</DialogTitle>
@@ -150,7 +158,7 @@ export default function EditPurchaseOrderModal({
           {po && (
             <div className="flex flex-col gap-1.5 mb-5">
               <Label className="text-xs text-muted-foreground">PO Number</Label>
-              <div className="font-mono bg-muted px-3 py-2 rounded-md text-sm">
+              <div className="font-mono bg-muted px-3 py-2 rounded-md text-lg">
                 {po.po_number}
               </div>
             </div>
@@ -167,7 +175,8 @@ export default function EditPurchaseOrderModal({
                 <SelectTrigger id="edit-po-supplier">
                   <SelectValue>
                     {supplierId
-                      ? (suppliers.find(s => s.id === supplierId)?.name ?? "No Supplier")
+                      ? (suppliers.find(s => s.id === supplierId)?.name ??
+                        "No Supplier")
                       : "No Supplier"}
                   </SelectValue>
                 </SelectTrigger>
@@ -209,7 +218,9 @@ export default function EditPurchaseOrderModal({
             <div className="grid grid-cols-[1fr_80px_110px_140px_32px] gap-2 px-1">
               <span className="text-xs text-muted-foreground">Product</span>
               <span className="text-xs text-muted-foreground">Qty</span>
-              <span className="text-xs text-muted-foreground">Unit Cost (₱)</span>
+              <span className="text-xs text-muted-foreground">
+                Unit Cost (₱)
+              </span>
               <span className="text-xs text-muted-foreground">Note</span>
               <span />
             </div>
@@ -227,7 +238,7 @@ export default function EditPurchaseOrderModal({
                       product_id: p?.id ?? "",
                       product_name: p?.name ?? "",
                       unit_cost: p ? p.base_price : 0,
-                    })
+                    });
                   }}
                   placeholder="Search product…"
                 />
@@ -236,7 +247,9 @@ export default function EditPurchaseOrderModal({
                   min={1}
                   value={row.quantity}
                   onChange={e =>
-                    updateItem(i, { quantity: Math.max(1, Number(e.target.value)) })
+                    updateItem(i, {
+                      quantity: Math.max(1, Number(e.target.value)),
+                    })
                   }
                 />
                 <Input
@@ -244,7 +257,9 @@ export default function EditPurchaseOrderModal({
                   min={0}
                   step={0.01}
                   value={row.unit_cost}
-                  onChange={e => updateItem(i, { unit_cost: Number(e.target.value) })}
+                  onChange={e =>
+                    updateItem(i, { unit_cost: Number(e.target.value) })
+                  }
                   placeholder="0.00"
                 />
                 <Input
@@ -319,5 +334,5 @@ export default function EditPurchaseOrderModal({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

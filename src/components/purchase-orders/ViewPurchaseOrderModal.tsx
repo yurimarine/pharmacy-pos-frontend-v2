@@ -1,17 +1,17 @@
-"use client"
+"use client";
 
-import type { PurchaseOrderWithItems } from "@/types/purchase-order"
-import { PO_STATUS_LABELS } from "@/types/purchase-order"
-import { Badge } from "@/components/ui/badge"
+import type { PurchaseOrderWithItems } from "@/types/purchase-order";
+import { PO_STATUS_LABELS } from "@/types/purchase-order";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { DialogClose } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
+} from "@/components/ui/dialog";
+import { DialogClose } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -19,40 +19,41 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/table";
 
 function formatDate(dateStr: string | null): string {
-  if (!dateStr) return "—"
+  if (!dateStr) return "—";
   return new Date(dateStr).toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
-  })
+  });
 }
 
 function formatCurrency(value: number): string {
   return `₱${value.toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  })}`
+  })}`;
 }
 
 function StatusBadge({ status }: { status: string }) {
-  if (status === "draft") return <Badge variant="outline">Draft</Badge>
-  if (status === "submitted") return <Badge variant="secondary">Submitted</Badge>
+  if (status === "draft") return <Badge variant="outline">Draft</Badge>;
+  if (status === "submitted")
+    return <Badge variant="secondary">Submitted</Badge>;
   if (status === "partially_received")
     return (
       <Badge variant="default" className="bg-yellow-600 hover:bg-yellow-700">
         Partially Received
       </Badge>
-    )
+    );
   if (status === "received")
     return (
       <Badge variant="default" className="bg-green-600 hover:bg-green-700">
         Received
       </Badge>
-    )
-  return <Badge variant="destructive">Cancelled</Badge>
+    );
+  return <Badge variant="destructive">Cancelled</Badge>;
 }
 
 export default function ViewPurchaseOrderModal({
@@ -60,20 +61,20 @@ export default function ViewPurchaseOrderModal({
   onOpenChange,
   po,
 }: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  po: PurchaseOrderWithItems | null
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  po: PurchaseOrderWithItems | null;
 }) {
-  if (!po) return null
+  if (!po) return null;
 
   const estimatedTotal = po.items.reduce(
     (sum, item) => sum + item.quantity_ordered * item.unit_cost,
     0,
-  )
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex flex-col max-h-[90vh] sm:max-w-2xl">
+      <DialogContent className="flex flex-col max-h-[90vh] sm:max-w-2xl md:max-w-5xl">
         <DialogHeader>
           <DialogTitle>Purchase Order Details</DialogTitle>
         </DialogHeader>
@@ -83,7 +84,7 @@ export default function ViewPurchaseOrderModal({
           <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
             <div>
               <p className="text-xs text-muted-foreground mb-0.5">PO Number</p>
-              <p className="font-mono font-medium">{po.po_number}</p>
+              <p className="text-lg font-mono font-medium">{po.po_number}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground mb-0.5">Status</p>
@@ -91,10 +92,16 @@ export default function ViewPurchaseOrderModal({
             </div>
             <div>
               <p className="text-xs text-muted-foreground mb-0.5">Supplier</p>
-              <p>{po.supplier?.name ?? <span className="text-muted-foreground">No Supplier</span>}</p>
+              <p>
+                {po.supplier?.name ?? (
+                  <span className="text-muted-foreground">No Supplier</span>
+                )}
+              </p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground mb-0.5">Expected Delivery</p>
+              <p className="text-xs text-muted-foreground mb-0.5">
+                Expected Delivery
+              </p>
               <p>{formatDate(po.expected_delivery_date)}</p>
             </div>
             <div>
@@ -131,7 +138,7 @@ export default function ViewPurchaseOrderModal({
                 </TableHeader>
                 <TableBody>
                   {po.items.map(item => {
-                    const lineTotal = item.quantity_ordered * item.unit_cost
+                    const lineTotal = item.quantity_ordered * item.unit_cost;
                     return (
                       <TableRow key={item.id}>
                         <TableCell className="text-sm">
@@ -150,14 +157,16 @@ export default function ViewPurchaseOrderModal({
                           {item.notes ?? "—"}
                         </TableCell>
                       </TableRow>
-                    )
+                    );
                   })}
                 </TableBody>
               </Table>
             </div>
             <p className="text-sm text-right mt-2">
               <span className="text-muted-foreground">Estimated Total: </span>
-              <span className="font-medium">{formatCurrency(estimatedTotal)}</span>
+              <span className="font-medium">
+                {formatCurrency(estimatedTotal)}
+              </span>
             </p>
           </div>
         </div>
@@ -167,5 +176,5 @@ export default function ViewPurchaseOrderModal({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
