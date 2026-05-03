@@ -427,13 +427,13 @@ export default function StockTransfersTable({
 
       {/* Modals */}
       <AddStockTransferModal
-        key={addKey}
+        key={`add-${addKey}`}
         open={addOpen}
         onOpenChange={setAddOpen}
       />
 
       <EditStockTransferModal
-        key={editKey}
+        key={`edit-${editKey}`}
         open={editTransfer !== null}
         onOpenChange={open => !open && setEditTransfer(null)}
         transfer={editTransfer}

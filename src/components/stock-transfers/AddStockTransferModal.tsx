@@ -1,20 +1,20 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useTransition } from "react"
-import { XIcon, PlusIcon } from "lucide-react"
-import { toast } from "sonner"
-import { createStockTransfer } from "@/app/admin/stock-transfers/actions"
-import { getPharmacies } from "@/app/admin/pharmacies/actions"
-import { getProducts } from "@/app/admin/products/actions"
-import { getAvailableBatchesForProduct } from "@/app/admin/warehouse/actions"
-import type { Pharmacy } from "@/types/pharmacy"
-import type { WarehouseInventoryWithProduct } from "@/types/inventory"
-import type { ProductOption } from "@/components/ui/product-combobox"
-import { ProductCombobox } from "@/components/ui/product-combobox"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import { useState, useEffect, useTransition } from "react";
+import { XIcon, PlusIcon } from "lucide-react";
+import { toast } from "sonner";
+import { createStockTransfer } from "@/app/admin/stock-transfers/actions";
+import { getPharmacies } from "@/app/admin/pharmacies/actions";
+import { getProducts } from "@/app/admin/products/actions";
+import { getAvailableBatchesForProduct } from "@/app/admin/warehouse/actions";
+import type { Pharmacy } from "@/types/pharmacy";
+import type { WarehouseInventoryWithProduct } from "@/types/inventory";
+import type { ProductOption } from "@/components/ui/product-combobox";
+import { ProductCombobox } from "@/components/ui/product-combobox";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -22,22 +22,22 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 
 type ItemRow = {
-  product_id: string
-  product_name: string
-  warehouse_inventory_id: string
-  quantity: number
-  expiry_date: string | null
-}
+  product_id: string;
+  product_name: string;
+  warehouse_inventory_id: string;
+  quantity: number;
+  expiry_date: string | null;
+};
 
 function emptyRow(): ItemRow {
   return {
@@ -46,60 +46,60 @@ function emptyRow(): ItemRow {
     warehouse_inventory_id: "",
     quantity: 1,
     expiry_date: null,
-  }
+  };
 }
 
 function formatDateShort(dateStr: string | null): string {
-  if (!dateStr) return "No Exp"
+  if (!dateStr) return "No Exp";
   return new Date(dateStr).toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
-  })
+  });
 }
 
 export default function AddStockTransferModal({
   open,
   onOpenChange,
 }: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
-  const [pharmacyId, setPharmacyId] = useState<string>("")
-  const [notes, setNotes] = useState<string>("")
-  const [items, setItems] = useState<ItemRow[]>([emptyRow()])
-  const [itemsError, setItemsError] = useState<string | null>(null)
+  const [pharmacyId, setPharmacyId] = useState<string>("");
+  const [notes, setNotes] = useState<string>("");
+  const [items, setItems] = useState<ItemRow[]>([emptyRow()]);
+  const [itemsError, setItemsError] = useState<string | null>(null);
 
-  const [pharmacies, setPharmacies] = useState<Pharmacy[]>([])
-  const [products, setProducts] = useState<ProductOption[]>([])
+  const [pharmacies, setPharmacies] = useState<Pharmacy[]>([]);
+  const [products, setProducts] = useState<ProductOption[]>([]);
   const [batchesByProduct, setBatchesByProduct] = useState<
     Map<string, WarehouseInventoryWithProduct[]>
-  >(new Map())
-  const [loadingBatches, setLoadingBatches] = useState<Set<string>>(new Set())
+  >(new Map());
+  const [loadingBatches, setLoadingBatches] = useState<Set<string>>(new Set());
 
-  const [isPending, startTransition] = useTransition()
+  const [isPending, startTransition] = useTransition();
 
   const fetchBatchesForProduct = (productId: string) => {
-    if (!productId || batchesByProduct.has(productId)) return
-    setLoadingBatches(prev => new Set(prev).add(productId))
+    if (!productId || batchesByProduct.has(productId)) return;
+    setLoadingBatches(prev => new Set(prev).add(productId));
     getAvailableBatchesForProduct(productId)
       .then(batches => {
-        setBatchesByProduct(prev => new Map(prev).set(productId, batches))
+        setBatchesByProduct(prev => new Map(prev).set(productId, batches));
       })
       .catch(() => {})
       .finally(() => {
         setLoadingBatches(prev => {
-          const next = new Set(prev)
-          next.delete(productId)
-          return next
-        })
-      })
-  }
+          const next = new Set(prev);
+          next.delete(productId);
+          return next;
+        });
+      });
+  };
 
   useEffect(() => {
     getPharmacies()
       .then(data => setPharmacies(data))
-      .catch(() => {})
+      .catch(() => {});
     getProducts({ status: "active", pageSize: 1000 })
       .then(({ data }) =>
         setProducts(
@@ -111,18 +111,18 @@ export default function AddStockTransferModal({
           })),
         ),
       )
-      .catch(() => {})
-  }, [])
+      .catch(() => {});
+  }, []);
 
   const updateItem = (index: number, patch: Partial<ItemRow>) => {
     setItems(prev =>
       prev.map((row, i) => (i === index ? { ...row, ...patch } : row)),
-    )
-  }
+    );
+  };
 
   const removeItem = (index: number) => {
-    setItems(prev => prev.filter((_, i) => i !== index))
-  }
+    setItems(prev => prev.filter((_, i) => i !== index));
+  };
 
   const handleProductChange = (index: number, p: ProductOption | null) => {
     updateItem(index, {
@@ -130,25 +130,25 @@ export default function AddStockTransferModal({
       product_name: p?.name ?? "",
       warehouse_inventory_id: "",
       expiry_date: null,
-    })
-    if (p?.id) fetchBatchesForProduct(p.id)
-  }
+    });
+    if (p?.id) fetchBatchesForProduct(p.id);
+  };
 
   const handleBatchChange = (
     index: number,
     batchId: string | null,
     productId: string,
   ) => {
-    if (!batchId) return
+    if (!batchId) return;
     const batch = (batchesByProduct.get(productId) ?? []).find(
       b => b.id === batchId,
-    )
-    if (!batch) return
+    );
+    if (!batch) return;
     updateItem(index, {
       warehouse_inventory_id: batchId,
       expiry_date: batch.expiry_date,
-    })
-  }
+    });
+  };
 
   const usedBatchIds = (excludeIndex: number) =>
     new Set(
@@ -156,27 +156,27 @@ export default function AddStockTransferModal({
         .filter((_, i) => i !== excludeIndex)
         .map(r => r.warehouse_inventory_id)
         .filter(Boolean),
-    )
+    );
 
   const totalQty = items
     .filter(r => r.warehouse_inventory_id)
-    .reduce((sum, r) => sum + r.quantity, 0)
+    .reduce((sum, r) => sum + r.quantity, 0);
 
   const handleSubmit = () => {
     const validItems = items.filter(
       r => r.product_id && r.warehouse_inventory_id,
-    )
+    );
     if (!pharmacyId) {
-      setItemsError("Please select a destination pharmacy.")
-      return
+      setItemsError("Please select a destination pharmacy.");
+      return;
     }
     if (validItems.length === 0) {
       setItemsError(
         "At least one item with a selected product and batch is required.",
-      )
-      return
+      );
+      return;
     }
-    setItemsError(null)
+    setItemsError(null);
 
     startTransition(async () => {
       const result = await createStockTransfer({
@@ -188,16 +188,16 @@ export default function AddStockTransferModal({
           quantity: row.quantity,
           expiry_date: row.expiry_date,
         })),
-      })
+      });
 
       if (result.success) {
-        toast.success("Stock transfer created.")
-        onOpenChange(false)
+        toast.success("Stock transfer created.");
+        onOpenChange(false);
       } else {
-        toast.error(result.error ?? "Failed to create stock transfer.")
+        toast.error(result.error ?? "Failed to create stock transfer.");
       }
-    })
-  }
+    });
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -264,13 +264,13 @@ export default function AddStockTransferModal({
             </div>
 
             {items.map((row, i) => {
-              const batches = batchesByProduct.get(row.product_id) ?? []
-              const used = usedBatchIds(i)
-              const availableBatches = batches.filter(b => !used.has(b.id))
-              const isLoadingBatch = loadingBatches.has(row.product_id)
+              const batches = batchesByProduct.get(row.product_id) ?? [];
+              const used = usedBatchIds(i);
+              const availableBatches = batches.filter(b => !used.has(b.id));
+              const isLoadingBatch = loadingBatches.has(row.product_id);
               const selectedBatch = batches.find(
                 b => b.id === row.warehouse_inventory_id,
-              )
+              );
 
               return (
                 <div
@@ -286,9 +286,7 @@ export default function AddStockTransferModal({
 
                   <Select
                     value={row.warehouse_inventory_id}
-                    onValueChange={v =>
-                      handleBatchChange(i, v, row.product_id)
-                    }
+                    onValueChange={v => handleBatchChange(i, v, row.product_id)}
                     disabled={!row.product_id || isLoadingBatch}
                   >
                     <SelectTrigger>
@@ -307,7 +305,7 @@ export default function AddStockTransferModal({
                     <SelectContent>
                       {availableBatches.map(batch => (
                         <SelectItem key={batch.id} value={batch.id}>
-                          {`${batch.lot_number ?? "No Lot"} | ${formatDateShort(batch.expiry_date)} | ${batch.quantity_remaining} avail`}
+                          {`${batch.lot_number ?? "No Lot"} | ${formatDateShort(batch.expiry_date)} | ${batch.quantity_remaining}`}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -337,7 +335,7 @@ export default function AddStockTransferModal({
                     <XIcon className="size-3.5" />
                   </Button>
                 </div>
-              )
+              );
             })}
 
             {itemsError && (
@@ -386,5 +384,5 @@ export default function AddStockTransferModal({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
