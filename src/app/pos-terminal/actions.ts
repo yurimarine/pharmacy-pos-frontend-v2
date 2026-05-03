@@ -10,7 +10,7 @@ export async function getPOSInventory(pharmacyId: string) {
   const supabase = await createClient()
 
   const { data, error } = await supabase
-    .from('inventory')
+    .from('pharmacy_inventory')
     .select(`
       id,
       product_id,
@@ -18,37 +18,41 @@ export async function getPOSInventory(pharmacyId: string) {
       selling_price,
       low_stock_threshold,
       expiry_date,
-      products (
+      product:products!pharmacy_inventory_product_id_fkey(
         id,
-        name,
+        product_name,
         generic_name,
         sku,
         requires_prescription,
         status,
-        packaging_units ( name, abbreviation ),
-        dispensing_units ( name, abbreviation )
+        packaging_type
       )
     `)
     .eq('pharmacy_id', pharmacyId)
-    .eq('is_active', true)
-    .order('products(name)', { ascending: true })
+    .gt('quantity', 0)
 
   if (error) throw new Error(error.message)
 
   return (data ?? []).map(item => {
-    const product = item.products as any
+    const product = item.product as unknown as {
+      id: string
+      product_name: string
+      generic_name: string | null
+      sku: string | null
+      requires_prescription: boolean
+      status: string
+      packaging_type: string
+    } | null
     if (!product || product.status === 'discontinued') return null
     return {
       inventoryId: item.id,
       productId: item.product_id,
-      productName: product.name as string,
-      productGenericName: (product.generic_name as string | null) ?? null,
-      productSku: (product.sku as string | null) ?? null,
-      requiresPrescription: (product.requires_prescription as boolean) ?? false,
-      packagingLabel: product.packaging_units?.name
-        ? (product.packaging_units.name as string)
-        : null,
-      sellingPrice: item.selling_price,
+      productName: product.product_name,
+      productGenericName: product.generic_name ?? null,
+      productSku: product.sku ?? null,
+      requiresPrescription: product.requires_prescription ?? false,
+      packagingLabel: product.packaging_type ?? null,
+      sellingPrice: Number(item.selling_price),
       quantity: item.quantity,
       lowStockThreshold: item.low_stock_threshold,
       expiryDate: item.expiry_date,
@@ -151,7 +155,7 @@ export async function processTransaction(data: {
 
   for (const cartItem of data.cartItems) {
     const { data: inv } = await supabase
-      .from('inventory')
+      .from('pharmacy_inventory')
       .select('quantity')
       .eq('id', cartItem.inventoryId)
       .single()
@@ -229,7 +233,7 @@ export async function processTransaction(data: {
   // 10. Deduct inventory — do not rollback if this fails (transaction already recorded)
   for (const { cartItem, currentQuantity } of validatedItems) {
     const { error: invError } = await supabase
-      .from('inventory')
+      .from('pharmacy_inventory')
       .update({
         quantity: currentQuantity - cartItem.quantity,
         updated_at: new Date().toISOString(),

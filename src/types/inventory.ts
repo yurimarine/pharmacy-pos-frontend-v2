@@ -49,6 +49,78 @@ export type Inventory = {
   pharmacies?: { name: string } | null
 }
 
+export type PharmacyInventory = {
+  id: string
+  product_id: string
+  pharmacy_id: string
+  quantity: number
+  selling_price: number
+  markup_percentage: number
+  low_stock_threshold: number
+  expiry_date: string | null
+  last_restocked_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type PharmacyInventoryWithProduct = PharmacyInventory & {
+  product: {
+    id: string
+    product_name: string
+    generic_name: string | null
+    sku: string | null
+    packaging_type: string
+    unit_count: number
+    requires_prescription: boolean
+    unit_cost: number
+  } | null
+}
+
+export type StockAdjustmentType = "increase" | "decrease"
+export type StockAdjustmentReason =
+  | "damaged"
+  | "expired"
+  | "lost"
+  | "count_correction"
+  | "other"
+
+export const ADJUSTMENT_REASON_LABELS: Record<StockAdjustmentReason, string> = {
+  damaged: "Damaged",
+  expired: "Expired",
+  lost: "Lost",
+  count_correction: "Count Correction",
+  other: "Other",
+}
+
+export type StockAdjustment = {
+  id: string
+  pharmacy_id: string
+  product_id: string
+  adjusted_by: string
+  type: StockAdjustmentType
+  quantity: number
+  reason: StockAdjustmentReason
+  notes: string | null
+  created_at: string
+  adjusted_by_user: { name: string; role: string } | null
+  product: { product_name: string; sku: string | null } | null
+}
+
+export type POSInventoryItem = {
+  inventory_id: string
+  product_id: string
+  product_name: string
+  generic_name: string | null
+  sku: string | null
+  packaging_type: string
+  unit_count: number
+  requires_prescription: boolean
+  quantity: number
+  selling_price: number
+  expiry_date: string | null
+  low_stock_threshold: number
+}
+
 export type WarehouseInventory = {
   id: string
   product_id: string
