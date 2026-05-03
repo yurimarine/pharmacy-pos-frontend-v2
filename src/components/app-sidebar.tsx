@@ -42,6 +42,7 @@ import {
   TagIcon,
   ShoppingCartIcon,
   PackageCheckIcon,
+  WarehouseIcon,
 } from "lucide-react";
 
 type Role = "admin" | "pharmacist" | "pharmacy_assistant";
@@ -92,6 +93,12 @@ const navMain: NavItem[] = [
     title: "Warehouse Receipts",
     url: "/admin/warehouse-receipts",
     icon: <PackageCheckIcon />,
+    roles: ["admin"],
+  },
+  {
+    title: "Warehouse",
+    url: "/admin/warehouse",
+    icon: <WarehouseIcon />,
     roles: ["admin"],
   },
   {

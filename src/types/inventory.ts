@@ -48,3 +48,28 @@ export type Inventory = {
   } | null
   pharmacies?: { name: string } | null
 }
+
+export type WarehouseInventory = {
+  id: string
+  product_id: string
+  receipt_item_id: string
+  lot_number: string | null
+  expiry_date: string | null
+  quantity_remaining: number
+  unit_cost: number
+  created_at: string
+  updated_at: string
+}
+
+export type WarehouseInventoryWithProduct = WarehouseInventory & {
+  product: {
+    id: string
+    product_name: string
+    generic_name: string | null
+    sku: string | null
+    packaging_type: string
+    unit_count: number
+    requires_prescription: boolean
+    unit_cost: number
+  } | null
+}
