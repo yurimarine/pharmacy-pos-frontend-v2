@@ -15,6 +15,7 @@ const ADMIN_ONLY_ROUTES = [
   "/admin/discounts",
   "/admin/warehouse-receipts",
   "/admin/warehouse",
+  "/admin/stock-transfers",
 ];
 
 const ADMIN_PHARMACIST_ROUTES = [
