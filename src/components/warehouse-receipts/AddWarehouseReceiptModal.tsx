@@ -5,6 +5,8 @@ import { XIcon, PlusIcon } from "lucide-react";
 import { toast } from "sonner";
 import { createWarehouseReceipt } from "@/app/admin/warehouse-receipts/actions";
 import { getProducts } from "@/app/admin/products/actions";
+import { getPurchaseOrders } from "@/app/admin/purchase-orders/actions";
+import type { PurchaseOrderWithItems } from "@/types/purchase-order";
 import type { ProductOption } from "@/components/ui/product-combobox";
 import { ProductCombobox } from "@/components/ui/product-combobox";
 import { Button } from "@/components/ui/button";
@@ -61,10 +63,14 @@ export default function AddWarehouseReceiptModal({
   suppliers: Supplier[];
 }) {
   const [supplierId, setSupplierId] = useState<string>("");
+  const [selectedPOId, setSelectedPOId] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
   const [items, setItems] = useState<ItemRow[]>([emptyRow()]);
   const [itemsError, setItemsError] = useState<string | null>(null);
   const [products, setProducts] = useState<ProductOption[]>([]);
+  const [submittedPOs, setSubmittedPOs] = useState<PurchaseOrderWithItems[]>(
+    [],
+  );
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -80,6 +86,10 @@ export default function AddWarehouseReceiptModal({
         );
       })
       .catch(() => {});
+
+    getPurchaseOrders({ status: "submitted", pageSize: 100 })
+      .then(({ data }) => setSubmittedPOs(data))
+      .catch(() => {});
   }, []);
 
   const updateItem = (index: number, patch: Partial<ItemRow>) => {
@@ -90,6 +100,39 @@ export default function AddWarehouseReceiptModal({
 
   const removeItem = (index: number) => {
     setItems(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handlePOSelect = (poId: string) => {
+    setSelectedPOId(poId);
+
+    if (!poId) {
+      setItems([emptyRow()]);
+      setSupplierId("");
+      return;
+    }
+
+    const selectedPO = submittedPOs.find(po => po.id === poId);
+    if (!selectedPO) return;
+
+    if (selectedPO.supplier_id) {
+      setSupplierId(selectedPO.supplier_id);
+    }
+
+    if (selectedPO.items && selectedPO.items.length > 0) {
+      setItems(
+        selectedPO.items.map(item => ({
+          product_id: item.product_id,
+          product_name: item.products?.product_name ?? "",
+          quantity: item.quantity_ordered,
+          unit_cost: item.unit_cost,
+          lot_number: "",
+          expiry_date: "",
+          notes: "",
+        })),
+      );
+    } else {
+      setItems([emptyRow()]);
+    }
   };
 
   const totalCost = items.reduce(
@@ -108,7 +151,7 @@ export default function AddWarehouseReceiptModal({
     startTransition(async () => {
       const result = await createWarehouseReceipt({
         supplier_id: supplierId || null,
-        po_id: null,
+        po_id: selectedPOId || null,
         notes: notes.trim() || null,
         items: validItems.map(row => ({
           product_id: row.product_id,
@@ -143,6 +186,42 @@ export default function AddWarehouseReceiptModal({
         <div className="flex-1 overflow-y-auto px-6 py-4">
           {/* Header fields */}
           <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="flex flex-col gap-1.5 col-span-2">
+              <Label htmlFor="add-wr-po">Link to Purchase Order</Label>
+              <Select
+                value={selectedPOId}
+                onValueChange={v => v !== null && handlePOSelect(v)}
+              >
+                <SelectTrigger id="add-wr-po">
+                  <SelectValue>
+                    {selectedPOId
+                      ? (submittedPOs.find(po => po.id === selectedPOId)
+                          ?.po_number ?? "No PO")
+                      : "No PO (manual entry)"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No PO (manual entry)</SelectItem>
+                  {submittedPOs.length === 0 ? (
+                    <div className="px-2 py-3 text-xs text-muted-foreground text-center">
+                      No submitted purchase orders
+                    </div>
+                  ) : (
+                    submittedPOs.map(po => (
+                      <SelectItem key={po.id} value={po.id}>
+                        {po.po_number}
+                        {po.supplier && (
+                          <span className="text-muted-foreground">
+                            {" "}
+                            — {po.supplier.name}
+                          </span>
+                        )}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="add-wr-supplier">Supplier</Label>
               <Select
