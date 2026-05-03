@@ -1,6 +1,7 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
 import { getCurrentUser } from "@/lib/get-current-user"
 import type {
@@ -218,10 +219,14 @@ export async function completeWarehouseReceipt(
     }
 
     const supabase = await createClient()
+    const adminSupabase = createAdminClient()
 
+    // Fetch receipt including po_id and items
     const { data: receipt, error: fetchError } = await supabase
       .from("warehouse_receipts")
-      .select(`id, status, items:warehouse_receipt_items!warehouse_receipt_items_receipt_id_fkey(id, product_id, quantity_received, unit_cost, lot_number, expiry_date)`)
+      .select(
+        `id, status, po_id, items:warehouse_receipt_items!warehouse_receipt_items_receipt_id_fkey(id, product_id, quantity_received, unit_cost, lot_number, expiry_date)`,
+      )
       .eq("id", id)
       .single()
 
@@ -233,10 +238,20 @@ export async function completeWarehouseReceipt(
       return { success: false, error: "Cannot complete a receipt with no items" }
     }
 
+    type ReceiptItem = {
+      id: string
+      product_id: string
+      quantity_received: number
+      unit_cost: number
+      lot_number: string | null
+      expiry_date: string | null
+    }
+
+    // Insert warehouse_inventory rows (one per receipt item)
     const { data: inventoryRows, error: inventoryError } = await supabase
       .from("warehouse_inventory")
       .insert(
-        receipt.items.map((item: { id: string; product_id: string; quantity_received: number; unit_cost: number; lot_number: string | null; expiry_date: string | null }) => ({
+        (receipt.items as ReceiptItem[]).map(item => ({
           product_id: item.product_id,
           receipt_item_id: item.id,
           lot_number: item.lot_number,
@@ -249,7 +264,8 @@ export async function completeWarehouseReceipt(
 
     if (inventoryError) return { success: false, error: inventoryError.message }
 
-    const { error: logsError } = await supabase
+    // Write inventory_logs via admin client — RLS restricts inserts to service role
+    const { error: logsError } = await adminSupabase
       .from("inventory_logs")
       .insert(
         (inventoryRows ?? []).map((row: { id: string; quantity_remaining: number }) => ({
@@ -267,6 +283,7 @@ export async function completeWarehouseReceipt(
 
     if (logsError) return { success: false, error: logsError.message }
 
+    // Mark receipt completed
     const { error: updateError } = await supabase
       .from("warehouse_receipts")
       .update({
@@ -278,7 +295,31 @@ export async function completeWarehouseReceipt(
 
     if (updateError) return { success: false, error: updateError.message }
 
+    // Update linked PO status if this receipt was tied to a PO
+    if (receipt.po_id) {
+      const { data: poItems } = await supabase
+        .from("purchase_order_items")
+        .select("product_id")
+        .eq("po_id", receipt.po_id)
+
+      const receivedProductIds = new Set(
+        (receipt.items as ReceiptItem[]).map(item => item.product_id),
+      )
+      const allCovered = (poItems ?? []).every(poItem =>
+        receivedProductIds.has(poItem.product_id),
+      )
+
+      await supabase
+        .from("purchase_orders")
+        .update({
+          status: allCovered ? "received" : "partially_received",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", receipt.po_id)
+    }
+
     revalidatePath("/admin/warehouse-receipts")
+    revalidatePath("/admin/purchase-orders")
     return { success: true }
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Unknown error" }
