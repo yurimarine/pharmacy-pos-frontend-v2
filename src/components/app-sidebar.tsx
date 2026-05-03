@@ -33,7 +33,6 @@ import {
   Box,
   ShelvingUnit,
   ClipboardClock,
-  NotebookPen,
   FilePenLine,
   Receipt,
   UsersIcon,
@@ -100,11 +99,6 @@ const navMain: NavItem[] = [
     url: "/admin/warehouse",
     icon: <WarehouseIcon />,
     roles: ["admin"],
-  },
-  {
-    title: "Order",
-    url: "/admin/orders",
-    icon: <NotebookPen />,
   },
   {
     title: "POS Terminal",
