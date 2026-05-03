@@ -23,6 +23,7 @@ const ADMIN_PHARMACIST_ROUTES = [
   "/admin/transactions",
   "/admin/products",
   "/admin/reports",
+  "/admin/purchase-orders",
 ];
 
 const POS_ROUTES = ["/pos-terminal"];

@@ -40,6 +40,7 @@ import {
   MonitorSmartphone,
   LandmarkIcon,
   TagIcon,
+  ShoppingCartIcon,
 } from "lucide-react";
 
 type Role = "admin" | "pharmacist" | "pharmacy_assistant";
@@ -79,6 +80,12 @@ const navMain: NavItem[] = [
     title: "Batches",
     url: "/admin/batches",
     icon: <PackagePlusIcon />,
+  },
+  {
+    title: "Purchase Orders",
+    url: "/admin/purchase-orders",
+    icon: <ShoppingCartIcon />,
+    roles: ["admin", "pharmacist"],
   },
   {
     title: "Order",
