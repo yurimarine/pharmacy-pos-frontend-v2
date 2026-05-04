@@ -7,7 +7,7 @@ import { getCurrentUser } from "@/lib/get-current-user"
 import type {
   StockTransferStatus,
   StockTransferWithItems,
-} from "@/types/stock-transfer"
+} from "@/types/inventory"
 
 const ITEMS_SELECT = `
   id, transfer_id, warehouse_inventory_id, product_id, quantity, expiry_date,

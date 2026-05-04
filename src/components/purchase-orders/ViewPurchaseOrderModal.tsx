@@ -1,7 +1,7 @@
 "use client";
 
-import type { PurchaseOrderWithItems } from "@/types/purchase-order";
-import { PO_STATUS_LABELS } from "@/types/purchase-order";
+import type { PurchaseOrderWithItems } from "@/types/inventory";
+import { PO_STATUS_LABELS } from "@/types/inventory";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,

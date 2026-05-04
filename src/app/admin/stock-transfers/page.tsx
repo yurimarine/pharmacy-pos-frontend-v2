@@ -2,7 +2,7 @@ import { getStockTransfers, getStockTransferStats } from "./actions"
 import { getPharmacies } from "@/app/admin/pharmacies/actions"
 import { getCurrentUser } from "@/lib/get-current-user"
 import StockTransfersTable from "@/components/stock-transfers/StockTransfersTable"
-import type { StockTransferStatus } from "@/types/stock-transfer"
+import type { StockTransferStatus } from "@/types/inventory"
 import { ArrowRightLeftIcon, ClipboardListIcon, CheckCircleIcon } from "lucide-react"
 
 export default async function StockTransfersPage({

@@ -7,7 +7,7 @@ import { getCurrentUser } from "@/lib/get-current-user"
 import type {
   WarehouseReceiptStatus,
   WarehouseReceiptWithItems,
-} from "@/types/warehouse-receipt"
+} from "@/types/inventory"
 
 const ITEMS_SELECT =
   "id, receipt_id, product_id, po_item_id, quantity_received, unit_cost, lot_number, expiry_date, notes, products(product_name, sku)"

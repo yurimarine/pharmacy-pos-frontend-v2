@@ -5,7 +5,7 @@ import { XIcon, PlusIcon } from "lucide-react";
 import { toast } from "sonner";
 import { updateWarehouseReceipt } from "@/app/admin/warehouse-receipts/actions";
 import { getProducts } from "@/app/admin/products/actions";
-import type { WarehouseReceiptWithItems } from "@/types/warehouse-receipt";
+import type { WarehouseReceiptWithItems } from "@/types/inventory";
 import type { ProductOption } from "@/components/ui/product-combobox";
 import { ProductCombobox } from "@/components/ui/product-combobox";
 import { Button } from "@/components/ui/button";

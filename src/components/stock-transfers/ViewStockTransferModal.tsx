@@ -1,6 +1,6 @@
 "use client"
 
-import type { StockTransferWithItems } from "@/types/stock-transfer"
+import type { StockTransferWithItems } from "@/types/inventory"
 import { Badge } from "@/components/ui/badge"
 import {
   Dialog,

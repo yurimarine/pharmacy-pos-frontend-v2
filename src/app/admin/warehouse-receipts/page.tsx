@@ -2,7 +2,7 @@ import { getCurrentUser } from "@/lib/get-current-user";
 import { getWarehouseReceipts } from "./actions";
 import { getSuppliers } from "@/app/admin/suppliers/actions";
 import { WarehouseReceiptsTable } from "@/components/warehouse-receipts/WarehouseReceiptsTable";
-import type { WarehouseReceiptStatus } from "@/types/warehouse-receipt";
+import type { WarehouseReceiptStatus } from "@/types/inventory";
 
 const VALID_STATUSES: WarehouseReceiptStatus[] = [
   "draft",

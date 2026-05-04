@@ -57,7 +57,7 @@ import {
   type WarehouseReceiptWithItems,
   type WarehouseReceiptStatus,
   WR_STATUS_LABELS,
-} from "@/types/warehouse-receipt"
+} from "@/types/inventory"
 import type { UserRole } from "@/types/user"
 import {
   completeWarehouseReceipt,

@@ -1,6 +1,6 @@
 "use client";
 
-import type { WarehouseReceiptWithItems } from "@/types/warehouse-receipt";
+import type { WarehouseReceiptWithItems } from "@/types/inventory";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,

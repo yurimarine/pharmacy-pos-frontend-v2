@@ -2,7 +2,7 @@ import { getCurrentUser } from "@/lib/get-current-user"
 import { getPurchaseOrders } from "./actions"
 import { getSuppliers } from "@/app/admin/suppliers/actions"
 import { PurchaseOrdersTable } from "@/components/purchase-orders/PurchaseOrdersTable"
-import type { PurchaseOrderStatus } from "@/types/purchase-order"
+import type { PurchaseOrderStatus } from "@/types/inventory"
 
 const VALID_STATUSES: PurchaseOrderStatus[] = [
   "draft",

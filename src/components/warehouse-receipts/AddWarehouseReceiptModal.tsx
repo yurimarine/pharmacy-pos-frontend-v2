@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { createWarehouseReceipt } from "@/app/admin/warehouse-receipts/actions";
 import { getProducts } from "@/app/admin/products/actions";
 import { getPurchaseOrders } from "@/app/admin/purchase-orders/actions";
-import type { PurchaseOrderWithItems } from "@/types/purchase-order";
+import type { PurchaseOrderWithItems } from "@/types/inventory";
 import type { ProductOption } from "@/components/ui/product-combobox";
 import { ProductCombobox } from "@/components/ui/product-combobox";
 import { Button } from "@/components/ui/button";

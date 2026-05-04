@@ -5,7 +5,7 @@ import { XIcon, PlusIcon } from "lucide-react";
 import { toast } from "sonner";
 import { updatePurchaseOrder } from "@/app/admin/purchase-orders/actions";
 import { getProducts } from "@/app/admin/products/actions";
-import type { PurchaseOrderWithItems } from "@/types/purchase-order";
+import type { PurchaseOrderWithItems } from "@/types/inventory";
 import type { ProductOption } from "@/components/ui/product-combobox";
 import { ProductCombobox } from "@/components/ui/product-combobox";
 import { Button } from "@/components/ui/button";

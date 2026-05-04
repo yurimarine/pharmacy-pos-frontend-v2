@@ -57,7 +57,7 @@ import {
   type PurchaseOrderWithItems,
   type PurchaseOrderStatus,
   PO_STATUS_LABELS,
-} from "@/types/purchase-order"
+} from "@/types/inventory"
 import type { UserRole } from "@/types/user"
 import { submitPurchaseOrder, cancelPurchaseOrder } from "@/app/admin/purchase-orders/actions"
 
