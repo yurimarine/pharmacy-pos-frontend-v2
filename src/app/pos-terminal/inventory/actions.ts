@@ -9,7 +9,7 @@ export async function getPOSInventoryForTable(
   const supabase = await createClient()
 
   const { data, error } = await supabase
-    .from('inventory')
+    .from('pharmacy_inventory')
     .select(`
       id,
       product_id,
@@ -18,44 +18,44 @@ export async function getPOSInventoryForTable(
       low_stock_threshold,
       expiry_date,
       last_restocked_at,
-      products (
+      product:products!pharmacy_inventory_product_id_fkey (
         id,
-        name,
+        product_name,
         generic_name,
         sku,
         requires_prescription,
         status,
-        product_categories ( name ),
-        packaging_units ( name, abbreviation ),
-        dispensing_units ( name, abbreviation )
+        packaging_type
       )
     `)
     .eq('pharmacy_id', pharmacyId)
-    .eq('is_active', true)
-    .order('products(name)', { ascending: true })
 
   if (error) throw new Error(error.message)
 
   return (data ?? [])
     .map(item => {
-      const product = item.products as any
-      if (!product || product.status === 'discontinued') return null
+      const product = item.product as unknown as {
+        id: string
+        product_name: string
+        generic_name: string | null
+        sku: string | null
+        requires_prescription: boolean
+        status: string
+        packaging_type: string
+      } | null
+      if (!product || product.status !== 'active') return null
       return {
         id: item.id,
-        productId: product.id as string,
-        productName: product.name as string,
-        productGenericName: (product.generic_name as string | null) ?? null,
-        productSku: (product.sku as string | null) ?? null,
-        category: (product.product_categories?.name as string | null) ?? null,
-        requiresPrescription: (product.requires_prescription as boolean) ?? false,
-        packagingLabel: product.packaging_units?.name
-          ? (product.packaging_units.name as string)
-          : null,
-        dispensingUnit: product.dispensing_units?.abbreviation
-          ? (product.dispensing_units.abbreviation as string)
-          : null,
+        productId: product.id,
+        productName: product.product_name,
+        productGenericName: product.generic_name ?? null,
+        productSku: product.sku ?? null,
+        category: null,
+        requiresPrescription: product.requires_prescription ?? false,
+        packagingLabel: product.packaging_type ?? null,
+        dispensingUnit: null,
         quantity: item.quantity,
-        sellingPrice: item.selling_price,
+        sellingPrice: Number(item.selling_price),
         lowStockThreshold: item.low_stock_threshold,
         expiryDate: item.expiry_date,
         lastRestockedAt: item.last_restocked_at,

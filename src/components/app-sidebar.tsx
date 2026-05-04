@@ -29,7 +29,6 @@ import {
   CircleHelpIcon,
   SearchIcon,
   CommandIcon,
-  PackagePlusIcon,
   Box,
   ShelvingUnit,
   ClipboardClock,
@@ -77,11 +76,6 @@ const navMain: NavItem[] = [
     title: "Products",
     url: "/admin/products",
     icon: <Box />,
-  },
-  {
-    title: "Batches",
-    url: "/admin/batches",
-    icon: <PackagePlusIcon />,
   },
   {
     title: "Purchase Orders",
