@@ -108,6 +108,12 @@ const navMain: NavItem[] = [
     roles: ["admin"],
   },
   {
+    title: "Transactions",
+    url: "/admin/transactions",
+    icon: <Receipt />,
+    roles: ["admin", "pharmacist"],
+  },
+  {
     title: "POS Terminal",
     url: "/pos-terminal",
     icon: <MonitorSmartphone />,
@@ -161,12 +167,6 @@ const logs: LogItem[] = [
     url: "/admin/inventory-logs",
     icon: <ScrollTextIcon />,
     roles: ["admin"],
-  },
-  {
-    name: "Transactions",
-    url: "/admin/transactions",
-    icon: <Receipt />,
-    roles: ["admin", "pharmacist"],
   },
   {
     name: "Till Sessions",
