@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { getCurrentUser } from '@/lib/get-current-user'
 import { revalidatePath } from 'next/cache'
 import type { CartItem } from '@/types/cart'
@@ -8,6 +9,7 @@ import type { Transaction } from '@/types/transaction'
 
 export async function getPOSInventory(pharmacyId: string) {
   const supabase = await createClient()
+  const today = new Date().toISOString().split('T')[0]
 
   const { data, error } = await supabase
     .from('pharmacy_inventory')
@@ -30,6 +32,7 @@ export async function getPOSInventory(pharmacyId: string) {
     `)
     .eq('pharmacy_id', pharmacyId)
     .gt('quantity', 0)
+    .or(`expiry_date.is.null,expiry_date.gt.${today}`)
 
   if (error) throw new Error(error.message)
 
@@ -43,7 +46,7 @@ export async function getPOSInventory(pharmacyId: string) {
       status: string
       packaging_type: string
     } | null
-    if (!product || product.status === 'discontinued') return null
+    if (!product || product.status !== 'active') return null
     return {
       inventoryId: item.id,
       productId: item.product_id,
@@ -57,7 +60,11 @@ export async function getPOSInventory(pharmacyId: string) {
       lowStockThreshold: item.low_stock_threshold,
       expiryDate: item.expiry_date,
     }
-  }).filter(Boolean) as NonNullable<ReturnType<typeof mapInventoryItem>>[]
+  })
+    .filter(Boolean)
+    .sort((a, b) =>
+      (a!.productName ?? '').localeCompare(b!.productName ?? '')
+    ) as NonNullable<ReturnType<typeof mapInventoryItem>>[]
 }
 
 // Helper to infer item shape from mapping function
@@ -231,11 +238,16 @@ export async function processTransaction(data: {
   }
 
   // 10. Deduct inventory — do not rollback if this fails (transaction already recorded)
+  const adminSupabase = createAdminClient()
+  const logEntries: object[] = []
+
   for (const { cartItem, currentQuantity } of validatedItems) {
+    const newQty = currentQuantity - cartItem.quantity
+
     const { error: invError } = await supabase
       .from('pharmacy_inventory')
       .update({
-        quantity: currentQuantity - cartItem.quantity,
+        quantity: newQty,
         updated_at: new Date().toISOString(),
       })
       .eq('id', cartItem.inventoryId)
@@ -246,6 +258,27 @@ export async function processTransaction(data: {
         `(inventoryId: ${cartItem.inventoryId}): ${invError.message}. ` +
         `Manual correction required.`
       )
+    } else {
+      logEntries.push({
+        entity_type: 'pharmacy',
+        entity_id: cartItem.inventoryId,
+        action: 'sold',
+        quantity_before: currentQuantity,
+        quantity_after: newQty,
+        quantity_change: -cartItem.quantity,
+        reference_type: 'transaction',
+        reference_id: transaction.id,
+        performed_by: currentUser.id,
+      })
+    }
+  }
+
+  if (logEntries.length > 0) {
+    const { error: logErr } = await adminSupabase
+      .from('inventory_logs')
+      .insert(logEntries)
+    if (logErr) {
+      console.error(`[POS] Failed to write inventory_logs for transaction ${transaction.id}: ${logErr.message}`)
     }
   }
 
