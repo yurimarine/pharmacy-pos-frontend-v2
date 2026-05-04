@@ -121,6 +121,35 @@ export type POSInventoryItem = {
   low_stock_threshold: number
 }
 
+export type InventoryLogEntityType = "warehouse" | "pharmacy"
+export type InventoryLogAction =
+  | "received"
+  | "transferred_out"
+  | "transferred_in"
+  | "adjusted"
+  | "sold"
+  | "voided"
+export type InventoryLogReferenceType = "receipt" | "transfer" | "adjustment"
+
+export type InventoryLog = {
+  id: string
+  entity_type: InventoryLogEntityType
+  entity_id: string
+  action: InventoryLogAction
+  quantity_before: number
+  quantity_after: number
+  quantity_change: number
+  reference_type: InventoryLogReferenceType | null
+  reference_id: string | null
+  performed_by: string
+  notes: string | null
+  created_at: string
+}
+
+export type InventoryLogWithDetails = InventoryLog & {
+  performed_by_user: { name: string; role: string } | null
+}
+
 export type WarehouseInventory = {
   id: string
   product_id: string

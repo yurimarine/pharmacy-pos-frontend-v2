@@ -33,7 +33,7 @@ import {
   Box,
   ShelvingUnit,
   ClipboardClock,
-  FilePenLine,
+  ScrollTextIcon,
   Receipt,
   UsersIcon,
   MonitorSmartphone,
@@ -159,7 +159,7 @@ const logs: LogItem[] = [
   {
     name: "Inventory Logs",
     url: "/admin/inventory-logs",
-    icon: <FilePenLine />,
+    icon: <ScrollTextIcon />,
     roles: ["admin"],
   },
   {

@@ -16,13 +16,13 @@ const ADMIN_ONLY_ROUTES = [
   "/admin/warehouse-receipts",
   "/admin/warehouse",
   "/admin/stock-transfers",
+  "/admin/inventory-logs",
 ];
 
 const ADMIN_PHARMACIST_ROUTES = [
   "/admin/dashboard",
   "/admin/inventory",
   "/admin/batches",
-  "/admin/inventory-logs",
   "/admin/transactions",
   "/admin/products",
   "/admin/reports",
