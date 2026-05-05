@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { getCurrentUser } from '@/lib/get-current-user'
 import { revalidatePath } from 'next/cache'
 import type { CartItem } from '@/types/cart'
@@ -8,9 +9,10 @@ import type { Transaction } from '@/types/transaction'
 
 export async function getPOSInventory(pharmacyId: string) {
   const supabase = await createClient()
+  const today = new Date().toISOString().split('T')[0]
 
   const { data, error } = await supabase
-    .from('inventory')
+    .from('pharmacy_inventory')
     .select(`
       id,
       product_id,
@@ -18,42 +20,51 @@ export async function getPOSInventory(pharmacyId: string) {
       selling_price,
       low_stock_threshold,
       expiry_date,
-      products (
+      product:products!pharmacy_inventory_product_id_fkey(
         id,
-        name,
+        product_name,
         generic_name,
         sku,
         requires_prescription,
         status,
-        packaging_units ( name, abbreviation ),
-        dispensing_units ( name, abbreviation )
+        packaging_type
       )
     `)
     .eq('pharmacy_id', pharmacyId)
-    .eq('is_active', true)
-    .order('products(name)', { ascending: true })
+    .gt('quantity', 0)
+    .or(`expiry_date.is.null,expiry_date.gt.${today}`)
 
   if (error) throw new Error(error.message)
 
   return (data ?? []).map(item => {
-    const product = item.products as any
-    if (!product || product.status === 'discontinued') return null
+    const product = item.product as unknown as {
+      id: string
+      product_name: string
+      generic_name: string | null
+      sku: string | null
+      requires_prescription: boolean
+      status: string
+      packaging_type: string
+    } | null
+    if (!product || product.status !== 'active') return null
     return {
       inventoryId: item.id,
       productId: item.product_id,
-      productName: product.name as string,
-      productGenericName: (product.generic_name as string | null) ?? null,
-      productSku: (product.sku as string | null) ?? null,
-      requiresPrescription: (product.requires_prescription as boolean) ?? false,
-      packagingLabel: product.packaging_units?.name
-        ? (product.packaging_units.name as string)
-        : null,
-      sellingPrice: item.selling_price,
+      productName: product.product_name,
+      productGenericName: product.generic_name ?? null,
+      productSku: product.sku ?? null,
+      requiresPrescription: product.requires_prescription ?? false,
+      packagingLabel: product.packaging_type ?? null,
+      sellingPrice: Number(item.selling_price),
       quantity: item.quantity,
       lowStockThreshold: item.low_stock_threshold,
       expiryDate: item.expiry_date,
     }
-  }).filter(Boolean) as NonNullable<ReturnType<typeof mapInventoryItem>>[]
+  })
+    .filter(Boolean)
+    .sort((a, b) =>
+      (a!.productName ?? '').localeCompare(b!.productName ?? '')
+    ) as NonNullable<ReturnType<typeof mapInventoryItem>>[]
 }
 
 // Helper to infer item shape from mapping function
@@ -151,7 +162,7 @@ export async function processTransaction(data: {
 
   for (const cartItem of data.cartItems) {
     const { data: inv } = await supabase
-      .from('inventory')
+      .from('pharmacy_inventory')
       .select('quantity')
       .eq('id', cartItem.inventoryId)
       .single()
@@ -227,11 +238,16 @@ export async function processTransaction(data: {
   }
 
   // 10. Deduct inventory — do not rollback if this fails (transaction already recorded)
+  const adminSupabase = createAdminClient()
+  const logEntries: object[] = []
+
   for (const { cartItem, currentQuantity } of validatedItems) {
+    const newQty = currentQuantity - cartItem.quantity
+
     const { error: invError } = await supabase
-      .from('inventory')
+      .from('pharmacy_inventory')
       .update({
-        quantity: currentQuantity - cartItem.quantity,
+        quantity: newQty,
         updated_at: new Date().toISOString(),
       })
       .eq('id', cartItem.inventoryId)
@@ -242,6 +258,27 @@ export async function processTransaction(data: {
         `(inventoryId: ${cartItem.inventoryId}): ${invError.message}. ` +
         `Manual correction required.`
       )
+    } else {
+      logEntries.push({
+        entity_type: 'pharmacy',
+        entity_id: cartItem.inventoryId,
+        action: 'sold',
+        quantity_before: currentQuantity,
+        quantity_after: newQty,
+        quantity_change: -cartItem.quantity,
+        reference_type: 'transaction',
+        reference_id: transaction.id,
+        performed_by: currentUser.id,
+      })
+    }
+  }
+
+  if (logEntries.length > 0) {
+    const { error: logErr } = await adminSupabase
+      .from('inventory_logs')
+      .insert(logEntries)
+    if (logErr) {
+      console.error(`[POS] Failed to write inventory_logs for transaction ${transaction.id}: ${logErr.message}`)
     }
   }
 

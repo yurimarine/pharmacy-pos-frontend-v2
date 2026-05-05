@@ -23,10 +23,6 @@ import {
   FolderIcon,
   ShareIcon,
   Trash2Icon,
-  TagIcon,
-  Layers,
-  Package,
-  Pipette,
 } from "lucide-react";
 
 export function NavLogs({
@@ -89,44 +85,6 @@ export function NavLogs({
             </DropdownMenu>
           </SidebarMenuItem>
         ))}
-        <SidebarMenuItem>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <SidebarMenuButton className="text-sidebar-foreground/70" />
-              }
-            >
-              <MoreHorizontalIcon className="text-sidebar-foreground/70" />
-              <span>More</span>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              className="w-52"
-              side={isMobile ? "bottom" : "right"}
-              align={isMobile ? "end" : "start"}
-            >
-              <DropdownMenuItem render={<Link href="/admin/product-classes" />}>
-                <Layers />
-                <span>Product Classes</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                render={<Link href="/admin/product-categories" />}
-              >
-                <TagIcon />
-                <span>Product Categories</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem render={<Link href="/admin/packaging-units" />}>
-                <Package />
-                <span>Packaging Units</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                render={<Link href="/admin/dispensing-units" />}
-              >
-                <Pipette />
-                <span>Dispensing Units</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </SidebarMenuItem>
       </SidebarMenu>
     </SidebarGroup>
   );

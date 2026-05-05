@@ -1,22 +1,21 @@
-"use client";
+"use client"
 
-import { useEffect, useState, useTransition } from "react";
-import { useForm, Controller } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { toast } from "sonner";
+import { useState, useEffect, useTransition } from "react"
+import { useForm, Controller } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
+import { toast } from "sonner"
+import { updateProduct, getProductSuggestions } from "@/app/admin/products/actions"
 import {
-  updateProduct,
-  generateSkuAction,
-  getProductClassesForProductForm,
-  getProductCategoriesForProductForm,
-  getPackagingUnitsForProductForm,
-  getDispensingUnitsForProductForm,
-  getSuppliersForSelect,
-  getManufacturersForSelect,
-} from "@/app/admin/products/actions";
-import type { Product } from "@/types/product";
-import { Button } from "@/components/ui/button";
+  PRODUCT_TYPE_LABELS,
+  PRODUCT_STATUS_LABELS,
+} from "@/types/product"
+import type { Product, ProductSuggestions } from "@/types/product"
+import { CreatableCombobox } from "@/components/ui/creatable-combobox"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -24,603 +23,401 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+} from "@/components/ui/dialog"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/components/ui/select"
 
-function computeEAN13CheckDigit(first12: string): string {
-  const sum = first12
-    .split("")
-    .reduce((acc, digit, index) => {
-      const multiplier = index % 2 === 0 ? 1 : 3;
-      return acc + parseInt(digit, 10) * multiplier;
-    }, 0);
-  const checkDigit = (10 - (sum % 10)) % 10;
-  return checkDigit.toString();
+const EMPTY_SUGGESTIONS: ProductSuggestions = {
+  genericNames: [],
+  brandNames: [],
+  dosageForms: [],
+  dosageStrengths: [],
+  volumes: [],
+  packagingTypes: [],
+  categories: [],
+  manufacturers: [],
 }
 
-function generateEAN13(): string {
-  const prefix = "200";
-  const timestamp = Date.now().toString().slice(-6);
-  const random = Math.floor(Math.random() * 1000)
-    .toString()
-    .padStart(3, "0");
-  const body = timestamp + random;
-  const first12 = prefix + body;
-  return first12 + computeEAN13CheckDigit(first12);
+const schema = z.object({
+  generic_name: z.string().min(1, "Required"),
+  brand_name: z.string(),
+  dosage_form: z.string(),
+  dosage_strength: z.string(),
+  volume: z.string(),
+  packaging_type: z.string().min(1, "Required"),
+  unit_count: z.number().int().min(1, "Min 1"),
+  manufacturer: z.string(),
+  category: z.string(),
+  type: z.enum(["generic", "branded", "otc"]),
+  requires_prescription: z.boolean(),
+  unit_cost: z.number().min(0, "Must be ≥ 0"),
+  status: z.enum(["active", "inactive", "discontinued"]),
+  barcode: z.string(),
+})
+
+type FormValues = z.infer<typeof schema>
+
+function productToFormValues(product: Product): FormValues {
+  return {
+    generic_name: product.generic_name,
+    brand_name: product.brand_name ?? "",
+    dosage_form: product.dosage_form ?? "",
+    dosage_strength: product.dosage_strength ?? "",
+    volume: product.volume ?? "",
+    packaging_type: product.packaging_type,
+    unit_count: product.unit_count,
+    manufacturer: product.manufacturer ?? "",
+    category: product.category ?? "",
+    type: product.type,
+    requires_prescription: product.requires_prescription,
+    unit_cost: product.unit_cost,
+    status: product.status,
+    barcode: product.barcode ?? "",
+  }
 }
 
-const productSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  generic_name: z.string().optional(),
-  sku: z.string().optional(),
-  barcode: z.string().optional(),
-  class_id: z.string().optional(),
-  category_id: z.string().optional(),
-  type: z.enum(["branded", "generic", "na"]),
-  base_price: z.coerce.number().min(0, "Price must be 0 or more"),
-  requires_prescription: z.boolean().default(false),
-  supplier_id: z.string().optional(),
-  manufacturer_id: z.string().optional(),
-  packaging_unit_id: z.string().optional(),
-  unit_count: z.coerce.number().int().min(1).default(1),
-  dispensing_unit_id: z.string().optional(),
-});
+export default function EditProductModal({
+  open,
+  onOpenChange,
+  product,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  product: Product | null
+}) {
+  const [suggestions, setSuggestions] = useState<ProductSuggestions>(EMPTY_SUGGESTIONS)
+  const [isPending, startTransition] = useTransition()
 
-type FormValues = z.infer<typeof productSchema>;
+  const { control, register, handleSubmit, formState: { errors } } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: product ? productToFormValues(product) : undefined,
+  })
 
-type SelectItem = { id: string; name: string };
-type UnitItem = { id: string; name: string; abbreviation: string };
-
-type Props = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  product: Product | null;
-};
-
-export function EditProductModal({ open, onOpenChange, product }: Props) {
-  const [isPending, startTransition] = useTransition();
-  const [isGeneratingSku, setIsGeneratingSku] = useState(false);
-  const [classes, setClasses] = useState<SelectItem[]>([]);
-  const [categories, setCategories] = useState<SelectItem[]>([]);
-  const [packagingUnits, setPackagingUnits] = useState<UnitItem[]>([]);
-  const [dispensingUnits, setDispensingUnits] = useState<UnitItem[]>([]);
-  const [suppliers, setSuppliers] = useState<SelectItem[]>([]);
-  const [manufacturers, setManufacturers] = useState<SelectItem[]>([]);
-
-  const form = useForm<FormValues>({
-    resolver: zodResolver(productSchema) as any, // eslint-disable-line @typescript-eslint/no-explicit-any
-    defaultValues: {
-      name: "",
-      generic_name: "",
-      sku: "",
-      barcode: "",
-      class_id: "",
-      category_id: "",
-      type: "na",
-      base_price: 0,
-      requires_prescription: false,
-      supplier_id: "",
-      manufacturer_id: "",
-      packaging_unit_id: "",
-      unit_count: 1,
-      dispensing_unit_id: "",
-    },
-  });
-
-  // Load static dropdown data on open
   useEffect(() => {
-    if (!open) return;
-    Promise.all([
-      getProductClassesForProductForm(),
-      getPackagingUnitsForProductForm(),
-      getDispensingUnitsForProductForm(),
-      getSuppliersForSelect(),
-      getManufacturersForSelect(),
-    ])
-      .then(([cls, pkg, disp, sup, man]) => {
-        setClasses(cls);
-        setPackagingUnits(pkg);
-        setDispensingUnits(disp);
-        setSuppliers(sup);
-        setManufacturers(man);
-      })
-      .catch(() => {});
-  }, [open]);
+    getProductSuggestions().then(setSuggestions).catch(() => {})
+  }, [])
 
-  // Pre-populate form and load categories for existing class
-  useEffect(() => {
-    if (!product) return;
-    form.reset({
-      name: product.name,
-      generic_name: product.generic_name ?? "",
-      sku: product.sku ?? "",
-      barcode: product.barcode ?? "",
-      class_id: product.class_id ?? "",
-      category_id: product.category_id ?? "",
-      type: product.type,
-      base_price: product.base_price,
-      requires_prescription: product.requires_prescription,
-      supplier_id: product.supplier_id ?? "",
-      manufacturer_id: product.manufacturer_id ?? "",
-      packaging_unit_id: product.packaging_unit_id ?? "",
-      unit_count: product.unit_count,
-      dispensing_unit_id: product.dispensing_unit_id ?? "",
-    });
-    if (product.class_id) {
-      getProductCategoriesForProductForm(product.class_id)
-        .then(setCategories)
-        .catch(() => setCategories([]));
-    } else {
-      setCategories([]);
-    }
-  }, [product, form]);
-
-  // When class changes, reload categories and reset category_id
-  const watchedClassId = form.watch("class_id");
-  useEffect(() => {
-    // Only fire when the user actively changes the class, not on initial load
-    // We detect this by checking if the product's class_id matches
-    if (!open) return;
-    if (watchedClassId === (product?.class_id ?? "")) return;
-    form.setValue("category_id", "");
-    if (watchedClassId) {
-      getProductCategoriesForProductForm(watchedClassId)
-        .then(setCategories)
-        .catch(() => setCategories([]));
-    } else {
-      setCategories([]);
-    }
-  }, [watchedClassId, open, product?.class_id, form]);
-
-  const handleGenerateBarcode = () => {
-    form.setValue("barcode", generateEAN13());
-  };
-
-  const handleGenerateSku = async () => {
-    const name = form.getValues("name");
-    if (!name) {
-      toast.error("Enter a product name first.");
-      return;
-    }
-    setIsGeneratingSku(true);
-    try {
-      const prefix = name
-        .replace(/[^a-zA-Z]/g, "")
-        .substring(0, 4)
-        .toUpperCase();
-      const result = await generateSkuAction(prefix);
-      form.setValue("sku", result);
-    } catch {
-      toast.error("Failed to generate SKU.");
-    } finally {
-      setIsGeneratingSku(false);
-    }
-  };
-
-  const onSubmit = (data: FormValues) => {
-    if (!product) return;
+  const onSubmit = (values: FormValues) => {
+    if (!product) return
     startTransition(async () => {
-      try {
-        const cleaned = {
-          ...data,
-          sku: data.sku || undefined,
-          barcode: data.barcode || undefined,
-          class_id: data.class_id || undefined,
-          category_id: data.category_id || undefined,
-          supplier_id: data.supplier_id || undefined,
-          manufacturer_id: data.manufacturer_id || undefined,
-          packaging_unit_id: data.packaging_unit_id || undefined,
-          dispensing_unit_id: data.dispensing_unit_id || undefined,
-        };
-        await updateProduct(product.id, cleaned);
-        toast.success("Product updated.");
-        onOpenChange(false);
-      } catch {
-        toast.error("Failed to update product.");
+      const result = await updateProduct(product.id, {
+        generic_name: values.generic_name,
+        brand_name: values.brand_name || null,
+        dosage_form: values.dosage_form || null,
+        dosage_strength: values.dosage_strength || null,
+        volume: values.volume || null,
+        packaging_type: values.packaging_type,
+        unit_count: values.unit_count,
+        manufacturer: values.manufacturer || null,
+        category: values.category || null,
+        type: values.type,
+        requires_prescription: values.requires_prescription,
+        unit_cost: values.unit_cost,
+        status: values.status,
+        barcode: values.barcode || null,
+      })
+      if (result.success) {
+        toast.success("Product updated successfully.")
+        onOpenChange(false)
+      } else {
+        toast.error(result.error ?? "Failed to update product.")
       }
-    });
-  };
-
-  const PRODUCT_TYPE_LABELS: Record<string, string> = {
-    branded: "Branded",
-    generic: "Generic",
-    na: "N/A",
-  };
+    })
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex flex-col max-h-[90vh] sm:max-w-lg">
-        <DialogHeader className="shrink-0">
+      <DialogContent className="flex flex-col max-h-[90vh]">
+        <DialogHeader className="shrink-0 px-6 pt-6">
           <DialogTitle>Edit Product</DialogTitle>
           <DialogDescription>
-            Update the details of this product.
+            Update the product details below.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-1">
-          <form
-            id="edit-product-form"
-            onSubmit={form.handleSubmit(onSubmit)}
-            className="flex flex-col gap-4"
-          >
-            {/* 1. Name */}
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="edit-p-name">
-                Name <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="edit-p-name"
-                placeholder="e.g. Biogesic 500mg"
-                aria-invalid={!!form.formState.errors.name}
-                {...form.register("name")}
-              />
-              {form.formState.errors.name && (
-                <p className="text-sm text-destructive">
-                  {form.formState.errors.name.message}
-                </p>
-              )}
-            </div>
+        <div className="flex-1 overflow-y-auto px-6 pb-2">
+          <form id="edit-product-form" onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5 py-4">
+            {/* Drug Identification */}
+            <fieldset className="flex flex-col gap-3">
+              <legend className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                Drug Identification
+              </legend>
 
-            {/* 2. Generic Name */}
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="edit-p-generic">Generic Name</Label>
-              <Input
-                id="edit-p-generic"
-                placeholder="e.g. Paracetamol"
-                {...form.register("generic_name")}
-              />
-            </div>
-
-            {/* 3. SKU */}
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="edit-p-sku">SKU</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="edit-p-sku"
-                  placeholder="e.g. BIOG-001"
-                  className="flex-1"
-                  {...form.register("sku")}
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="edit-generic_name">
+                  Generic Name <span className="text-destructive">*</span>
+                </Label>
+                <Controller
+                  control={control}
+                  name="generic_name"
+                  render={({ field }) => (
+                    <CreatableCombobox
+                      id="edit-generic_name"
+                      value={field.value}
+                      onChange={field.onChange}
+                      suggestions={suggestions.genericNames}
+                      placeholder="e.g. AMOXICILLIN"
+                    />
+                  )}
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleGenerateSku}
-                  disabled={isGeneratingSku}
-                >
-                  {isGeneratingSku ? "…" : "Generate"}
-                </Button>
+                {errors.generic_name && (
+                  <p className="text-sm text-destructive">{errors.generic_name.message}</p>
+                )}
               </div>
-            </div>
 
-            {/* 4. Barcode */}
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="edit-p-barcode">Barcode</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="edit-p-barcode"
-                  placeholder="e.g. 4800012345678"
-                  className="flex-1"
-                  {...form.register("barcode")}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  title="Auto-generate EAN-13 barcode"
-                  onClick={handleGenerateBarcode}
-                >
-                  Generate
-                </Button>
-              </div>
-            </div>
-
-            {/* 5. Class */}
-            <div className="flex flex-col gap-1.5">
-              <Label>Class</Label>
-              <Controller
-                control={form.control}
-                name="class_id"
-                render={({ field }) => (
-                  <Select
-                    value={field.value ?? ""}
-                    onValueChange={field.onChange}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select a class…">
-                        {classes.find(c => c.id === field.value)?.name}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {classes.length === 0 ? (
-                        <p className="py-4 text-center text-sm text-muted-foreground">
-                          No classes found.
-                        </p>
-                      ) : (
-                        classes.map(c => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.name}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </div>
-
-            {/* 6. Category */}
-            <div className="flex flex-col gap-1.5">
-              <Label>Category</Label>
-              <Controller
-                control={form.control}
-                name="category_id"
-                render={({ field }) => (
-                  <Select
-                    value={field.value ?? ""}
-                    onValueChange={field.onChange}
-                    disabled={!watchedClassId}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue
-                        placeholder={
-                          watchedClassId
-                            ? "Select a category…"
-                            : "Select a class first…"
-                        }
-                      >
-                        {categories.find(c => c.id === field.value)?.name}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.length === 0 ? (
-                        <p className="py-4 text-center text-sm text-muted-foreground">
-                          No categories for this class.
-                        </p>
-                      ) : (
-                        categories.map(c => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.name}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </div>
-
-            {/* 7. Type */}
-            <div className="flex flex-col gap-1.5">
-              <Label>
-                Type <span className="text-destructive">*</span>
-              </Label>
-              <Controller
-                control={form.control}
-                name="type"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select product type">
-                        {PRODUCT_TYPE_LABELS[field.value]}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="branded">Branded</SelectItem>
-                      <SelectItem value="generic">Generic</SelectItem>
-                      <SelectItem value="na">N/A</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </div>
-
-            {/* 8. Base Price */}
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="edit-p-price">
-                Base Price <span className="text-destructive">*</span>
-              </Label>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">₱</span>
-                <Input
-                  id="edit-p-price"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  aria-invalid={!!form.formState.errors.base_price}
-                  {...form.register("base_price")}
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="edit-brand_name">Brand Name</Label>
+                <Controller
+                  control={control}
+                  name="brand_name"
+                  render={({ field }) => (
+                    <CreatableCombobox
+                      id="edit-brand_name"
+                      value={field.value}
+                      onChange={field.onChange}
+                      suggestions={suggestions.brandNames}
+                      placeholder="e.g. AMOXIL"
+                    />
+                  )}
                 />
               </div>
-              {form.formState.errors.base_price && (
-                <p className="text-sm text-destructive">
-                  {form.formState.errors.base_price.message}
-                </p>
-              )}
-            </div>
 
-            {/* 9. Packaging Unit */}
-            <div className="flex flex-col gap-1.5">
-              <Label>Packaging Unit</Label>
-              <Controller
-                control={form.control}
-                name="packaging_unit_id"
-                render={({ field }) => (
-                  <Select
-                    value={field.value ?? ""}
-                    onValueChange={field.onChange}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select packaging unit…">
-                        {packagingUnits.find(u => u.id === field.value)?.name}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {packagingUnits.length === 0 ? (
-                        <p className="py-4 text-center text-sm text-muted-foreground">
-                          No packaging units found.
-                        </p>
-                      ) : (
-                        packagingUnits.map(u => (
-                          <SelectItem key={u.id} value={u.id}>
-                            {u.name} ({u.abbreviation})
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </div>
-
-            {/* 10. Unit Count */}
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="edit-p-unit-count">Units per Package</Label>
-              <Input
-                id="edit-p-unit-count"
-                type="number"
-                min="1"
-                step="1"
-                placeholder="1"
-                {...form.register("unit_count")}
-              />
-              {form.formState.errors.unit_count && (
-                <p className="text-sm text-destructive">
-                  {form.formState.errors.unit_count.message}
-                </p>
-              )}
-            </div>
-
-            {/* 11. Dispensing Unit */}
-            <div className="flex flex-col gap-1.5">
-              <Label>Dispensing Unit</Label>
-              <Controller
-                control={form.control}
-                name="dispensing_unit_id"
-                render={({ field }) => (
-                  <Select
-                    value={field.value ?? ""}
-                    onValueChange={field.onChange}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select dispensing unit…">
-                        {dispensingUnits.find(u => u.id === field.value)?.name}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {dispensingUnits.length === 0 ? (
-                        <p className="py-4 text-center text-sm text-muted-foreground">
-                          No dispensing units found.
-                        </p>
-                      ) : (
-                        dispensingUnits.map(u => (
-                          <SelectItem key={u.id} value={u.id}>
-                            {u.name} ({u.abbreviation})
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </div>
-
-            {/* 12. Requires Prescription */}
-            <div className="flex items-center justify-between rounded-lg border p-3">
-              <Label htmlFor="edit-p-prescription" className="cursor-pointer">
-                Requires Prescription
-              </Label>
-              <Controller
-                control={form.control}
-                name="requires_prescription"
-                render={({ field }) => (
-                  <Switch
-                    id="edit-p-prescription"
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="edit-dosage_form">Dosage Form</Label>
+                  <Controller
+                    control={control}
+                    name="dosage_form"
+                    render={({ field }) => (
+                      <CreatableCombobox
+                        id="edit-dosage_form"
+                        value={field.value}
+                        onChange={field.onChange}
+                        suggestions={suggestions.dosageForms}
+                        placeholder="e.g. TABLET"
+                      />
+                    )}
                   />
-                )}
-              />
-            </div>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="edit-dosage_strength">Dosage Strength</Label>
+                  <Controller
+                    control={control}
+                    name="dosage_strength"
+                    render={({ field }) => (
+                      <CreatableCombobox
+                        id="edit-dosage_strength"
+                        value={field.value}
+                        onChange={field.onChange}
+                        suggestions={suggestions.dosageStrengths}
+                        placeholder="e.g. 500MG"
+                      />
+                    )}
+                  />
+                </div>
+              </div>
 
-            {/* 13. Supplier */}
-            <div className="flex flex-col gap-1.5">
-              <Label>Supplier</Label>
-              <Controller
-                control={form.control}
-                name="supplier_id"
-                render={({ field }) => (
-                  <Select
-                    value={field.value ?? ""}
-                    onValueChange={field.onChange}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select supplier…">
-                        {suppliers.find(s => s.id === field.value)?.name}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {suppliers.length === 0 ? (
-                        <p className="py-4 text-center text-sm text-muted-foreground">
-                          No suppliers found.
-                        </p>
-                      ) : (
-                        suppliers.map(s => (
-                          <SelectItem key={s.id} value={s.id}>
-                            {s.name}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="edit-volume">Volume</Label>
+                <Controller
+                  control={control}
+                  name="volume"
+                  render={({ field }) => (
+                    <CreatableCombobox
+                      id="edit-volume"
+                      value={field.value}
+                      onChange={field.onChange}
+                      suggestions={suggestions.volumes}
+                      placeholder="e.g. 60ML"
+                    />
+                  )}
+                />
+              </div>
+            </fieldset>
 
-            {/* 14. Manufacturer */}
-            <div className="flex flex-col gap-1.5">
-              <Label>Manufacturer</Label>
-              <Controller
-                control={form.control}
-                name="manufacturer_id"
-                render={({ field }) => (
-                  <Select
-                    value={field.value ?? ""}
-                    onValueChange={field.onChange}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select manufacturer…">
-                        {manufacturers.find(m => m.id === field.value)?.name}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {manufacturers.length === 0 ? (
-                        <p className="py-4 text-center text-sm text-muted-foreground">
-                          No manufacturers found.
-                        </p>
-                      ) : (
-                        manufacturers.map(m => (
-                          <SelectItem key={m.id} value={m.id}>
-                            {m.name}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </div>
+            {/* Packaging */}
+            <fieldset className="flex flex-col gap-3">
+              <legend className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                Packaging
+              </legend>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="edit-packaging_type">
+                    Packaging Type <span className="text-destructive">*</span>
+                  </Label>
+                  <Controller
+                    control={control}
+                    name="packaging_type"
+                    render={({ field }) => (
+                      <CreatableCombobox
+                        id="edit-packaging_type"
+                        value={field.value}
+                        onChange={field.onChange}
+                        suggestions={suggestions.packagingTypes}
+                        placeholder="e.g. BOX"
+                      />
+                    )}
+                  />
+                  {errors.packaging_type && (
+                    <p className="text-sm text-destructive">{errors.packaging_type.message}</p>
+                  )}
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="edit-unit_count">Units per Pack</Label>
+                  <Input
+                    id="edit-unit_count"
+                    type="number"
+                    min={1}
+                    {...register("unit_count", { valueAsNumber: true })}
+                  />
+                  {errors.unit_count && (
+                    <p className="text-sm text-destructive">{errors.unit_count.message}</p>
+                  )}
+                </div>
+              </div>
+            </fieldset>
+
+            {/* Classification */}
+            <fieldset className="flex flex-col gap-3">
+              <legend className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                Classification
+              </legend>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="edit-type">Type</Label>
+                  <Controller
+                    control={control}
+                    name="type"
+                    render={({ field }) => (
+                      <Select value={field.value} onValueChange={v => v && field.onChange(v)}>
+                        <SelectTrigger id="edit-type">
+                          <SelectValue>{PRODUCT_TYPE_LABELS[field.value]}</SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(Object.entries(PRODUCT_TYPE_LABELS) as [string, string][]).map(
+                            ([val, label]) => (
+                              <SelectItem key={val} value={val}>{label}</SelectItem>
+                            ),
+                          )}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="edit-category">Category</Label>
+                  <Controller
+                    control={control}
+                    name="category"
+                    render={({ field }) => (
+                      <CreatableCombobox
+                        id="edit-category"
+                        value={field.value}
+                        onChange={field.onChange}
+                        suggestions={suggestions.categories}
+                        placeholder="e.g. ANTIBIOTIC"
+                      />
+                    )}
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="edit-manufacturer">Manufacturer</Label>
+                <Controller
+                  control={control}
+                  name="manufacturer"
+                  render={({ field }) => (
+                    <CreatableCombobox
+                      id="edit-manufacturer"
+                      value={field.value}
+                      onChange={field.onChange}
+                      suggestions={suggestions.manufacturers}
+                      placeholder="e.g. UNILAB"
+                    />
+                  )}
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Controller
+                  control={control}
+                  name="requires_prescription"
+                  render={({ field }) => (
+                    <Checkbox
+                      id="edit-requires_prescription"
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  )}
+                />
+                <Label htmlFor="edit-requires_prescription">Requires prescription (Rx)</Label>
+              </div>
+            </fieldset>
+
+            {/* Pricing & Status */}
+            <fieldset className="flex flex-col gap-3">
+              <legend className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                Pricing &amp; Status
+              </legend>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="edit-unit_cost">Unit Cost (₱)</Label>
+                  <Input
+                    id="edit-unit_cost"
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    {...register("unit_cost", { valueAsNumber: true })}
+                  />
+                  {errors.unit_cost && (
+                    <p className="text-sm text-destructive">{errors.unit_cost.message}</p>
+                  )}
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="edit-status">Status</Label>
+                  <Controller
+                    control={control}
+                    name="status"
+                    render={({ field }) => (
+                      <Select value={field.value} onValueChange={v => v && field.onChange(v)}>
+                        <SelectTrigger id="edit-status">
+                          <SelectValue>{PRODUCT_STATUS_LABELS[field.value]}</SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(Object.entries(PRODUCT_STATUS_LABELS) as [string, string][]).map(
+                            ([val, label]) => (
+                              <SelectItem key={val} value={val}>{label}</SelectItem>
+                            ),
+                          )}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="edit-barcode">Barcode</Label>
+                <Input
+                  id="edit-barcode"
+                  placeholder="e.g. 4800888123456"
+                  {...register("barcode")}
+                />
+              </div>
+            </fieldset>
           </form>
         </div>
 
-        <DialogFooter className="shrink-0">
+        <DialogFooter className="shrink-0 px-6 pb-6 pt-2">
           <Button
             type="button"
             variant="outline"
@@ -629,11 +426,11 @@ export function EditProductModal({ open, onOpenChange, product }: Props) {
           >
             Cancel
           </Button>
-          <Button form="edit-product-form" type="submit" disabled={isPending}>
+          <Button type="submit" form="edit-product-form" disabled={isPending}>
             {isPending ? "Saving…" : "Save Changes"}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

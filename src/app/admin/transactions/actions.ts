@@ -170,7 +170,7 @@ export async function voidTransaction(data: {
   const items = transaction.transaction_items as { inventory_id: string; quantity: number }[]
   for (const item of items) {
     const { data: inv } = await supabase
-      .from('inventory')
+      .from('pharmacy_inventory')
       .select('quantity')
       .eq('id', item.inventory_id)
       .single()
@@ -180,7 +180,7 @@ export async function voidTransaction(data: {
     }
 
     const { error: restoreError } = await supabase
-      .from('inventory')
+      .from('pharmacy_inventory')
       .update({
         quantity: inv.quantity + item.quantity,
         updated_at: new Date().toISOString(),

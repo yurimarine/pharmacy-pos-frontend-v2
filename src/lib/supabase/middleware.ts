@@ -6,23 +6,22 @@ const ADMIN_ONLY_ROUTES = [
   "/admin/suppliers",
   "/admin/manufacturers",
   "/admin/pharmacies",
-  "/admin/product-classes",
-  "/admin/product-categories",
-  "/admin/packaging-units",
-  "/admin/dispensing-units",
   "/admin/till-sessions",
   "/admin/time-logs",
   "/admin/discounts",
+  "/admin/warehouse-receipts",
+  "/admin/warehouse",
+  "/admin/stock-transfers",
+  "/admin/inventory-logs",
 ];
 
 const ADMIN_PHARMACIST_ROUTES = [
   "/admin/dashboard",
   "/admin/inventory",
-  "/admin/batches",
-  "/admin/inventory-logs",
   "/admin/transactions",
   "/admin/products",
   "/admin/reports",
+  "/admin/purchase-orders",
 ];
 
 const POS_ROUTES = ["/pos-terminal"];
