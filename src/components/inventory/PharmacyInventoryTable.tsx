@@ -1,22 +1,25 @@
-"use client"
+"use client";
 
-import { useState, useTransition } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
-import { useDebouncedCallback } from "use-debounce"
+import { useState, useTransition } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useDebouncedCallback } from "use-debounce";
 import {
   useReactTable,
   getCoreRowModel,
   flexRender,
   type ColumnDef,
-} from "@tanstack/react-table"
-import { SearchIcon, MoreHorizontalIcon } from "lucide-react"
-import { getStockStatus, stockStatusConfig } from "@/lib/inventory-utils"
-import type { PharmacyInventoryWithProduct, StockStatus } from "@/types/inventory"
-import type { UserRole } from "@/types/user"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+} from "@tanstack/react-table";
+import { SearchIcon, MoreHorizontalIcon } from "lucide-react";
+import { getStockStatus, stockStatusConfig } from "@/lib/inventory-utils";
+import type {
+  PharmacyInventoryWithProduct,
+  StockStatus,
+} from "@/types/inventory";
+import type { UserRole } from "@/types/user";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -24,14 +27,14 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/table";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,10 +42,10 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import EditPricingModal from "./EditPricingModal"
-import EditThresholdModal from "./EditThresholdModal"
-import StockAdjustmentModal from "./StockAdjustmentModal"
+} from "@/components/ui/dropdown-menu";
+import EditPricingModal from "./EditPricingModal";
+import EditThresholdModal from "./EditThresholdModal";
+import StockAdjustmentModal from "./StockAdjustmentModal";
 
 const STATUS_OPTIONS: { value: StockStatus; label: string }[] = [
   { value: "in_stock", label: stockStatusConfig.in_stock.label },
@@ -50,7 +53,7 @@ const STATUS_OPTIONS: { value: StockStatus; label: string }[] = [
   { value: "out_of_stock", label: stockStatusConfig.out_of_stock.label },
   { value: "near_expiry", label: stockStatusConfig.near_expiry.label },
   { value: "expired", label: stockStatusConfig.expired.label },
-]
+];
 
 const STATUS_LABEL_MAP: Record<StockStatus, string> = {
   in_stock: stockStatusConfig.in_stock.label,
@@ -58,19 +61,19 @@ const STATUS_LABEL_MAP: Record<StockStatus, string> = {
   out_of_stock: stockStatusConfig.out_of_stock.label,
   near_expiry: stockStatusConfig.near_expiry.label,
   expired: stockStatusConfig.expired.label,
-}
+};
 
 function formatCurrency(value: number): string {
-  return `₱${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  return `₱${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function formatDate(dateStr: string | null): string {
-  if (!dateStr) return "—"
+  if (!dateStr) return "—";
   return new Date(dateStr).toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
-  })
+  });
 }
 
 function PaginationControls({
@@ -79,12 +82,12 @@ function PaginationControls({
   count,
   onPageChange,
 }: {
-  page: number
-  pageSize: number
-  count: number
-  onPageChange: (p: number) => void
+  page: number;
+  pageSize: number;
+  count: number;
+  onPageChange: (p: number) => void;
 }) {
-  const totalPages = Math.max(1, Math.ceil(count / pageSize))
+  const totalPages = Math.max(1, Math.ceil(count / pageSize));
   return (
     <div className="flex items-center justify-between text-sm text-muted-foreground">
       <span>
@@ -101,7 +104,7 @@ function PaginationControls({
         >
           Previous
         </Button>
-        <span className="min-w-[4rem] text-center">
+        <span className="min-w-16 text-center">
           Page {page} of {totalPages}
         </span>
         <Button
@@ -114,14 +117,14 @@ function PaginationControls({
         </Button>
       </div>
     </div>
-  )
+  );
 }
 
 function rowHighlightClass(status: StockStatus): string {
-  if (status === "expired") return "bg-destructive/5"
-  if (status === "near_expiry") return "bg-yellow-50 dark:bg-yellow-950/20"
-  if (status === "out_of_stock") return "bg-muted/50"
-  return ""
+  if (status === "expired") return "bg-destructive/5";
+  if (status === "near_expiry") return "bg-yellow-50 dark:bg-yellow-950/20";
+  if (status === "out_of_stock") return "bg-muted/50";
+  return "";
 }
 
 export default function PharmacyInventoryTable({
@@ -137,73 +140,74 @@ export default function PharmacyInventoryTable({
   userRole,
   userPharmacyId,
 }: {
-  data: PharmacyInventoryWithProduct[]
-  count: number
-  page: number
-  pageSize: number
-  pharmacy_id: string
-  search?: string
-  status?: StockStatus
-  requires_prescription?: boolean
-  pharmacies: { id: string; name: string }[]
-  userRole: UserRole
-  userPharmacyId: string | null | undefined
+  data: PharmacyInventoryWithProduct[];
+  count: number;
+  page: number;
+  pageSize: number;
+  pharmacy_id: string;
+  search?: string;
+  status?: StockStatus;
+  requires_prescription?: boolean;
+  pharmacies: { id: string; name: string }[];
+  userRole: UserRole;
+  userPharmacyId: string | null | undefined;
 }) {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const [isPending, startTransition] = useTransition()
-  const [searchValue, setSearchValue] = useState(search ?? "")
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
+  const [searchValue, setSearchValue] = useState(search ?? "");
 
-  const [editPricingKey, setEditPricingKey] = useState(0)
-  const [editThresholdKey, setEditThresholdKey] = useState(0)
-  const [adjustStockKey, setAdjustStockKey] = useState(0)
-  const [selectedInventory, setSelectedInventory] = useState<PharmacyInventoryWithProduct | null>(null)
-  const [editPricingOpen, setEditPricingOpen] = useState(false)
-  const [editThresholdOpen, setEditThresholdOpen] = useState(false)
-  const [adjustStockOpen, setAdjustStockOpen] = useState(false)
+  const [editPricingKey, setEditPricingKey] = useState(0);
+  const [editThresholdKey, setEditThresholdKey] = useState(0);
+  const [adjustStockKey, setAdjustStockKey] = useState(0);
+  const [selectedInventory, setSelectedInventory] =
+    useState<PharmacyInventoryWithProduct | null>(null);
+  const [editPricingOpen, setEditPricingOpen] = useState(false);
+  const [editThresholdOpen, setEditThresholdOpen] = useState(false);
+  const [adjustStockOpen, setAdjustStockOpen] = useState(false);
 
-  const canEdit = userRole === "admin" || userRole === "pharmacist"
-  const isAdmin = userRole === "admin"
+  const canEdit = userRole === "admin" || userRole === "pharmacist";
+  const isAdmin = userRole === "admin";
 
   function pushParams(updates: Record<string, string | undefined>) {
-    const params = new URLSearchParams(searchParams.toString())
+    const params = new URLSearchParams(searchParams.toString());
     for (const [key, val] of Object.entries(updates)) {
       if (val === undefined || val === "") {
-        params.delete(key)
+        params.delete(key);
       } else {
-        params.set(key, val)
+        params.set(key, val);
       }
     }
-    params.delete("page")
-    startTransition(() => router.push(`?${params.toString()}`))
+    params.delete("page");
+    startTransition(() => router.push(`?${params.toString()}`));
   }
 
   const handleSearch = useDebouncedCallback((value: string) => {
-    pushParams({ search: value || undefined })
-  }, 400)
+    pushParams({ search: value || undefined });
+  }, 400);
 
   function handlePageChange(p: number) {
-    const params = new URLSearchParams(searchParams.toString())
-    params.set("page", String(p))
-    startTransition(() => router.push(`?${params.toString()}`))
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("page", String(p));
+    startTransition(() => router.push(`?${params.toString()}`));
   }
 
   function openEditPricing(inv: PharmacyInventoryWithProduct) {
-    setSelectedInventory(inv)
-    setEditPricingKey((k) => k + 1)
-    setEditPricingOpen(true)
+    setSelectedInventory(inv);
+    setEditPricingKey(k => k + 1);
+    setEditPricingOpen(true);
   }
 
   function openEditThreshold(inv: PharmacyInventoryWithProduct) {
-    setSelectedInventory(inv)
-    setEditThresholdKey((k) => k + 1)
-    setEditThresholdOpen(true)
+    setSelectedInventory(inv);
+    setEditThresholdKey(k => k + 1);
+    setEditThresholdOpen(true);
   }
 
   function openAdjustStock(inv: PharmacyInventoryWithProduct) {
-    setSelectedInventory(inv)
-    setAdjustStockKey((k) => k + 1)
-    setAdjustStockOpen(true)
+    setSelectedInventory(inv);
+    setAdjustStockKey(k => k + 1);
+    setAdjustStockOpen(true);
   }
 
   const columns: ColumnDef<PharmacyInventoryWithProduct>[] = [
@@ -211,57 +215,68 @@ export default function PharmacyInventoryTable({
       id: "product",
       header: "Product",
       cell: ({ row }) => {
-        const p = row.original.product
+        const p = row.original.product;
         return (
-          <div className="flex flex-col gap-0.5 min-w-[160px]">
+          <div className="flex flex-col gap-0.5 min-w-40">
             <span className="font-medium text-sm leading-tight">
               {p?.product_name ?? "—"}
             </span>
             {p?.generic_name && (
-              <span className="text-xs text-muted-foreground">{p.generic_name}</span>
+              <span className="text-xs text-muted-foreground">
+                {p.generic_name}
+              </span>
             )}
             {p?.sku && (
-              <span className="text-xs text-muted-foreground font-mono">{p.sku}</span>
+              <span className="text-xs text-muted-foreground font-mono">
+                {p.sku}
+              </span>
             )}
           </div>
-        )
+        );
       },
     },
     {
       id: "packaging",
       header: "Packaging",
       cell: ({ row }) => {
-        const p = row.original.product
-        if (!p) return <span className="text-muted-foreground">—</span>
+        const p = row.original.product;
+        if (!p) return <span className="text-muted-foreground">—</span>;
         return (
           <span className="text-sm capitalize">
-            {p.packaging_type}{p.unit_count > 1 ? ` ×${p.unit_count}` : ""}
+            {p.packaging_type}
+            {p.unit_count > 1 ? ` ×${p.unit_count}` : ""}
           </span>
-        )
+        );
       },
     },
     {
       id: "status",
       header: "Status",
       cell: ({ row }) => {
-        const inv = row.original
-        const s = getStockStatus(inv.quantity, inv.low_stock_threshold, inv.expiry_date)
-        const cfg = stockStatusConfig[s]
+        const inv = row.original;
+        const s = getStockStatus(
+          inv.quantity,
+          inv.low_stock_threshold,
+          inv.expiry_date,
+        );
+        const cfg = stockStatusConfig[s];
         return (
           <Badge
-            variant={cfg.variant as "default" | "outline" | "destructive" | "secondary"}
+            variant={
+              cfg.variant as "default" | "outline" | "destructive" | "secondary"
+            }
             className={cfg.className}
           >
             {cfg.label}
           </Badge>
-        )
+        );
       },
     },
     {
       id: "quantity",
       header: "Quantity",
       cell: ({ row }) => {
-        const inv = row.original
+        const inv = row.original;
         return (
           <div className="flex flex-col gap-0.5">
             <span className="font-medium text-sm">{inv.quantity} units</span>
@@ -269,57 +284,63 @@ export default function PharmacyInventoryTable({
               Threshold: {inv.low_stock_threshold}
             </span>
           </div>
-        )
+        );
       },
     },
     {
       id: "expiry",
       header: "Expiry",
       cell: ({ row }) => {
-        const d = row.original.expiry_date
-        return <span className="text-sm">{formatDate(d)}</span>
+        const d = row.original.expiry_date;
+        return <span className="text-sm">{formatDate(d)}</span>;
       },
     },
     {
       id: "selling_price",
       header: "Selling Price",
       cell: ({ row }) => {
-        const inv = row.original
+        const inv = row.original;
         return (
           <div className="flex flex-col gap-0.5">
-            <span className="font-medium text-sm">{formatCurrency(inv.selling_price)}</span>
+            <span className="font-medium text-sm">
+              {formatCurrency(inv.selling_price)}
+            </span>
             <span className="text-xs text-muted-foreground">
               {inv.markup_percentage.toFixed(1)}% markup
             </span>
           </div>
-        )
+        );
       },
     },
     {
       id: "unit_cost",
       header: "Unit Cost",
       cell: ({ row }) => {
-        const cost = row.original.product?.unit_cost ?? 0
-        return <span className="text-sm">{formatCurrency(cost)}</span>
+        const cost = row.original.product?.unit_cost ?? 0;
+        return <span className="text-sm">{formatCurrency(cost)}</span>;
       },
     },
     {
       id: "rx",
       header: "Rx",
       cell: ({ row }) => {
-        const req = row.original.product?.requires_prescription
+        const req = row.original.product?.requires_prescription;
         return req ? (
-          <Badge variant="outline" className="text-xs">Rx</Badge>
+          <Badge variant="outline" className="text-xs">
+            Rx
+          </Badge>
         ) : (
           <span className="text-xs text-muted-foreground">OTC</span>
-        )
+        );
       },
     },
     {
       id: "last_restocked",
       header: "Last Restocked",
       cell: ({ row }) => (
-        <span className="text-sm">{formatDate(row.original.last_restocked_at)}</span>
+        <span className="text-sm">
+          {formatDate(row.original.last_restocked_at)}
+        </span>
       ),
     },
     ...(canEdit
@@ -327,7 +348,11 @@ export default function PharmacyInventoryTable({
           {
             id: "actions",
             header: "",
-            cell: ({ row }: { row: { original: PharmacyInventoryWithProduct } }) => (
+            cell: ({
+              row,
+            }: {
+              row: { original: PharmacyInventoryWithProduct };
+            }) => (
               <DropdownMenu>
                 <DropdownMenuTrigger
                   render={
@@ -339,16 +364,22 @@ export default function PharmacyInventoryTable({
                 />
                 <DropdownMenuContent align="end">
                   <DropdownMenuGroup>
-                    <DropdownMenuItem onClick={() => openEditPricing(row.original)}>
+                    <DropdownMenuItem
+                      onClick={() => openEditPricing(row.original)}
+                    >
                       Edit Pricing
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => openEditThreshold(row.original)}>
+                    <DropdownMenuItem
+                      onClick={() => openEditThreshold(row.original)}
+                    >
                       Edit Threshold
                     </DropdownMenuItem>
                   </DropdownMenuGroup>
                   <DropdownMenuSeparator />
                   <DropdownMenuGroup>
-                    <DropdownMenuItem onClick={() => openAdjustStock(row.original)}>
+                    <DropdownMenuItem
+                      onClick={() => openAdjustStock(row.original)}
+                    >
                       Adjust Stock
                     </DropdownMenuItem>
                   </DropdownMenuGroup>
@@ -358,21 +389,21 @@ export default function PharmacyInventoryTable({
           } satisfies ColumnDef<PharmacyInventoryWithProduct>,
         ]
       : []),
-  ]
+  ];
 
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
-  })
+  });
 
-  const currentStatusLabel = status ? STATUS_LABEL_MAP[status] : undefined
+  const currentStatusLabel = status ? STATUS_LABEL_MAP[status] : undefined;
   const currentRxLabel =
     requires_prescription === true
       ? "Rx Only"
       : requires_prescription === false
         ? "OTC Only"
-        : undefined
+        : undefined;
 
   return (
     <div className="flex flex-col gap-4">
@@ -384,21 +415,22 @@ export default function PharmacyInventoryTable({
             <Label className="text-xs text-muted-foreground">Pharmacy</Label>
             <Select
               value={pharmacy_id}
-              onValueChange={(v) => {
+              onValueChange={v => {
                 if (v !== null) {
-                  const params = new URLSearchParams()
-                  params.set("pharmacy_id", v)
-                  startTransition(() => router.push(`?${params.toString()}`))
+                  const params = new URLSearchParams();
+                  params.set("pharmacy_id", v);
+                  startTransition(() => router.push(`?${params.toString()}`));
                 }
               }}
             >
-              <SelectTrigger className="w-[200px]">
+              <SelectTrigger className="w-50">
                 <SelectValue>
-                  {pharmacies.find((p) => p.id === pharmacy_id)?.name ?? "Select pharmacy"}
+                  {pharmacies.find(p => p.id === pharmacy_id)?.name ??
+                    "Select pharmacy"}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {pharmacies.map((p) => (
+                {pharmacies.map(p => (
                   <SelectItem key={p.id} value={p.id}>
                     {p.name}
                   </SelectItem>
@@ -409,7 +441,7 @@ export default function PharmacyInventoryTable({
         )}
 
         {/* Search */}
-        <div className="flex flex-col gap-1.5 flex-1 min-w-[200px] max-w-[320px]">
+        <div className="flex flex-col gap-1.5 flex-1 min-w-50 max-w-[320px]">
           <Label className="text-xs text-muted-foreground">Search</Label>
           <div className="relative">
             <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -417,9 +449,9 @@ export default function PharmacyInventoryTable({
               className="pl-8"
               placeholder="Name, generic, or SKU…"
               value={searchValue}
-              onChange={(e) => {
-                setSearchValue(e.target.value)
-                handleSearch(e.target.value)
+              onChange={e => {
+                setSearchValue(e.target.value);
+                handleSearch(e.target.value);
               }}
             />
           </div>
@@ -430,18 +462,16 @@ export default function PharmacyInventoryTable({
           <Label className="text-xs text-muted-foreground">Status</Label>
           <Select
             value={status ?? ""}
-            onValueChange={(v) =>
+            onValueChange={v =>
               v !== null && pushParams({ status: v || undefined })
             }
           >
-            <SelectTrigger className="w-[160px]">
-              <SelectValue>
-                {currentStatusLabel ?? "All statuses"}
-              </SelectValue>
+            <SelectTrigger className="w-40">
+              <SelectValue>{currentStatusLabel ?? "All statuses"}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">All statuses</SelectItem>
-              {STATUS_OPTIONS.map((opt) => (
+              {STATUS_OPTIONS.map(opt => (
                 <SelectItem key={opt.value} value={opt.value}>
                   {opt.label}
                 </SelectItem>
@@ -461,14 +491,13 @@ export default function PharmacyInventoryTable({
                   ? "false"
                   : ""
             }
-            onValueChange={(v) =>
-              v !== null && pushParams({ requires_prescription: v || undefined })
+            onValueChange={v =>
+              v !== null &&
+              pushParams({ requires_prescription: v || undefined })
             }
           >
-            <SelectTrigger className="w-[140px]">
-              <SelectValue>
-                {currentRxLabel ?? "All types"}
-              </SelectValue>
+            <SelectTrigger className="w-35">
+              <SelectValue>{currentRxLabel ?? "All types"}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">All types</SelectItem>
@@ -480,14 +509,19 @@ export default function PharmacyInventoryTable({
       </div>
 
       {/* Table */}
-      <div className={`rounded-md border transition-opacity ${isPending ? "opacity-60 pointer-events-none" : ""}`}>
+      <div
+        className={`rounded-md border transition-opacity ${isPending ? "opacity-60 pointer-events-none" : ""}`}
+      >
         <Table>
           <TableHeader>
-            {table.getHeaderGroups().map((hg) => (
+            {table.getHeaderGroups().map(hg => (
               <TableRow key={hg.id}>
-                {hg.headers.map((header) => (
+                {hg.headers.map(header => (
                   <TableHead key={header.id}>
-                    {flexRender(header.column.columnDef.header, header.getContext())}
+                    {flexRender(
+                      header.column.columnDef.header,
+                      header.getContext(),
+                    )}
                   </TableHead>
                 ))}
               </TableRow>
@@ -496,23 +530,33 @@ export default function PharmacyInventoryTable({
           <TableBody>
             {table.getRowModel().rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={columns.length} className="text-center py-10 text-muted-foreground">
+                <TableCell
+                  colSpan={columns.length}
+                  className="text-center py-10 text-muted-foreground"
+                >
                   No inventory records found.
                 </TableCell>
               </TableRow>
             ) : (
-              table.getRowModel().rows.map((row) => {
-                const inv = row.original
-                const s = getStockStatus(inv.quantity, inv.low_stock_threshold, inv.expiry_date)
+              table.getRowModel().rows.map(row => {
+                const inv = row.original;
+                const s = getStockStatus(
+                  inv.quantity,
+                  inv.low_stock_threshold,
+                  inv.expiry_date,
+                );
                 return (
                   <TableRow key={row.id} className={rowHighlightClass(s)}>
-                    {row.getVisibleCells().map((cell) => (
+                    {row.getVisibleCells().map(cell => (
                       <TableCell key={cell.id}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext(),
+                        )}
                       </TableCell>
                     ))}
                   </TableRow>
-                )
+                );
               })
             )}
           </TableBody>
@@ -547,5 +591,5 @@ export default function PharmacyInventoryTable({
         pharmacyId={pharmacy_id}
       />
     </div>
-  )
+  );
 }

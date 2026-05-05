@@ -1,5 +1,5 @@
 import { getCurrentUser } from "@/lib/get-current-user"
-import { getWarehouseInventory, getWarehouseInventoryStats } from "./actions"
+import { getWarehouseInventory, getWarehouseInventoryStats, getCompletedReceiptsForFilter } from "./actions"
 import { WarehouseInventoryTable } from "@/components/warehouse/WarehouseInventoryTable"
 
 export default async function WarehousePage({
@@ -9,6 +9,7 @@ export default async function WarehousePage({
     search?: string
     has_stock?: string
     expiring_within?: string
+    receipt_id?: string
     page?: string
   }>
 }) {
@@ -17,6 +18,7 @@ export default async function WarehousePage({
   const page = Math.max(1, Number(params.page ?? 1))
   const pageSize = 20
   const search = params.search
+  const receipt_id = params.receipt_id
 
   const has_stock =
     params.has_stock === "true"
@@ -30,9 +32,10 @@ export default async function WarehousePage({
       ? parseInt(params.expiring_within, 10) || undefined
       : undefined
 
-  const [{ data, count }, stats, currentUser] = await Promise.all([
-    getWarehouseInventory({ search, has_stock, expiring_within_days, page, pageSize }),
+  const [{ data, count }, stats, receipts, currentUser] = await Promise.all([
+    getWarehouseInventory({ search, has_stock, expiring_within_days, receipt_id, page, pageSize }),
     getWarehouseInventoryStats(),
+    getCompletedReceiptsForFilter(),
     getCurrentUser(),
   ])
 
@@ -73,6 +76,8 @@ export default async function WarehousePage({
         search={search}
         has_stock={has_stock}
         expiring_within_days={expiring_within_days}
+        receipt_id={receipt_id}
+        receipts={receipts}
         userRole={currentUser.role}
       />
     </div>
