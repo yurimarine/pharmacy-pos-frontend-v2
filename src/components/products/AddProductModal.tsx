@@ -96,6 +96,7 @@ export default function AddProductModal({
     control,
     register,
     handleSubmit,
+    reset,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -129,7 +130,8 @@ export default function AddProductModal({
       });
       if (result.success) {
         toast.success("Product added successfully.");
-        onOpenChange(false);
+        reset(DEFAULT_VALUES);
+        getProductSuggestions().then(setSuggestions).catch(() => {});
       } else {
         toast.error(result.error ?? "Failed to add product.");
       }
@@ -150,315 +152,315 @@ export default function AddProductModal({
           {isLoading ? (
             <Spinner text="Loading..." />
           ) : (
-          <form
-            id="add-product-form"
-            onSubmit={handleSubmit(onSubmit)}
-            className="flex flex-col gap-5 py-4"
-          >
-            {/* Drug Identification */}
-            <fieldset className="flex flex-col gap-3">
-              <legend className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-                Drug Identification
-              </legend>
+            <form
+              id="add-product-form"
+              onSubmit={handleSubmit(onSubmit)}
+              className="flex flex-col gap-5 py-4"
+            >
+              {/* Drug Identification */}
+              <fieldset className="flex flex-col gap-3">
+                <legend className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                  Drug Identification
+                </legend>
 
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="add-generic_name">
-                  Product/Generic Name
-                  <span className="text-destructive">*</span>
-                </Label>
-                <Controller
-                  control={control}
-                  name="generic_name"
-                  render={({ field }) => (
-                    <CreatableCombobox
-                      id="add-generic_name"
-                      value={field.value}
-                      onChange={field.onChange}
-                      suggestions={suggestions.genericNames}
-                      placeholder="e.g. AMOXICILLIN"
-                    />
-                  )}
-                />
-                {errors.generic_name && (
-                  <p className="text-sm text-destructive">
-                    {errors.generic_name.message}
-                  </p>
-                )}
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="add-brand_name">Brand Name</Label>
-                <Controller
-                  control={control}
-                  name="brand_name"
-                  render={({ field }) => (
-                    <CreatableCombobox
-                      id="add-brand_name"
-                      value={field.value}
-                      onChange={field.onChange}
-                      suggestions={suggestions.brandNames}
-                      placeholder="e.g. AMOXIL"
-                    />
-                  )}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="add-dosage_form">Dosage Form</Label>
-                  <Controller
-                    control={control}
-                    name="dosage_form"
-                    render={({ field }) => (
-                      <CreatableCombobox
-                        id="add-dosage_form"
-                        value={field.value}
-                        onChange={field.onChange}
-                        suggestions={suggestions.dosageForms}
-                        placeholder="e.g. TABLET"
-                      />
-                    )}
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="add-dosage_strength">Dosage Strength</Label>
-                  <Controller
-                    control={control}
-                    name="dosage_strength"
-                    render={({ field }) => (
-                      <CreatableCombobox
-                        id="add-dosage_strength"
-                        value={field.value}
-                        onChange={field.onChange}
-                        suggestions={suggestions.dosageStrengths}
-                        placeholder="e.g. 500MG"
-                      />
-                    )}
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="add-volume">Volume/Size</Label>
-                <Controller
-                  control={control}
-                  name="volume"
-                  render={({ field }) => (
-                    <CreatableCombobox
-                      id="add-volume"
-                      value={field.value}
-                      onChange={field.onChange}
-                      suggestions={suggestions.volumes}
-                      placeholder="e.g. 60ML"
-                    />
-                  )}
-                />
-              </div>
-            </fieldset>
-
-            {/* Packaging */}
-            <fieldset className="flex flex-col gap-3">
-              <legend className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-                Packaging
-              </legend>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="add-packaging_type">
-                    Packaging Type <span className="text-destructive">*</span>
+                  <Label htmlFor="add-generic_name">
+                    Product/Generic Name
+                    <span className="text-destructive">*</span>
                   </Label>
                   <Controller
                     control={control}
-                    name="packaging_type"
+                    name="generic_name"
                     render={({ field }) => (
                       <CreatableCombobox
-                        id="add-packaging_type"
+                        id="add-generic_name"
                         value={field.value}
                         onChange={field.onChange}
-                        suggestions={suggestions.packagingTypes}
-                        placeholder="e.g. BOX"
+                        suggestions={suggestions.genericNames}
+                        placeholder="e.g. AMOXICILLIN"
                       />
                     )}
                   />
-                  {errors.packaging_type && (
+                  {errors.generic_name && (
                     <p className="text-sm text-destructive">
-                      {errors.packaging_type.message}
+                      {errors.generic_name.message}
                     </p>
                   )}
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="add-unit_count">Units per Pack</Label>
-                  <Input
-                    id="add-unit_count"
-                    type="number"
-                    min={1}
-                    {...register("unit_count", { valueAsNumber: true })}
-                  />
-                  {errors.unit_count && (
-                    <p className="text-sm text-destructive">
-                      {errors.unit_count.message}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </fieldset>
 
-            {/* Classification */}
-            <fieldset className="flex flex-col gap-3">
-              <legend className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-                Classification
-              </legend>
-
-              <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="add-type">Type</Label>
+                  <Label htmlFor="add-brand_name">Brand Name</Label>
                   <Controller
                     control={control}
-                    name="type"
-                    render={({ field }) => (
-                      <Select
-                        value={field.value}
-                        onValueChange={v => v && field.onChange(v)}
-                      >
-                        <SelectTrigger id="add-type">
-                          <SelectValue>
-                            {PRODUCT_TYPE_LABELS[field.value]}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(
-                            Object.entries(PRODUCT_TYPE_LABELS) as [
-                              string,
-                              string,
-                            ][]
-                          ).map(([val, label]) => (
-                            <SelectItem key={val} value={val}>
-                              {label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="add-category">Category</Label>
-                  <Controller
-                    control={control}
-                    name="category"
+                    name="brand_name"
                     render={({ field }) => (
                       <CreatableCombobox
-                        id="add-category"
+                        id="add-brand_name"
                         value={field.value}
                         onChange={field.onChange}
-                        suggestions={suggestions.categories}
-                        placeholder="e.g. ANTIBIOTIC"
+                        suggestions={suggestions.brandNames}
+                        placeholder="e.g. AMOXIL"
                       />
                     )}
                   />
                 </div>
-              </div>
 
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="add-manufacturer">Manufacturer</Label>
-                <Controller
-                  control={control}
-                  name="manufacturer"
-                  render={({ field }) => (
-                    <CreatableCombobox
-                      id="add-manufacturer"
-                      value={field.value}
-                      onChange={field.onChange}
-                      suggestions={suggestions.manufacturers}
-                      placeholder="e.g. UNILAB"
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="add-dosage_form">Dosage Form</Label>
+                    <Controller
+                      control={control}
+                      name="dosage_form"
+                      render={({ field }) => (
+                        <CreatableCombobox
+                          id="add-dosage_form"
+                          value={field.value}
+                          onChange={field.onChange}
+                          suggestions={suggestions.dosageForms}
+                          placeholder="e.g. TABLET"
+                        />
+                      )}
                     />
-                  )}
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Controller
-                  control={control}
-                  name="requires_prescription"
-                  render={({ field }) => (
-                    <Checkbox
-                      id="add-requires_prescription"
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="add-dosage_strength">Dosage Strength</Label>
+                    <Controller
+                      control={control}
+                      name="dosage_strength"
+                      render={({ field }) => (
+                        <CreatableCombobox
+                          id="add-dosage_strength"
+                          value={field.value}
+                          onChange={field.onChange}
+                          suggestions={suggestions.dosageStrengths}
+                          placeholder="e.g. 500MG"
+                        />
+                      )}
                     />
-                  )}
-                />
-                <Label htmlFor="add-requires_prescription">
-                  Requires prescription (Rx)
-                </Label>
-              </div>
-            </fieldset>
-
-            {/* Pricing & Status */}
-            <fieldset className="flex flex-col gap-3">
-              <legend className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-                Pricing &amp; Status
-              </legend>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="add-unit_cost">Unit Cost (₱)</Label>
-                  <Input
-                    id="add-unit_cost"
-                    type="number"
-                    min={0}
-                    step={0.01}
-                    {...register("unit_cost", { valueAsNumber: true })}
-                  />
-                  {errors.unit_cost && (
-                    <p className="text-sm text-destructive">
-                      {errors.unit_cost.message}
-                    </p>
-                  )}
+                  </div>
                 </div>
+
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="add-status">Status</Label>
+                  <Label htmlFor="add-volume">Volume/Size</Label>
                   <Controller
                     control={control}
-                    name="status"
+                    name="volume"
                     render={({ field }) => (
-                      <Select
+                      <CreatableCombobox
+                        id="add-volume"
                         value={field.value}
-                        onValueChange={v => v && field.onChange(v)}
-                      >
-                        <SelectTrigger id="add-status">
-                          <SelectValue>
-                            {PRODUCT_STATUS_LABELS[field.value]}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(
-                            Object.entries(PRODUCT_STATUS_LABELS) as [
-                              string,
-                              string,
-                            ][]
-                          ).map(([val, label]) => (
-                            <SelectItem key={val} value={val}>
-                              {label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        onChange={field.onChange}
+                        suggestions={suggestions.volumes}
+                        placeholder="e.g. 60ML, LARGE"
+                      />
                     )}
                   />
                 </div>
-              </div>
+              </fieldset>
 
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="add-barcode">Barcode</Label>
-                <Input
-                  id="add-barcode"
-                  placeholder="e.g. 4800888123456"
-                  {...register("barcode")}
-                />
-              </div>
-            </fieldset>
-          </form>
+              {/* Packaging */}
+              <fieldset className="flex flex-col gap-3">
+                <legend className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                  Packaging
+                </legend>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="add-packaging_type">
+                      Packaging Type <span className="text-destructive">*</span>
+                    </Label>
+                    <Controller
+                      control={control}
+                      name="packaging_type"
+                      render={({ field }) => (
+                        <CreatableCombobox
+                          id="add-packaging_type"
+                          value={field.value}
+                          onChange={field.onChange}
+                          suggestions={suggestions.packagingTypes}
+                          placeholder="e.g. BOX"
+                        />
+                      )}
+                    />
+                    {errors.packaging_type && (
+                      <p className="text-sm text-destructive">
+                        {errors.packaging_type.message}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="add-unit_count">Units per Pack</Label>
+                    <Input
+                      id="add-unit_count"
+                      type="number"
+                      min={1}
+                      {...register("unit_count", { valueAsNumber: true })}
+                    />
+                    {errors.unit_count && (
+                      <p className="text-sm text-destructive">
+                        {errors.unit_count.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </fieldset>
+
+              {/* Classification */}
+              <fieldset className="flex flex-col gap-3">
+                <legend className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                  Classification
+                </legend>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="add-type">Type</Label>
+                    <Controller
+                      control={control}
+                      name="type"
+                      render={({ field }) => (
+                        <Select
+                          value={field.value}
+                          onValueChange={v => v && field.onChange(v)}
+                        >
+                          <SelectTrigger id="add-type">
+                            <SelectValue>
+                              {PRODUCT_TYPE_LABELS[field.value]}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(
+                              Object.entries(PRODUCT_TYPE_LABELS) as [
+                                string,
+                                string,
+                              ][]
+                            ).map(([val, label]) => (
+                              <SelectItem key={val} value={val}>
+                                {label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="add-category">Category</Label>
+                    <Controller
+                      control={control}
+                      name="category"
+                      render={({ field }) => (
+                        <CreatableCombobox
+                          id="add-category"
+                          value={field.value}
+                          onChange={field.onChange}
+                          suggestions={suggestions.categories}
+                          placeholder="e.g. ANTIBIOTIC"
+                        />
+                      )}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="add-manufacturer">Manufacturer</Label>
+                  <Controller
+                    control={control}
+                    name="manufacturer"
+                    render={({ field }) => (
+                      <CreatableCombobox
+                        id="add-manufacturer"
+                        value={field.value}
+                        onChange={field.onChange}
+                        suggestions={suggestions.manufacturers}
+                        placeholder="e.g. UNILAB"
+                      />
+                    )}
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Controller
+                    control={control}
+                    name="requires_prescription"
+                    render={({ field }) => (
+                      <Checkbox
+                        id="add-requires_prescription"
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    )}
+                  />
+                  <Label htmlFor="add-requires_prescription">
+                    Requires prescription (Rx)
+                  </Label>
+                </div>
+              </fieldset>
+
+              {/* Pricing & Status */}
+              <fieldset className="flex flex-col gap-3">
+                <legend className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                  Pricing &amp; Status
+                </legend>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="add-unit_cost">Unit Cost (₱)</Label>
+                    <Input
+                      id="add-unit_cost"
+                      type="number"
+                      min={0}
+                      step={0.01}
+                      {...register("unit_cost", { valueAsNumber: true })}
+                    />
+                    {errors.unit_cost && (
+                      <p className="text-sm text-destructive">
+                        {errors.unit_cost.message}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="add-status">Status</Label>
+                    <Controller
+                      control={control}
+                      name="status"
+                      render={({ field }) => (
+                        <Select
+                          value={field.value}
+                          onValueChange={v => v && field.onChange(v)}
+                        >
+                          <SelectTrigger id="add-status">
+                            <SelectValue>
+                              {PRODUCT_STATUS_LABELS[field.value]}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(
+                              Object.entries(PRODUCT_STATUS_LABELS) as [
+                                string,
+                                string,
+                              ][]
+                            ).map(([val, label]) => (
+                              <SelectItem key={val} value={val}>
+                                {label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="add-barcode">Barcode</Label>
+                  <Input
+                    id="add-barcode"
+                    placeholder="e.g. 4800888123456"
+                    {...register("barcode")}
+                  />
+                </div>
+              </fieldset>
+            </form>
           )}
         </div>
 
@@ -470,7 +472,11 @@ export default function AddProductModal({
           >
             Cancel
           </Button>
-          <Button type="submit" form="add-product-form" disabled={isLoading || isPending}>
+          <Button
+            type="submit"
+            form="add-product-form"
+            disabled={isLoading || isPending}
+          >
             {isPending ? "Saving…" : "Add Product"}
           </Button>
         </DialogFooter>
