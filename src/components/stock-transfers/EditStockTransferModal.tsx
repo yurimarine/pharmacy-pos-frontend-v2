@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useTransition } from "react"
 import { XIcon, PlusIcon } from "lucide-react"
+import { Spinner } from "@/components/ui/spinner"
 import { toast } from "sonner"
 import { updateStockTransfer } from "@/app/admin/stock-transfers/actions"
 import { getPharmacies } from "@/app/admin/pharmacies/actions"
@@ -85,6 +86,7 @@ export default function EditStockTransferModal({
   )
   const [itemsError, setItemsError] = useState<string | null>(null)
 
+  const [isLoading, setIsLoading] = useState(true)
   const [pharmacies, setPharmacies] = useState<Pharmacy[]>([])
   const [products, setProducts] = useState<ProductOption[]>([])
   const [batchesByProduct, setBatchesByProduct] = useState<
@@ -113,9 +115,7 @@ export default function EditStockTransferModal({
   }
 
   useEffect(() => {
-    getPharmacies()
-      .then(data => setPharmacies(data))
-      .catch(() => {})
+    // Products: fire and forget — combobox loads independently
     getProducts({ status: "active", pageSize: 1000 })
       .then(({ data }) =>
         setProducts(
@@ -128,33 +128,40 @@ export default function EditStockTransferModal({
         ),
       )
       .catch(() => {})
-    // Pre-fetch batches for all products in existing items (fully async — no sync setState)
+
+    // Gate loading on pharmacies + batch prefetch completing together
     const uniqueProductIds = [
       ...new Set(
         (transfer?.items ?? []).map(i => i.product_id).filter(Boolean),
       ),
     ]
-    if (uniqueProductIds.length > 0) {
-      Promise.all(
-        uniqueProductIds.map(productId =>
-          getAvailableBatchesForProduct(productId).then(batches => ({
-            productId,
-            batches,
-          })),
-        ),
-      )
-        .then(results => {
-          setBatchesByProduct(prev => {
-            const next = new Map(prev)
-            for (const { productId, batches } of results) {
-              next.set(productId, batches)
-            }
-            return next
+
+    const pharmacyPromise = getPharmacies().then(data => setPharmacies(data))
+
+    const batchPromise =
+      uniqueProductIds.length > 0
+        ? Promise.all(
+            uniqueProductIds.map(productId =>
+              getAvailableBatchesForProduct(productId).then(batches => ({
+                productId,
+                batches,
+              })),
+            ),
+          ).then(results => {
+            setBatchesByProduct(prev => {
+              const next = new Map(prev)
+              for (const { productId, batches } of results) {
+                next.set(productId, batches)
+              }
+              return next
+            })
           })
-        })
-        .catch(() => {})
-    }
-  }, [])
+        : Promise.resolve()
+
+    Promise.all([pharmacyPromise, batchPromise])
+      .catch(() => toast.error("Failed to load transfer data"))
+      .finally(() => setIsLoading(false))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateItem = (index: number, patch: Partial<ItemRow>) => {
     setItems(prev =>
@@ -254,6 +261,10 @@ export default function EditStockTransferModal({
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-6 py-4">
+          {isLoading ? (
+            <Spinner text="Loading..." />
+          ) : (
+          <>
           {/* Transfer number (read-only) */}
           {transfer && (
             <div className="flex flex-col gap-1.5 mb-5">
@@ -424,6 +435,8 @@ export default function EditStockTransferModal({
               </span>
             </div>
           </div>
+          </>
+          )}
         </div>
 
         <DialogFooter className="shrink-0 px-6 pb-6 pt-2">
@@ -431,11 +444,10 @@ export default function EditStockTransferModal({
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
-            disabled={isPending}
           >
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isPending}>
+          <Button onClick={handleSubmit} disabled={isLoading || isPending}>
             {isPending ? "Saving…" : "Save Changes"}
           </Button>
         </DialogFooter>

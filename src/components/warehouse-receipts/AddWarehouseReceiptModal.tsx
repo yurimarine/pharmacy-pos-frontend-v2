@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useTransition } from "react";
 import { XIcon, PlusIcon } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
 import { createWarehouseReceipt } from "@/app/admin/warehouse-receipts/actions";
 import { getProducts } from "@/app/admin/products/actions";
@@ -71,9 +72,11 @@ export default function AddWarehouseReceiptModal({
   const [submittedPOs, setSubmittedPOs] = useState<PurchaseOrderWithItems[]>(
     [],
   );
+  const [isLoading, setIsLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
+    // Products: fire and forget — combobox loads independently
     getProducts({ status: "active", pageSize: 1000 })
       .then(({ data }) => {
         setProducts(
@@ -87,9 +90,11 @@ export default function AddWarehouseReceiptModal({
       })
       .catch(() => {});
 
+    // POs: gate the loading spinner on this fetch
     getPurchaseOrders({ status: "submitted", pageSize: 100 })
       .then(({ data }) => setSubmittedPOs(data))
-      .catch(() => {});
+      .catch(() => toast.error("Failed to load purchase orders"))
+      .finally(() => setIsLoading(false));
   }, []);
 
   const updateItem = (index: number, patch: Partial<ItemRow>) => {
@@ -184,6 +189,10 @@ export default function AddWarehouseReceiptModal({
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-6 py-4">
+          {isLoading ? (
+            <Spinner text="Loading..." />
+          ) : (
+          <>
           {/* Header fields */}
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div className="flex flex-col gap-1.5 col-span-2">
@@ -376,6 +385,8 @@ export default function AddWarehouseReceiptModal({
               </span>
             </div>
           </div>
+          </>
+          )}
         </div>
 
         <DialogFooter className="shrink-0 px-6 pb-6 pt-2">
@@ -383,11 +394,10 @@ export default function AddWarehouseReceiptModal({
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
-            disabled={isPending}
           >
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isPending}>
+          <Button onClick={handleSubmit} disabled={isLoading || isPending}>
             {isPending ? "Creating…" : "Create Receipt"}
           </Button>
         </DialogFooter>

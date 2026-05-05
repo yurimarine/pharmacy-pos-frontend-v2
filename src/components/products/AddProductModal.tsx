@@ -1,21 +1,22 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useTransition } from "react"
-import { useForm, Controller } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { z } from "zod"
-import { toast } from "sonner"
-import { createProduct, getProductSuggestions } from "@/app/admin/products/actions"
+import { useState, useEffect, useTransition } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { toast } from "sonner";
 import {
-  PRODUCT_TYPE_LABELS,
-  PRODUCT_STATUS_LABELS,
-} from "@/types/product"
-import type { ProductSuggestions } from "@/types/product"
-import { CreatableCombobox } from "@/components/ui/creatable-combobox"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
+  createProduct,
+  getProductSuggestions,
+} from "@/app/admin/products/actions";
+import { PRODUCT_TYPE_LABELS, PRODUCT_STATUS_LABELS } from "@/types/product";
+import type { ProductSuggestions } from "@/types/product";
+import { CreatableCombobox } from "@/components/ui/creatable-combobox";
+import { Spinner } from "@/components/ui/spinner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -23,14 +24,14 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 
 const EMPTY_SUGGESTIONS: ProductSuggestions = {
   genericNames: [],
@@ -41,7 +42,7 @@ const EMPTY_SUGGESTIONS: ProductSuggestions = {
   packagingTypes: [],
   categories: [],
   manufacturers: [],
-}
+};
 
 const schema = z.object({
   generic_name: z.string().min(1, "Required"),
@@ -58,9 +59,9 @@ const schema = z.object({
   unit_cost: z.number().min(0, "Must be ≥ 0"),
   status: z.enum(["active", "inactive", "discontinued"]),
   barcode: z.string(),
-})
+});
 
-type FormValues = z.infer<typeof schema>
+type FormValues = z.infer<typeof schema>;
 
 const DEFAULT_VALUES: FormValues = {
   generic_name: "",
@@ -77,26 +78,36 @@ const DEFAULT_VALUES: FormValues = {
   unit_cost: 0,
   status: "active",
   barcode: "",
-}
+};
 
 export default function AddProductModal({
   open,
   onOpenChange,
 }: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
-  const [suggestions, setSuggestions] = useState<ProductSuggestions>(EMPTY_SUGGESTIONS)
-  const [isPending, startTransition] = useTransition()
+  const [suggestions, setSuggestions] =
+    useState<ProductSuggestions>(EMPTY_SUGGESTIONS);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
 
-  const { control, register, handleSubmit, formState: { errors } } = useForm<FormValues>({
+  const {
+    control,
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: DEFAULT_VALUES,
-  })
+  });
 
   useEffect(() => {
-    getProductSuggestions().then(setSuggestions).catch(() => {})
-  }, [])
+    getProductSuggestions()
+      .then(setSuggestions)
+      .catch(() => toast.error("Failed to load suggestions"))
+      .finally(() => setIsLoading(false));
+  }, []);
 
   const onSubmit = (values: FormValues) => {
     startTransition(async () => {
@@ -115,15 +126,15 @@ export default function AddProductModal({
         unit_cost: values.unit_cost,
         status: values.status,
         barcode: values.barcode || null,
-      })
+      });
       if (result.success) {
-        toast.success("Product added successfully.")
-        onOpenChange(false)
+        toast.success("Product added successfully.");
+        onOpenChange(false);
       } else {
-        toast.error(result.error ?? "Failed to add product.")
+        toast.error(result.error ?? "Failed to add product.");
       }
-    })
-  }
+    });
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -136,7 +147,14 @@ export default function AddProductModal({
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-6 pb-2">
-          <form id="add-product-form" onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5 py-4">
+          {isLoading ? (
+            <Spinner text="Loading..." />
+          ) : (
+          <form
+            id="add-product-form"
+            onSubmit={handleSubmit(onSubmit)}
+            className="flex flex-col gap-5 py-4"
+          >
             {/* Drug Identification */}
             <fieldset className="flex flex-col gap-3">
               <legend className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
@@ -145,7 +163,8 @@ export default function AddProductModal({
 
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="add-generic_name">
-                  Generic Name <span className="text-destructive">*</span>
+                  Product/Generic Name
+                  <span className="text-destructive">*</span>
                 </Label>
                 <Controller
                   control={control}
@@ -161,7 +180,9 @@ export default function AddProductModal({
                   )}
                 />
                 {errors.generic_name && (
-                  <p className="text-sm text-destructive">{errors.generic_name.message}</p>
+                  <p className="text-sm text-destructive">
+                    {errors.generic_name.message}
+                  </p>
                 )}
               </div>
 
@@ -218,7 +239,7 @@ export default function AddProductModal({
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="add-volume">Volume</Label>
+                <Label htmlFor="add-volume">Volume/Size</Label>
                 <Controller
                   control={control}
                   name="volume"
@@ -260,7 +281,9 @@ export default function AddProductModal({
                     )}
                   />
                   {errors.packaging_type && (
-                    <p className="text-sm text-destructive">{errors.packaging_type.message}</p>
+                    <p className="text-sm text-destructive">
+                      {errors.packaging_type.message}
+                    </p>
                   )}
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -272,7 +295,9 @@ export default function AddProductModal({
                     {...register("unit_count", { valueAsNumber: true })}
                   />
                   {errors.unit_count && (
-                    <p className="text-sm text-destructive">{errors.unit_count.message}</p>
+                    <p className="text-sm text-destructive">
+                      {errors.unit_count.message}
+                    </p>
                   )}
                 </div>
               </div>
@@ -291,16 +316,26 @@ export default function AddProductModal({
                     control={control}
                     name="type"
                     render={({ field }) => (
-                      <Select value={field.value} onValueChange={v => v && field.onChange(v)}>
+                      <Select
+                        value={field.value}
+                        onValueChange={v => v && field.onChange(v)}
+                      >
                         <SelectTrigger id="add-type">
-                          <SelectValue>{PRODUCT_TYPE_LABELS[field.value]}</SelectValue>
+                          <SelectValue>
+                            {PRODUCT_TYPE_LABELS[field.value]}
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                          {(Object.entries(PRODUCT_TYPE_LABELS) as [string, string][]).map(
-                            ([val, label]) => (
-                              <SelectItem key={val} value={val}>{label}</SelectItem>
-                            ),
-                          )}
+                          {(
+                            Object.entries(PRODUCT_TYPE_LABELS) as [
+                              string,
+                              string,
+                            ][]
+                          ).map(([val, label]) => (
+                            <SelectItem key={val} value={val}>
+                              {label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     )}
@@ -353,7 +388,9 @@ export default function AddProductModal({
                     />
                   )}
                 />
-                <Label htmlFor="add-requires_prescription">Requires prescription (Rx)</Label>
+                <Label htmlFor="add-requires_prescription">
+                  Requires prescription (Rx)
+                </Label>
               </div>
             </fieldset>
 
@@ -374,7 +411,9 @@ export default function AddProductModal({
                     {...register("unit_cost", { valueAsNumber: true })}
                   />
                   {errors.unit_cost && (
-                    <p className="text-sm text-destructive">{errors.unit_cost.message}</p>
+                    <p className="text-sm text-destructive">
+                      {errors.unit_cost.message}
+                    </p>
                   )}
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -383,16 +422,26 @@ export default function AddProductModal({
                     control={control}
                     name="status"
                     render={({ field }) => (
-                      <Select value={field.value} onValueChange={v => v && field.onChange(v)}>
+                      <Select
+                        value={field.value}
+                        onValueChange={v => v && field.onChange(v)}
+                      >
                         <SelectTrigger id="add-status">
-                          <SelectValue>{PRODUCT_STATUS_LABELS[field.value]}</SelectValue>
+                          <SelectValue>
+                            {PRODUCT_STATUS_LABELS[field.value]}
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                          {(Object.entries(PRODUCT_STATUS_LABELS) as [string, string][]).map(
-                            ([val, label]) => (
-                              <SelectItem key={val} value={val}>{label}</SelectItem>
-                            ),
-                          )}
+                          {(
+                            Object.entries(PRODUCT_STATUS_LABELS) as [
+                              string,
+                              string,
+                            ][]
+                          ).map(([val, label]) => (
+                            <SelectItem key={val} value={val}>
+                              {label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     )}
@@ -410,6 +459,7 @@ export default function AddProductModal({
               </div>
             </fieldset>
           </form>
+          )}
         </div>
 
         <DialogFooter className="shrink-0 px-6 pb-6 pt-2">
@@ -417,15 +467,14 @@ export default function AddProductModal({
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
-            disabled={isPending}
           >
             Cancel
           </Button>
-          <Button type="submit" form="add-product-form" disabled={isPending}>
+          <Button type="submit" form="add-product-form" disabled={isLoading || isPending}>
             {isPending ? "Saving…" : "Add Product"}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useTransition } from "react";
 import { XIcon, PlusIcon } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
 import { createStockTransfer } from "@/app/admin/stock-transfers/actions";
 import { getPharmacies } from "@/app/admin/pharmacies/actions";
@@ -70,6 +71,7 @@ export default function AddStockTransferModal({
   const [items, setItems] = useState<ItemRow[]>([emptyRow()]);
   const [itemsError, setItemsError] = useState<string | null>(null);
 
+  const [isLoading, setIsLoading] = useState(true);
   const [pharmacies, setPharmacies] = useState<Pharmacy[]>([]);
   const [products, setProducts] = useState<ProductOption[]>([]);
   const [batchesByProduct, setBatchesByProduct] = useState<
@@ -97,9 +99,7 @@ export default function AddStockTransferModal({
   };
 
   useEffect(() => {
-    getPharmacies()
-      .then(data => setPharmacies(data))
-      .catch(() => {});
+    // Products: fire and forget — combobox loads independently
     getProducts({ status: "active", pageSize: 1000 })
       .then(({ data }) =>
         setProducts(
@@ -112,6 +112,12 @@ export default function AddStockTransferModal({
         ),
       )
       .catch(() => {});
+
+    // Pharmacies: gate the loading spinner on this fetch
+    getPharmacies()
+      .then(data => setPharmacies(data))
+      .catch(() => toast.error("Failed to load pharmacies"))
+      .finally(() => setIsLoading(false));
   }, []);
 
   const updateItem = (index: number, patch: Partial<ItemRow>) => {
@@ -213,6 +219,10 @@ export default function AddStockTransferModal({
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-6 py-4">
+          {isLoading ? (
+            <Spinner text="Loading..." />
+          ) : (
+          <>
           {/* Header fields */}
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div className="flex flex-col gap-1.5">
@@ -367,6 +377,8 @@ export default function AddStockTransferModal({
               </span>
             </div>
           </div>
+          </>
+          )}
         </div>
 
         <DialogFooter className="shrink-0 px-6 pb-6 pt-2">
@@ -374,11 +386,10 @@ export default function AddStockTransferModal({
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
-            disabled={isPending}
           >
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isPending}>
+          <Button onClick={handleSubmit} disabled={isLoading || isPending}>
             {isPending ? "Creating…" : "Create Transfer"}
           </Button>
         </DialogFooter>
