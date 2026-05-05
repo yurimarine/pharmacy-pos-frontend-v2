@@ -9,8 +9,8 @@ export default function Loading() {
   return (
     <div className="flex flex-col gap-6 px-4 lg:px-6">
       <PageHeaderSkeleton showButton={true} />
-      <FilterBarSkeleton filterCount={3} />
-      <TableSkeleton rows={8} columns={9} />
+      <FilterBarSkeleton filterCount={2} />
+      <TableSkeleton rows={8} columns={8} />
       <PaginationSkeleton />
     </div>
   )
