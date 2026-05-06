@@ -52,12 +52,19 @@ function emptyRow(): ItemRow {
 }
 
 function formatDateShort(dateStr: string | null): string {
-  if (!dateStr) return "No Exp"
+  if (!dateStr) return "No expiry"
   return new Date(dateStr).toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
   })
+}
+
+function formatBatchLabel(batch: WarehouseInventoryWithProduct): string {
+  const receiptNum = batch.receipt_item?.receipt?.receipt_number ?? "—"
+  const lot = batch.lot_number ? `Lot: ${batch.lot_number}` : "No Lot"
+  const exp = formatDateShort(batch.expiry_date)
+  return `${receiptNum} | ${lot} | Exp: ${exp} | ${batch.quantity_remaining} units`
 }
 
 export default function EditStockTransferModal({
@@ -211,6 +218,14 @@ export default function EditStockTransferModal({
     .filter(r => r.warehouse_inventory_id)
     .reduce((sum, r) => sum + r.quantity, 0)
 
+  const hasQuantityError = items.some(row => {
+    if (!row.warehouse_inventory_id) return false
+    const batch = (batchesByProduct.get(row.product_id) ?? []).find(
+      b => b.id === row.warehouse_inventory_id,
+    )
+    return batch !== undefined && row.quantity > batch.quantity_remaining
+  })
+
   const handleSubmit = () => {
     if (!transfer) return
     const validItems = items.filter(
@@ -224,6 +239,10 @@ export default function EditStockTransferModal({
       setItemsError(
         "At least one item with a selected product and batch is required.",
       )
+      return
+    }
+    if (hasQuantityError) {
+      setItemsError("One or more quantities exceed available stock.")
       return
     }
     setItemsError(null)
@@ -321,7 +340,7 @@ export default function EditStockTransferModal({
             <div className="grid grid-cols-[1fr_220px_80px_32px] gap-2 px-1">
               <span className="text-xs text-muted-foreground">Product</span>
               <span className="text-xs text-muted-foreground">
-                Batch (Lot / Expiry / Available)
+                Batch (Receipt / Lot / Expiry / Avail)
               </span>
               <span className="text-xs text-muted-foreground">Qty</span>
               <span />
@@ -335,11 +354,15 @@ export default function EditStockTransferModal({
               const selectedBatch = batches.find(
                 b => b.id === row.warehouse_inventory_id,
               )
+              const isOverLimit =
+                row.warehouse_inventory_id &&
+                selectedBatch !== undefined &&
+                row.quantity > selectedBatch.quantity_remaining
 
               return (
                 <div
                   key={i}
-                  className="grid grid-cols-[1fr_220px_80px_32px] gap-2 items-center"
+                  className="grid grid-cols-[1fr_220px_80px_32px] gap-2 items-start"
                 >
                   <ProductCombobox
                     options={products}
@@ -360,7 +383,7 @@ export default function EditStockTransferModal({
                         {isLoadingBatch
                           ? "Loading…"
                           : selectedBatch
-                            ? `${selectedBatch.lot_number ?? "No Lot"} | ${formatDateShort(selectedBatch.expiry_date)} | ${selectedBatch.quantity_remaining} avail`
+                            ? formatBatchLabel(selectedBatch)
                             : row.warehouse_inventory_id
                               ? "Loading batch…"
                               : row.product_id
@@ -373,24 +396,32 @@ export default function EditStockTransferModal({
                     <SelectContent>
                       {availableBatches.map(batch => (
                         <SelectItem key={batch.id} value={batch.id}>
-                          {`${batch.lot_number ?? "No Lot"} | ${formatDateShort(batch.expiry_date)} | ${batch.quantity_remaining} avail`}
+                          {formatBatchLabel(batch)}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
 
-                  <Input
-                    type="number"
-                    min={1}
-                    max={selectedBatch?.quantity_remaining || undefined}
-                    value={row.quantity}
-                    onChange={e =>
-                      updateItem(i, {
-                        quantity: Math.max(1, Number(e.target.value)),
-                      })
-                    }
-                    disabled={!row.warehouse_inventory_id}
-                  />
+                  <div className="flex flex-col gap-0.5">
+                    <Input
+                      type="number"
+                      min={1}
+                      max={selectedBatch?.quantity_remaining || undefined}
+                      value={row.quantity}
+                      onChange={e =>
+                        updateItem(i, {
+                          quantity: Math.max(1, Number(e.target.value)),
+                        })
+                      }
+                      disabled={!row.warehouse_inventory_id}
+                      className={isOverLimit ? "border-destructive" : ""}
+                    />
+                    {isOverLimit && selectedBatch && (
+                      <p className="text-xs text-destructive">
+                        Max: {selectedBatch.quantity_remaining}
+                      </p>
+                    )}
+                  </div>
 
                   <Button
                     type="button"
@@ -447,7 +478,7 @@ export default function EditStockTransferModal({
           >
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isLoading || isPending}>
+          <Button onClick={handleSubmit} disabled={isLoading || isPending || hasQuantityError}>
             {isPending ? "Saving…" : "Save Changes"}
           </Button>
         </DialogFooter>

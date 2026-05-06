@@ -161,6 +161,67 @@ export async function getAvailableBatchesForProduct(
   return (data ?? []) as unknown as WarehouseInventoryWithProduct[]
 }
 
+export async function getReceiptsWithAvailableStock(): Promise<
+  { id: string; receipt_number: string; received_at: string | null; item_count: number }[]
+> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("warehouse_inventory")
+    .select(WAREHOUSE_INVENTORY_SELECT)
+    .gt("quantity_remaining", 0)
+
+  if (error) throw new Error(error.message)
+
+  const receiptMap = new Map<string, { id: string; receipt_number: string; received_at: string | null; item_count: number }>()
+  for (const row of data ?? []) {
+    const inv = row as unknown as WarehouseInventoryWithProduct
+    const receipt = inv.receipt_item?.receipt
+    if (!receipt) continue
+    if (!receiptMap.has(receipt.id)) {
+      receiptMap.set(receipt.id, {
+        id: receipt.id,
+        receipt_number: receipt.receipt_number,
+        received_at: receipt.received_at,
+        item_count: 0,
+      })
+    }
+    receiptMap.get(receipt.id)!.item_count += 1
+  }
+
+  return Array.from(receiptMap.values()).sort(
+    (a, b) =>
+      new Date(b.received_at ?? 0).getTime() -
+      new Date(a.received_at ?? 0).getTime(),
+  )
+}
+
+export async function getWarehouseInventoryByReceipt(
+  receiptId: string,
+): Promise<WarehouseInventoryWithProduct[]> {
+  const supabase = await createClient()
+
+  const { data: receiptItems } = await supabase
+    .from("warehouse_receipt_items")
+    .select("id")
+    .eq("receipt_id", receiptId)
+
+  const itemIds = (receiptItems ?? []).map(i => i.id)
+  if (itemIds.length === 0) return []
+
+  const { data, error } = await supabase
+    .from("warehouse_inventory")
+    .select(WAREHOUSE_INVENTORY_SELECT)
+    .in("receipt_item_id", itemIds)
+    .gt("quantity_remaining", 0)
+
+  if (error) throw new Error(error.message)
+
+  const rows = (data ?? []) as unknown as WarehouseInventoryWithProduct[]
+  return rows.sort((a, b) =>
+    (a.product?.product_name ?? "").localeCompare(b.product?.product_name ?? ""),
+  )
+}
+
 export async function getCompletedReceiptsForFilter(): Promise<
   { id: string; receipt_number: string; received_at: string | null }[]
 > {
