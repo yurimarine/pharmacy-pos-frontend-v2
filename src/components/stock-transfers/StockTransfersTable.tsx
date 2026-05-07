@@ -43,8 +43,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import AddStockTransferModal from "./AddStockTransferModal"
-import EditStockTransferModal from "./EditStockTransferModal"
 import ViewStockTransferModal from "./ViewStockTransferModal"
 
 const STATUS_COLORS: Record<StockTransferStatus, string> = {
@@ -126,11 +124,7 @@ export default function StockTransfersTable({
   const [isPending, startTransition] = useTransition()
   const [isActing, startActing] = useTransition()
 
-  const [addOpen, setAddOpen] = useState(false)
-  const [addKey, setAddKey] = useState(0)
   const [viewTransfer, setViewTransfer] = useState<StockTransferWithItems | null>(null)
-  const [editTransfer, setEditTransfer] = useState<StockTransferWithItems | null>(null)
-  const [editKey, setEditKey] = useState(0)
   const [confirmState, setConfirmState] = useState<ConfirmState>(null)
 
   const [searchValue, setSearchValue] = useState(searchParams.get("search") ?? "")
@@ -263,10 +257,7 @@ export default function StockTransfersTable({
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  onClick={() => {
-                    setEditTransfer(row.original)
-                    setEditKey(k => k + 1)
-                  }}
+                  onClick={() => router.push(`/admin/stock-transfers/${row.original.id}/edit`)}
                   aria-label="Edit"
                 >
                   <PencilIcon className="size-4" />
@@ -370,10 +361,7 @@ export default function StockTransfersTable({
 
         <Button
           className="ml-auto"
-          onClick={() => {
-            setAddKey(k => k + 1)
-            setAddOpen(true)
-          }}
+          onClick={() => router.push("/admin/stock-transfers/new")}
         >
           New Transfer
         </Button>
@@ -426,19 +414,6 @@ export default function StockTransfersTable({
       />
 
       {/* Modals */}
-      <AddStockTransferModal
-        key={`add-${addKey}`}
-        open={addOpen}
-        onOpenChange={setAddOpen}
-      />
-
-      <EditStockTransferModal
-        key={`edit-${editKey}`}
-        open={editTransfer !== null}
-        onOpenChange={open => !open && setEditTransfer(null)}
-        transfer={editTransfer}
-      />
-
       <ViewStockTransferModal
         open={viewTransfer !== null}
         onOpenChange={open => !open && setViewTransfer(null)}

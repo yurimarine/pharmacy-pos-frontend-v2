@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
+import { redirect } from "next/navigation"
 import { getCurrentUser } from "@/lib/get-current-user"
 import type {
   StockTransferStatus,
@@ -95,15 +96,15 @@ export async function createStockTransfer(data: {
     quantity: number
     expiry_date: string | null
   }[]
-}): Promise<{ success: boolean; id?: string; error?: string }> {
+}): Promise<{ error: string } | undefined> {
   try {
     const currentUser = await getCurrentUser()
     if (currentUser.role !== "admin") {
-      return { success: false, error: "Unauthorized: Admin access required" }
+      return { error: "Unauthorized: Admin access required" }
     }
 
     if (!data.items || data.items.length === 0) {
-      return { success: false, error: "At least one item is required" }
+      return { error: "At least one item is required" }
     }
 
     const supabase = await createClient()
@@ -119,7 +120,7 @@ export async function createStockTransfer(data: {
       .select("id, transfer_number")
       .single()
 
-    if (stError) return { success: false, error: stError.message }
+    if (stError) return { error: stError.message }
 
     const { error: itemsError } = await supabase
       .from("stock_transfer_items")
@@ -133,13 +134,13 @@ export async function createStockTransfer(data: {
         })),
       )
 
-    if (itemsError) return { success: false, error: itemsError.message }
+    if (itemsError) return { error: itemsError.message }
 
     revalidatePath("/admin/stock-transfers")
-    return { success: true, id: st.id }
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : "Unknown error" }
+    return { error: err instanceof Error ? err.message : "Unknown error" }
   }
+  redirect("/admin/stock-transfers")
 }
 
 export async function updateStockTransfer(
@@ -154,11 +155,11 @@ export async function updateStockTransfer(
       expiry_date: string | null
     }[]
   },
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ error: string } | undefined> {
   try {
     const currentUser = await getCurrentUser()
     if (currentUser.role !== "admin") {
-      return { success: false, error: "Unauthorized: Admin access required" }
+      return { error: "Unauthorized: Admin access required" }
     }
 
     const supabase = await createClient()
@@ -169,9 +170,9 @@ export async function updateStockTransfer(
       .eq("id", id)
       .single()
 
-    if (fetchError) return { success: false, error: fetchError.message }
+    if (fetchError) return { error: fetchError.message }
     if (existing.status !== "draft") {
-      return { success: false, error: "Only draft transfers can be edited" }
+      return { error: "Only draft transfers can be edited" }
     }
 
     const { error: stError } = await supabase
@@ -183,14 +184,14 @@ export async function updateStockTransfer(
       })
       .eq("id", id)
 
-    if (stError) return { success: false, error: stError.message }
+    if (stError) return { error: stError.message }
 
     const { error: deleteError } = await supabase
       .from("stock_transfer_items")
       .delete()
       .eq("transfer_id", id)
 
-    if (deleteError) return { success: false, error: deleteError.message }
+    if (deleteError) return { error: deleteError.message }
 
     const { error: itemsError } = await supabase
       .from("stock_transfer_items")
@@ -204,13 +205,13 @@ export async function updateStockTransfer(
         })),
       )
 
-    if (itemsError) return { success: false, error: itemsError.message }
+    if (itemsError) return { error: itemsError.message }
 
     revalidatePath("/admin/stock-transfers")
-    return { success: true }
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : "Unknown error" }
+    return { error: err instanceof Error ? err.message : "Unknown error" }
   }
+  redirect("/admin/stock-transfers")
 }
 
 export async function completeStockTransfer(
