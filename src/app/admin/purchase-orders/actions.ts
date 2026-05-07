@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
+import { redirect } from "next/navigation"
 import { getCurrentUser } from "@/lib/get-current-user"
 import type {
   PurchaseOrderStatus,
@@ -80,15 +81,15 @@ export async function createPurchaseOrder(data: {
     unit_cost: number
     notes: string | null
   }[]
-}): Promise<{ success: boolean; id?: string; error?: string }> {
+}): Promise<{ error: string } | undefined> {
   try {
     const currentUser = await getCurrentUser()
     if (currentUser.role === "pharmacy_assistant") {
-      return { success: false, error: "Unauthorized: insufficient permissions" }
+      return { error: "Unauthorized: insufficient permissions" }
     }
 
     if (!data.items || data.items.length === 0) {
-      return { success: false, error: "At least one item is required" }
+      return { error: "At least one item is required" }
     }
 
     const supabase = await createClient()
@@ -106,7 +107,7 @@ export async function createPurchaseOrder(data: {
       .select("id, po_number")
       .single()
 
-    if (poError) return { success: false, error: poError.message }
+    if (poError) return { error: poError.message }
 
     const { error: itemsError } = await supabase
       .from("purchase_order_items")
@@ -120,13 +121,13 @@ export async function createPurchaseOrder(data: {
         })),
       )
 
-    if (itemsError) return { success: false, error: itemsError.message }
+    if (itemsError) return { error: itemsError.message }
 
     revalidatePath("/admin/purchase-orders")
-    return { success: true, id: po.id }
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : "Unknown error" }
+    return { error: err instanceof Error ? err.message : "Unknown error" }
   }
+  redirect("/admin/purchase-orders")
 }
 
 export async function updatePurchaseOrder(
@@ -142,11 +143,11 @@ export async function updatePurchaseOrder(
       notes: string | null
     }[]
   },
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ error: string } | undefined> {
   try {
     const currentUser = await getCurrentUser()
     if (currentUser.role === "pharmacy_assistant") {
-      return { success: false, error: "Unauthorized: insufficient permissions" }
+      return { error: "Unauthorized: insufficient permissions" }
     }
 
     const supabase = await createClient()
@@ -157,9 +158,9 @@ export async function updatePurchaseOrder(
       .eq("id", id)
       .single()
 
-    if (fetchError) return { success: false, error: fetchError.message }
+    if (fetchError) return { error: fetchError.message }
     if (existing.status !== "draft") {
-      return { success: false, error: "Only draft purchase orders can be edited" }
+      return { error: "Only draft purchase orders can be edited" }
     }
 
     const { error: poError } = await supabase
@@ -172,14 +173,14 @@ export async function updatePurchaseOrder(
       })
       .eq("id", id)
 
-    if (poError) return { success: false, error: poError.message }
+    if (poError) return { error: poError.message }
 
     const { error: deleteError } = await supabase
       .from("purchase_order_items")
       .delete()
       .eq("po_id", id)
 
-    if (deleteError) return { success: false, error: deleteError.message }
+    if (deleteError) return { error: deleteError.message }
 
     const { error: itemsError } = await supabase
       .from("purchase_order_items")
@@ -193,13 +194,13 @@ export async function updatePurchaseOrder(
         })),
       )
 
-    if (itemsError) return { success: false, error: itemsError.message }
+    if (itemsError) return { error: itemsError.message }
 
     revalidatePath("/admin/purchase-orders")
-    return { success: true }
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : "Unknown error" }
+    return { error: err instanceof Error ? err.message : "Unknown error" }
   }
+  redirect("/admin/purchase-orders")
 }
 
 export async function submitPurchaseOrder(

@@ -61,14 +61,6 @@ import {
 import type { UserRole } from "@/types/user"
 import { submitPurchaseOrder, cancelPurchaseOrder } from "@/app/admin/purchase-orders/actions"
 
-const AddPurchaseOrderModal = dynamic(
-  () => import("./AddPurchaseOrderModal"),
-  { ssr: false },
-)
-const EditPurchaseOrderModal = dynamic(
-  () => import("./EditPurchaseOrderModal"),
-  { ssr: false },
-)
 const ViewPurchaseOrderModal = dynamic(
   () => import("./ViewPurchaseOrderModal"),
   { ssr: false },
@@ -136,11 +128,6 @@ export function PurchaseOrdersTable({
 
   const [searchValue, setSearchValue] = useState(search)
 
-  const [addOpen, setAddOpen] = useState(false)
-  const [addModalKey, setAddModalKey] = useState(0)
-  const [editOpen, setEditOpen] = useState(false)
-  const [editModalKey, setEditModalKey] = useState(0)
-  const [selectedPO, setSelectedPO] = useState<PurchaseOrderWithItems | null>(null)
   const [viewOpen, setViewOpen] = useState(false)
   const [viewModalKey, setViewModalKey] = useState(0)
   const [viewTarget, setViewTarget] = useState<PurchaseOrderWithItems | null>(null)
@@ -173,10 +160,8 @@ export function PurchaseOrdersTable({
   )
 
   const openEdit = useCallback((po: PurchaseOrderWithItems) => {
-    setSelectedPO(po)
-    setEditModalKey(k => k + 1)
-    setEditOpen(true)
-  }, [])
+    router.push(`/admin/purchase-orders/${po.id}/edit`)
+  }, [router])
 
   const openView = useCallback((po: PurchaseOrderWithItems) => {
     setViewTarget(po)
@@ -407,10 +392,7 @@ export function PurchaseOrdersTable({
         {canEdit && (
           <Button
             size="sm"
-            onClick={() => {
-              setAddModalKey(k => k + 1)
-              setAddOpen(true)
-            }}
+            onClick={() => router.push("/admin/purchase-orders/new")}
           >
             <PlusIcon />
             New Purchase Order
@@ -500,19 +482,6 @@ export function PurchaseOrdersTable({
       )}
 
       {/* Modals */}
-      <AddPurchaseOrderModal
-        key={`add-${addModalKey}`}
-        open={addOpen}
-        onOpenChange={setAddOpen}
-        suppliers={suppliers}
-      />
-      <EditPurchaseOrderModal
-        key={`edit-${editModalKey}`}
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        po={selectedPO}
-        suppliers={suppliers}
-      />
       <ViewPurchaseOrderModal
         key={`view-${viewModalKey}`}
         open={viewOpen}
