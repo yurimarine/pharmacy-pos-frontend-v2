@@ -168,7 +168,7 @@ export function ProductForm({ mode, product, suggestions }: Props) {
             nativeButton={false}
           >
             <ChevronLeftIcon className="size-4" />
-            Back to Products
+            Back
           </Button>
         </div>
       </div>

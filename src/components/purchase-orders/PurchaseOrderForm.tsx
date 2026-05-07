@@ -1,36 +1,36 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useMemo } from "react"
-import Link from "next/link"
-import { ChevronLeftIcon, PlusIcon, XIcon } from "lucide-react"
+import { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
+import { ChevronLeftIcon, PlusIcon, XIcon } from "lucide-react";
 import {
   createPurchaseOrder,
   updatePurchaseOrder,
-} from "@/app/admin/purchase-orders/actions"
-import { getProducts } from "@/app/admin/products/actions"
-import type { PurchaseOrderWithItems } from "@/types/inventory"
-import type { ProductOption } from "@/components/ui/product-combobox"
-import { ProductCombobox } from "@/components/ui/product-combobox"
-import { Separator } from "@/components/ui/separator"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+} from "@/app/admin/purchase-orders/actions";
+import { getProducts } from "@/app/admin/products/actions";
+import type { PurchaseOrderWithItems } from "@/types/inventory";
+import type { ProductOption } from "@/components/ui/product-combobox";
+import { ProductCombobox } from "@/components/ui/product-combobox";
+import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 
 type POLineItem = {
-  product_id: string
-  product_name: string
-  quantity_ordered: number
-  unit_cost: number
-  notes: string
-}
+  product_id: string;
+  product_name: string;
+  quantity_ordered: number;
+  unit_cost: number;
+  notes: string;
+};
 
 const emptyItem = (): POLineItem => ({
   product_id: "",
@@ -38,24 +38,24 @@ const emptyItem = (): POLineItem => ({
   quantity_ordered: 1,
   unit_cost: 0,
   notes: "",
-})
+});
 
 type Props = {
-  mode: "create" | "edit"
-  po?: PurchaseOrderWithItems
-  suppliers: { id: string; name: string }[]
-}
+  mode: "create" | "edit";
+  po?: PurchaseOrderWithItems;
+  suppliers: { id: string; name: string }[];
+};
 
 export function PurchaseOrderForm({ mode, po, suppliers }: Props) {
-  const isEdit = mode === "edit" && !!po
+  const isEdit = mode === "edit" && !!po;
 
   const [supplierId, setSupplierId] = useState<string>(
     isEdit ? (po.supplier_id ?? "") : "",
-  )
+  );
   const [deliveryDate, setDeliveryDate] = useState<string>(
     isEdit ? (po.expected_delivery_date ?? "") : "",
-  )
-  const [notes, setNotes] = useState<string>(isEdit ? (po.notes ?? "") : "")
+  );
+  const [notes, setNotes] = useState<string>(isEdit ? (po.notes ?? "") : "");
   const [items, setItems] = useState<POLineItem[]>(
     isEdit && po.items?.length
       ? po.items.map(item => ({
@@ -66,12 +66,12 @@ export function PurchaseOrderForm({ mode, po, suppliers }: Props) {
           notes: item.notes ?? "",
         }))
       : [emptyItem()],
-  )
+  );
 
-  const [products, setProducts] = useState<ProductOption[]>([])
-  const [itemsError, setItemsError] = useState<string | null>(null)
-  const [formError, setFormError] = useState<string | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [products, setProducts] = useState<ProductOption[]>([]);
+  const [itemsError, setItemsError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     getProducts({ status: "active", pageSize: 1000 })
@@ -83,41 +83,45 @@ export function PurchaseOrderForm({ mode, po, suppliers }: Props) {
             generic_name: p.generic_name,
             base_price: p.unit_cost,
           })),
-        )
+        );
       })
-      .catch(() => {})
-  }, [])
+      .catch(() => {});
+  }, []);
 
   const updateItem = (index: number, updates: Partial<POLineItem>) => {
     setItems(prev =>
       prev.map((item, i) => (i === index ? { ...item, ...updates } : item)),
-    )
-  }
+    );
+  };
 
   const removeItem = (index: number) => {
-    setItems(prev => prev.filter((_, i) => i !== index))
-  }
+    setItems(prev => prev.filter((_, i) => i !== index));
+  };
 
   const estimatedTotal = useMemo(
-    () => items.reduce((sum, item) => sum + item.quantity_ordered * item.unit_cost, 0),
+    () =>
+      items.reduce(
+        (sum, item) => sum + item.quantity_ordered * item.unit_cost,
+        0,
+      ),
     [items],
-  )
+  );
 
   const fmt = (n: number) =>
     n.toLocaleString("en-US", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    })
+    });
 
   const handleSubmit = async () => {
-    const validItems = items.filter(i => i.product_id)
+    const validItems = items.filter(i => i.product_id);
     if (validItems.length === 0) {
-      setItemsError("Add at least one product to the order")
-      return
+      setItemsError("Add at least one product to the order");
+      return;
     }
-    setItemsError(null)
-    setFormError(null)
-    setIsSubmitting(true)
+    setItemsError(null);
+    setFormError(null);
+    setIsSubmitting(true);
 
     const payload = {
       supplier_id: supplierId || null,
@@ -129,18 +133,18 @@ export function PurchaseOrderForm({ mode, po, suppliers }: Props) {
         unit_cost: item.unit_cost,
         notes: item.notes.trim() || null,
       })),
-    }
+    };
 
     const result = isEdit
       ? await updatePurchaseOrder(po.id, payload)
-      : await createPurchaseOrder(payload)
+      : await createPurchaseOrder(payload);
 
     if (result?.error) {
-      setFormError(result.error)
-      setIsSubmitting(false)
+      setFormError(result.error);
+      setIsSubmitting(false);
     }
     // On success: server redirects
-  }
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -166,7 +170,7 @@ export function PurchaseOrderForm({ mode, po, suppliers }: Props) {
             nativeButton={false}
           >
             <ChevronLeftIcon className="size-4" />
-            Back to purchase orders
+            Back
           </Button>
         </div>
       </div>
@@ -285,8 +289,8 @@ export function PurchaseOrderForm({ mode, po, suppliers }: Props) {
                       product_id: p?.id ?? "",
                       product_name: p?.name ?? "",
                       unit_cost: p ? p.base_price : 0,
-                    })
-                    if (itemsError) setItemsError(null)
+                    });
+                    if (itemsError) setItemsError(null);
                   }}
                   placeholder="Search product..."
                 />
@@ -374,5 +378,5 @@ export function PurchaseOrderForm({ mode, po, suppliers }: Props) {
         </div>
       </div>
     </div>
-  )
+  );
 }
