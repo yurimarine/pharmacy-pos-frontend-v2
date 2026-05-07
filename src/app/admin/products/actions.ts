@@ -149,11 +149,11 @@ export async function getProductSuggestions(): Promise<ProductSuggestions> {
 
 export async function createProduct(
   data: ProductFormData,
-): Promise<{ error: string } | undefined> {
+): Promise<{ success: boolean; error?: string }> {
   try {
     const currentUser = await getCurrentUser()
     if (currentUser.role === "pharmacy_assistant") {
-      return { error: "Unauthorized: insufficient permissions" }
+      return { success: false, error: "Unauthorized: insufficient permissions" }
     }
 
     const normalized = normalizeFormData(data)
@@ -183,14 +183,14 @@ export async function createProduct(
       barcode: data.barcode || null,
     })
 
-    if (error) return { error: error.message }
+    if (error) return { success: false, error: error.message }
 
     void upsertProductSuggestions({ ...data, ...normalized })
     revalidatePath("/admin/products")
+    return { success: true }
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Unknown error" }
+    return { success: false, error: err instanceof Error ? err.message : "Unknown error" }
   }
-  redirect("/admin/products")
 }
 
 export async function updateProduct(

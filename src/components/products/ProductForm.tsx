@@ -147,33 +147,34 @@ export function ProductForm({ mode, product, suggestions }: Props) {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Back link */}
-      <div>
-        <Button
-          variant="ghost"
-          size="sm"
-          render={<Link href="/admin/products" />}
-          nativeButton={false}
-        >
-          <ChevronLeftIcon className="size-4" />
-          Back to Products
-        </Button>
-      </div>
-
-      {/* Title */}
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">
-          {mode === "create" ? "Add Product" : "Edit Product"}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {mode === "create"
-            ? "Add a new product to the catalog."
-            : `Editing ${product?.product_name ?? "product"}.`}
-        </p>
+      <div className="flex justify-between">
+        {/* Title */}
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-bold tracking-tight">
+            {mode === "create" ? "Add Product" : "Edit Product"}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {mode === "create"
+              ? "Add a new product to the catalog."
+              : `Editing ${product?.product_name ?? "product"}.`}
+          </p>
+        </div>
+        {/* Back link */}
+        <div>
+          <Button
+            variant="default"
+            size="sm"
+            render={<Link href="/admin/products" />}
+            nativeButton={false}
+          >
+            <ChevronLeftIcon className="size-4" />
+            Back to Products
+          </Button>
+        </div>
       </div>
 
       {/* Single container */}
-      <div className="bg-background border rounded-lg p-7 flex flex-col gap-0">
+      <div className="flex flex-col gap-0">
         {/* Error banner */}
         {formError && (
           <div className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive mb-6">
@@ -192,7 +193,8 @@ export function ProductForm({ mode, product, suggestions }: Props) {
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="pf-generic_name">
-                  Generic name <span className="text-destructive">*</span>
+                  Product/Generic name
+                  <span className="text-destructive">*</span>
                 </Label>
                 <CreatableCombobox
                   id="pf-generic_name"
