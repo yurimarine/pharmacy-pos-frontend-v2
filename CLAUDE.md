@@ -40,9 +40,15 @@ src/app/
     inventory/page.tsx + actions.ts      # Pharmacy inventory with pricing + stock adjustments
     products/page.tsx + actions.ts
     purchase-orders/page.tsx + actions.ts        # PO management (admin + pharmacist)
+    purchase-orders/new/page.tsx                 # Create PO (full page)
+    purchase-orders/[id]/edit/page.tsx           # Edit draft PO (full page)
     warehouse-receipts/page.tsx + actions.ts     # Receiving stock into warehouse
+    warehouse-receipts/new/page.tsx              # Create receipt (full page)
+    warehouse-receipts/[id]/edit/page.tsx        # Edit draft receipt (full page)
     warehouse/page.tsx + actions.ts              # Warehouse inventory (read-only view)
     stock-transfers/page.tsx + actions.ts        # Transfer from warehouse to pharmacy
+    stock-transfers/new/page.tsx                 # Create transfer (full page)
+    stock-transfers/[id]/edit/page.tsx           # Edit draft transfer (full page)
     inventory-logs/page.tsx + actions.ts
     transactions/page.tsx + actions.ts
     transactions/[id]/page.tsx  # Transaction detail with void support
@@ -261,12 +267,46 @@ Actions columns use conditional spread to hide entirely when no actions are avai
 
 Pharmacy selectors: admin sees a `<Select>` to switch pharmacies; pharmacists see a locked read-only label. Inventory page redirects pharmacists back to `?pharmacy=<their id>` if they manually change the URL param.
 
+### Full-page form pattern
+
+Complex multi-item forms (PurchaseOrder, WarehouseReceipt, StockTransfer) use dedicated full pages instead of modals:
+
+- `<domain>/new/page.tsx` — RSC; fetches reference data (suppliers, pharmacies, etc.), renders `<DomainForm mode="create" ... />`
+- `<domain>/[id]/edit/page.tsx` — RSC; fetches record + reference data, guards with `notFound()` if missing and `redirect('/admin/<domain>')` if not in an editable status, renders `<DomainForm mode="edit" transfer={...} ... />`
+- `<domain>/new/loading.tsx` + `<domain>/[id]/edit/loading.tsx` — matching skeleton files required for every full-page form route
+- Shared `<Domain>Form.tsx` in `src/components/<domain>/` — Client Component; accepts `mode: "create" | "edit"` and the existing record (optional) as props
+
+**Canonical form layout** — mirror `ProductForm.tsx`:
+- Outer wrapper: `flex flex-col gap-6`
+- Inner container: `flex flex-col gap-0`
+- Section label: `text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4 pb-2 border-b`
+- Between sections: `<Separator />`
+- Footer: `border-t pt-6 mt-6 flex justify-between`
+
+**Back navigation** — header uses `<Button render={<Link href="/admin/<domain>" />} nativeButton={false} variant="outline" size="sm">`. Do not use `router.back()`.
+
+**Action pattern for full-page forms** — mutations return `{ error: string } | undefined`. The `redirect()` call on success must be placed **outside** the try/catch block (Next.js redirect throws internally and is caught as an error if inside try/catch):
+
+```ts
+async function createX(data) {
+  "use server"
+  let id: string
+  try {
+    // ... DB inserts ...
+    id = inserted.id
+  } catch (e) {
+    return { error: "..." }
+  }
+  redirect(`/admin/x/${id}`) // outside try/catch
+}
+```
+
 ### Component conventions
 
 Each domain has a folder under `src/components/<domain>/` containing:
 
 - `<Domain>Table.tsx` — Client Component using `@tanstack/react-table`; receives already-paginated data as props. Inventory and Products use URL search params for filtering/pagination — TanStack handles display only (`getCoreRowModel` only, no `getFilteredRowModel` or `getPaginationRowModel`).
-- `Add<Domain>Modal.tsx`, `Edit<Domain>Modal.tsx` — Dialog/Sheet wrappers with forms. Modal pattern: `DialogContent className="flex flex-col max-h-[90vh]"`, scrollable middle `<div className="flex-1 overflow-y-auto px-1">`, sticky `DialogHeader`/`DialogFooter` with `flex-shrink-0`. When the submit button is in the footer outside the `<form>`, link them with `id="form-id"` on the form and `form="form-id"` on the button.
+- `Add<Domain>Modal.tsx`, `Edit<Domain>Modal.tsx` — Dialog/Sheet wrappers with forms. Modal pattern: `DialogContent className="flex flex-col max-h-[90vh]"`, scrollable middle `<div className="flex-1 overflow-y-auto px-1">`, sticky `DialogHeader`/`DialogFooter` with `flex-shrink-0`. When the submit button is in the footer outside the `<form>`, link them with `id="form-id"` on the form and `form="form-id"` on the button. Use modals for simple single-record forms; use the full-page form pattern for complex multi-item forms.
 - `Delete/Deactivate<Domain>Dialog.tsx` — Confirmation dialogs using `AlertDialog`.
 
 Shared utilities:
@@ -324,9 +364,10 @@ useEffect(() => {
 }, [])
 ```
 
-Examples in the codebase:
-- `AddStockTransferModal` — calls `getPharmacies()` in `useEffect`
-- `AddWarehouseReceiptModal` — calls `getPurchaseOrders()` in `useEffect`
+Example in the codebase:
+- `StockAdjustmentModal` — calls `getPharmacies()` / pharmacy inventory in `useEffect` on open
+
+Note: PurchaseOrder, WarehouseReceipt, and StockTransfer use the full-page form pattern (see above) and receive reference data from the RSC page as props — the modal data-fetching pattern does not apply to them.
 
 **Exception**: a single selected object passed down for editing (e.g. the inventory row being edited in `EditPricingModal`) is reliable to pass as a prop — it is already loaded.
 
@@ -383,3 +424,5 @@ The alias (left of `:`) becomes the key on the returned object. Without the FK h
 **Sequence numbers are DB-generated** — `po_number`, `receipt_number`, and `transfer_number` are generated by DB functions (`generate_po_number()`, `generate_wr_number()`, `generate_st_number()`). Never include them in insert payloads. Retrieve them after insert via `.select('id, po_number')` (or equivalent). The same applies to any other auto-numbered column backed by a sequence.
 
 **CreatableCombobox focus trap** — Base UI Popover sets `initialFocus={true}` by default, which steals keyboard focus when the combobox list opens inside a Dialog. This breaks the text input the user was typing into. Always set `initialFocus={false}` and `finalFocus={false}` on the `PopoverContent` surrounding the suggestion list. This is already applied in `creatable-combobox.tsx` — preserve it.
+
+**`redirect()` inside try/catch** — Next.js `redirect()` works by throwing a special error internally. If called inside a `try/catch` block, that throw is caught and the redirect silently fails. Always call `redirect()` after the try/catch block. The pattern for full-page form actions: do all DB work inside try/catch (return `{ error }` on failure), then call `redirect()` unconditionally after the block.
