@@ -206,6 +206,7 @@ export async function createProduct(
       requires_prescription: data.requires_prescription,
       unit_cost: data.unit_cost,
       status: data.status,
+      category: data.category,
       sku,
       barcode: data.barcode || null,
     });
