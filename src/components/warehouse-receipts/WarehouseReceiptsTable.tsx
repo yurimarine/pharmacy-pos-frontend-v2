@@ -64,14 +64,6 @@ import {
   cancelWarehouseReceipt,
 } from "@/app/admin/warehouse-receipts/actions"
 
-const AddWarehouseReceiptModal = dynamic(
-  () => import("./AddWarehouseReceiptModal"),
-  { ssr: false },
-)
-const EditWarehouseReceiptModal = dynamic(
-  () => import("./EditWarehouseReceiptModal"),
-  { ssr: false },
-)
 const ViewWarehouseReceiptModal = dynamic(
   () => import("./ViewWarehouseReceiptModal"),
   { ssr: false },
@@ -131,11 +123,6 @@ export function WarehouseReceiptsTable({
 
   const [searchValue, setSearchValue] = useState(search)
 
-  const [addOpen, setAddOpen] = useState(false)
-  const [addModalKey, setAddModalKey] = useState(0)
-  const [editOpen, setEditOpen] = useState(false)
-  const [editModalKey, setEditModalKey] = useState(0)
-  const [selectedReceipt, setSelectedReceipt] = useState<WarehouseReceiptWithItems | null>(null)
   const [viewOpen, setViewOpen] = useState(false)
   const [viewModalKey, setViewModalKey] = useState(0)
   const [viewTarget, setViewTarget] = useState<WarehouseReceiptWithItems | null>(null)
@@ -171,10 +158,8 @@ export function WarehouseReceiptsTable({
   )
 
   const openEdit = useCallback((r: WarehouseReceiptWithItems) => {
-    setSelectedReceipt(r)
-    setEditModalKey(k => k + 1)
-    setEditOpen(true)
-  }, [])
+    router.push(`/admin/warehouse-receipts/${r.id}/edit`)
+  }, [router])
 
   const openView = useCallback((r: WarehouseReceiptWithItems) => {
     setViewTarget(r)
@@ -408,10 +393,7 @@ export function WarehouseReceiptsTable({
         {isAdmin && (
           <Button
             size="sm"
-            onClick={() => {
-              setAddModalKey(k => k + 1)
-              setAddOpen(true)
-            }}
+            onClick={() => router.push("/admin/warehouse-receipts/new")}
           >
             <PlusIcon />
             New Receipt
@@ -501,19 +483,6 @@ export function WarehouseReceiptsTable({
       )}
 
       {/* Modals */}
-      <AddWarehouseReceiptModal
-        key={`add-${addModalKey}`}
-        open={addOpen}
-        onOpenChange={setAddOpen}
-        suppliers={suppliers}
-      />
-      <EditWarehouseReceiptModal
-        key={`edit-${editModalKey}`}
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        receipt={selectedReceipt}
-        suppliers={suppliers}
-      />
       <ViewWarehouseReceiptModal
         key={`view-${viewModalKey}`}
         open={viewOpen}

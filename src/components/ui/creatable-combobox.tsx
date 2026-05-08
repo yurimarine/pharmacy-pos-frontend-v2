@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import type { SuggestionItem } from "@/types/product"
@@ -30,6 +30,10 @@ export function CreatableCombobox({
   const [isFocused, setIsFocused] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    setInputValue(value)
+  }, [value])
 
   const filtered = inputValue.trim()
     ? suggestions.filter(s =>

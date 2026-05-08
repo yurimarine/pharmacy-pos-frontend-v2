@@ -9,10 +9,10 @@ import {
 export default function Loading() {
   return (
     <div className="flex flex-col gap-6 p-6">
-      <PageHeaderSkeleton showButton={false} />
+      <PageHeaderSkeleton showButton={true} />
       <StatCardsSkeleton count={3} />
-      <FilterBarSkeleton filterCount={4} />
-      <TableSkeleton rows={12} columns={7} />
+      <FilterBarSkeleton filterCount={2} />
+      <TableSkeleton rows={8} columns={9} />
       <PaginationSkeleton />
     </div>
   )

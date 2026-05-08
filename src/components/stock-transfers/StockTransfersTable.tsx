@@ -10,7 +10,7 @@ import {
   type ColumnDef,
 } from "@tanstack/react-table"
 import { toast } from "sonner"
-import { EyeIcon, PencilIcon, CheckIcon, XIcon, SearchIcon } from "lucide-react"
+import { EllipsisVerticalIcon, SearchIcon } from "lucide-react"
 import { completeStockTransfer, cancelStockTransfer } from "@/app/admin/stock-transfers/actions"
 import type { StockTransferWithItems, StockTransferStatus } from "@/types/inventory"
 import { ST_STATUS_LABELS } from "@/types/inventory"
@@ -43,8 +43,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import AddStockTransferModal from "./AddStockTransferModal"
-import EditStockTransferModal from "./EditStockTransferModal"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import ViewStockTransferModal from "./ViewStockTransferModal"
 
 const STATUS_COLORS: Record<StockTransferStatus, string> = {
@@ -124,13 +130,9 @@ export default function StockTransfersTable({
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
-  const [isActing, startActing] = useTransition()
+  const [, startActing] = useTransition()
 
-  const [addOpen, setAddOpen] = useState(false)
-  const [addKey, setAddKey] = useState(0)
   const [viewTransfer, setViewTransfer] = useState<StockTransferWithItems | null>(null)
-  const [editTransfer, setEditTransfer] = useState<StockTransferWithItems | null>(null)
-  const [editKey, setEditKey] = useState(0)
   const [confirmState, setConfirmState] = useState<ConfirmState>(null)
 
   const [searchValue, setSearchValue] = useState(searchParams.get("search") ?? "")
@@ -246,58 +248,62 @@ export default function StockTransfersTable({
     {
       id: "actions",
       header: "",
+      enableHiding: false,
       cell: ({ row }) => {
         const isDraft = row.original.status === "draft"
         return (
-          <div className="flex items-center gap-1 justify-end">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() => setViewTransfer(row.original)}
-              aria-label="View"
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Open actions"
+                />
+              }
             >
-              <EyeIcon className="size-4" />
-            </Button>
-            {isDraft && (
-              <>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => {
-                    setEditTransfer(row.original)
-                    setEditKey(k => k + 1)
-                  }}
-                  aria-label="Edit"
-                >
-                  <PencilIcon className="size-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() =>
-                    setConfirmState({ action: "complete", transfer: row.original })
-                  }
-                  aria-label="Complete"
-                  className="text-green-600 hover:text-green-700"
-                  disabled={isActing}
-                >
-                  <CheckIcon className="size-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() =>
-                    setConfirmState({ action: "cancel", transfer: row.original })
-                  }
-                  aria-label="Cancel"
-                  className="text-destructive hover:text-destructive"
-                  disabled={isActing}
-                >
-                  <XIcon className="size-4" />
-                </Button>
-              </>
-            )}
-          </div>
+              <EllipsisVerticalIcon className="size-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuGroup>
+                <DropdownMenuItem onClick={() => setViewTransfer(row.original)}>
+                  View Details
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+              {isDraft && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem
+                      onClick={() =>
+                        router.push(`/admin/stock-transfers/${row.original.id}/edit`)
+                      }
+                    >
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() =>
+                        setConfirmState({ action: "complete", transfer: row.original })
+                      }
+                    >
+                      Complete Transfer
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onClick={() =>
+                        setConfirmState({ action: "cancel", transfer: row.original })
+                      }
+                    >
+                      Cancel
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         )
       },
     },
@@ -370,10 +376,7 @@ export default function StockTransfersTable({
 
         <Button
           className="ml-auto"
-          onClick={() => {
-            setAddKey(k => k + 1)
-            setAddOpen(true)
-          }}
+          onClick={() => router.push("/admin/stock-transfers/new")}
         >
           New Transfer
         </Button>
@@ -426,19 +429,6 @@ export default function StockTransfersTable({
       />
 
       {/* Modals */}
-      <AddStockTransferModal
-        key={`add-${addKey}`}
-        open={addOpen}
-        onOpenChange={setAddOpen}
-      />
-
-      <EditStockTransferModal
-        key={`edit-${editKey}`}
-        open={editTransfer !== null}
-        onOpenChange={open => !open && setEditTransfer(null)}
-        transfer={editTransfer}
-      />
-
       <ViewStockTransferModal
         open={viewTransfer !== null}
         onOpenChange={open => !open && setViewTransfer(null)}

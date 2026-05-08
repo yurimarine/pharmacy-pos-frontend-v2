@@ -1,18 +1,18 @@
-"use client"
+"use client";
 
-import { useState, useMemo, useTransition, useCallback } from "react"
-import { useRouter, usePathname, useSearchParams } from "next/navigation"
-import { useDebouncedCallback } from "use-debounce"
+import { useState, useMemo, useTransition, useCallback } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useDebouncedCallback } from "use-debounce";
 import {
   flexRender,
   getCoreRowModel,
   useReactTable,
   type ColumnDef,
-} from "@tanstack/react-table"
-import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
+} from "@tanstack/react-table";
+import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -20,84 +20,90 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/table";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import type { WarehouseInventoryWithProduct } from "@/types/inventory"
-import type { UserRole } from "@/types/user"
-import { getStockStatus, stockStatusConfig } from "@/lib/inventory-utils"
+} from "@/components/ui/select";
+import type { WarehouseInventoryWithProduct } from "@/types/inventory";
+import type { UserRole } from "@/types/user";
+import { getStockStatus, stockStatusConfig } from "@/lib/inventory-utils";
 
 function formatDate(dateStr: string | null): string {
-  if (!dateStr) return "No expiry"
+  if (!dateStr) return "No expiry";
   return new Date(dateStr).toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
-  })
+  });
 }
 
 function formatCurrency(value: number): string {
   return `₱${value.toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  })}`
+  })}`;
 }
 
 function ExpiryCell({ expiryDate }: { expiryDate: string | null }) {
   if (!expiryDate) {
-    return <span className="text-sm text-muted-foreground">No expiry</span>
+    return <span className="text-sm text-muted-foreground">No expiry</span>;
   }
 
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const expiry = new Date(expiryDate)
-  expiry.setHours(0, 0, 0, 0)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const expiry = new Date(expiryDate);
+  expiry.setHours(0, 0, 0, 0);
 
-  const isExpired = expiry < today
+  const isExpired = expiry < today;
   const daysUntil = Math.ceil(
     (expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
-  )
-  const isNearExpiry = !isExpired && daysUntil <= 60
+  );
+  const isNearExpiry = !isExpired && daysUntil <= 60;
 
   const className = isExpired
     ? "text-sm font-medium text-destructive"
     : isNearExpiry
       ? "text-sm font-medium text-yellow-600"
-      : "text-sm"
+      : "text-sm";
 
-  return <span className={className}>{formatDate(expiryDate)}</span>
+  return <span className={className}>{formatDate(expiryDate)}</span>;
 }
 
 function getRowHighlightClass(row: WarehouseInventoryWithProduct): string {
-  if (!row.expiry_date) return ""
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const expiry = new Date(row.expiry_date)
-  expiry.setHours(0, 0, 0, 0)
+  if (!row.expiry_date) return "";
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const expiry = new Date(row.expiry_date);
+  expiry.setHours(0, 0, 0, 0);
 
-  if (expiry < today) return "bg-destructive/5"
+  if (expiry < today) return "bg-destructive/5";
   const daysUntil = Math.ceil(
     (expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
-  )
-  if (daysUntil <= 60) return "bg-yellow-50 dark:bg-yellow-950/20"
-  return ""
+  );
+  if (daysUntil <= 60) return "bg-yellow-50 dark:bg-yellow-950/20";
+  return "";
 }
 
 type Props = {
-  data: WarehouseInventoryWithProduct[]
-  count: number
-  page: number
-  pageSize: number
-  search?: string
-  has_stock?: boolean
-  expiring_within_days?: number
-  userRole: UserRole
-}
+  data: WarehouseInventoryWithProduct[];
+  count: number;
+  page: number;
+  pageSize: number;
+  search?: string;
+  has_stock?: boolean;
+  expiring_within_days?: number;
+  receipt_id?: string;
+  receipts?: {
+    id: string;
+    receipt_number: string;
+    received_at: string | null;
+  }[];
+  userRole: UserRole;
+};
 
 export function WarehouseInventoryTable({
   data,
@@ -107,43 +113,45 @@ export function WarehouseInventoryTable({
   search = "",
   has_stock,
   expiring_within_days,
+  receipt_id,
+  receipts = [],
 }: Props) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
-  const [isPending, startTransition] = useTransition()
-  const [searchValue, setSearchValue] = useState(search)
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
+  const [searchValue, setSearchValue] = useState(search);
 
   const updateParams = useCallback(
     (updates: Record<string, string | null>) => {
-      const params = new URLSearchParams(searchParams.toString())
+      const params = new URLSearchParams(searchParams.toString());
       for (const [key, value] of Object.entries(updates)) {
         if (value === null || value === "") {
-          params.delete(key)
+          params.delete(key);
         } else {
-          params.set(key, value)
+          params.set(key, value);
         }
       }
-      const isFilterChange = Object.keys(updates).some(k => k !== "page")
-      if (isFilterChange) params.set("page", "1")
+      const isFilterChange = Object.keys(updates).some(k => k !== "page");
+      if (isFilterChange) params.set("page", "1");
       startTransition(() => {
-        router.push(`${pathname}?${params.toString()}`)
-      })
+        router.push(`${pathname}?${params.toString()}`);
+      });
     },
     [searchParams, pathname, router],
-  )
+  );
 
   const handleSearch = useDebouncedCallback(
     (value: string) => updateParams({ search: value || null }),
     400,
-  )
+  );
 
   // Derive Select values for controlled display
   const stockFilterValue =
-    has_stock === true ? "true" : has_stock === false ? "false" : ""
+    has_stock === true ? "true" : has_stock === false ? "false" : "";
 
   const expiryFilterValue =
-    expiring_within_days !== undefined ? String(expiring_within_days) : ""
+    expiring_within_days !== undefined ? String(expiring_within_days) : "";
 
   const columns = useMemo<ColumnDef<WarehouseInventoryWithProduct>[]>(
     () => [
@@ -176,17 +184,13 @@ export function WarehouseInventoryTable({
         id: "lot_number",
         header: "Lot #",
         cell: ({ row }) => (
-          <span className="text-sm">
-            {row.original.lot_number ?? "—"}
-          </span>
+          <span className="text-sm">{row.original.lot_number ?? "—"}</span>
         ),
       },
       {
         id: "expiry_date",
         header: "Expiry Date",
-        cell: ({ row }) => (
-          <ExpiryCell expiryDate={row.original.expiry_date} />
-        ),
+        cell: ({ row }) => <ExpiryCell expiryDate={row.original.expiry_date} />,
       },
       {
         id: "status",
@@ -196,29 +200,39 @@ export function WarehouseInventoryTable({
             row.original.quantity_remaining,
             0,
             row.original.expiry_date,
-          )
-          const config = stockStatusConfig[status]
+          );
+          const config = stockStatusConfig[status];
           return (
             <Badge
-              variant={config.variant as "default" | "outline" | "secondary" | "destructive"}
+              variant={
+                config.variant as
+                  | "default"
+                  | "outline"
+                  | "secondary"
+                  | "destructive"
+              }
               className={config.className}
             >
               {config.label}
             </Badge>
-          )
+          );
         },
       },
       {
         id: "quantity_remaining",
         header: "Qty Remaining",
         cell: ({ row }) => {
-          const qty = row.original.quantity_remaining
+          const qty = row.original.quantity_remaining;
           if (qty === 0) {
             return (
-              <span className="text-sm text-muted-foreground">0 (depleted)</span>
-            )
+              <span className="text-sm text-muted-foreground">
+                0 (depleted)
+              </span>
+            );
           }
-          return <span className="text-sm tabular-nums font-medium">{qty}</span>
+          return (
+            <span className="text-sm tabular-nums font-medium">{qty}</span>
+          );
         },
       },
       {
@@ -232,10 +246,10 @@ export function WarehouseInventoryTable({
       },
       {
         id: "receipt",
-        header: "Receipt",
+        header: "Receipt #",
         cell: ({ row }) => (
-          <span className="text-xs text-muted-foreground font-mono">
-            {row.original.receipt_item_id.slice(0, 8)}…
+          <span className="text-xs font-mono font-medium">
+            {row.original.receipt_item?.receipt?.receipt_number ?? "—"}
           </span>
         ),
       },
@@ -254,17 +268,17 @@ export function WarehouseInventoryTable({
       },
     ],
     [],
-  )
+  );
 
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
-  })
+  });
 
-  const totalPages = Math.ceil(count / pageSize)
-  const fromItem = count === 0 ? 0 : (page - 1) * pageSize + 1
-  const toItem = Math.min(page * pageSize, count)
+  const totalPages = Math.ceil(count / pageSize);
+  const fromItem = count === 0 ? 0 : (page - 1) * pageSize + 1;
+  const toItem = Math.min(page * pageSize, count);
 
   return (
     <div className="flex flex-col gap-4">
@@ -274,14 +288,16 @@ export function WarehouseInventoryTable({
           placeholder="Search product, SKU, lot number…"
           value={searchValue}
           onChange={e => {
-            setSearchValue(e.target.value)
-            handleSearch(e.target.value)
+            setSearchValue(e.target.value);
+            handleSearch(e.target.value);
           }}
           className="w-64"
         />
         <Select
           value={stockFilterValue}
-          onValueChange={v => v !== null && updateParams({ has_stock: v || null })}
+          onValueChange={v =>
+            v !== null && updateParams({ has_stock: v || null })
+          }
         >
           <SelectTrigger className="w-40">
             <SelectValue>
@@ -323,6 +339,29 @@ export function WarehouseInventoryTable({
             <SelectItem value="60">Expiring in 60 days</SelectItem>
             <SelectItem value="90">Expiring in 90 days</SelectItem>
             <SelectItem value="-1">Expired</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select
+          value={receipt_id ?? ""}
+          onValueChange={v =>
+            v !== null && updateParams({ receipt_id: v || null })
+          }
+        >
+          <SelectTrigger className="w-50">
+            <SelectValue>
+              {receipt_id
+                ? (receipts.find(r => r.id === receipt_id)?.receipt_number ??
+                  "Unknown Receipt")
+                : "All Receipts"}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">All Receipts</SelectItem>
+            {(receipts ?? []).map(r => (
+              <SelectItem key={r.id} value={r.id}>
+                {r.receipt_number}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -417,5 +456,5 @@ export function WarehouseInventoryTable({
         </div>
       )}
     </div>
-  )
+  );
 }

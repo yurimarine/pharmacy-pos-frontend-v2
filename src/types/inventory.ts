@@ -161,6 +161,13 @@ export type WarehouseInventoryWithProduct = WarehouseInventory & {
     requires_prescription: boolean
     unit_cost: number
   } | null
+  receipt_item: {
+    receipt: {
+      id: string
+      receipt_number: string
+      received_at: string | null
+    }
+  } | null
 }
 
 // ── Purchase Orders ───────────────────────────────────────────────────────────

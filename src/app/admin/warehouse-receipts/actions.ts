@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
+import { redirect } from "next/navigation"
 import { getCurrentUser } from "@/lib/get-current-user"
 import type {
   WarehouseReceiptStatus,
@@ -76,21 +77,22 @@ export async function createWarehouseReceipt(data: {
   notes: string | null
   items: {
     product_id: string
+    po_item_id: string | null
     quantity_received: number
     unit_cost: number
     lot_number: string | null
     expiry_date: string | null
     notes: string | null
   }[]
-}): Promise<{ success: boolean; id?: string; error?: string }> {
+}): Promise<{ error: string } | undefined> {
   try {
     const currentUser = await getCurrentUser()
     if (currentUser.role !== "admin") {
-      return { success: false, error: "Unauthorized: Admin access required" }
+      return { error: "Unauthorized: Admin access required" }
     }
 
     if (!data.items || data.items.length === 0) {
-      return { success: false, error: "At least one item is required" }
+      return { error: "At least one item is required" }
     }
 
     const supabase = await createClient()
@@ -107,7 +109,7 @@ export async function createWarehouseReceipt(data: {
       .select("id, receipt_number")
       .single()
 
-    if (wrError) return { success: false, error: wrError.message }
+    if (wrError) return { error: wrError.message }
 
     const { error: itemsError } = await supabase
       .from("warehouse_receipt_items")
@@ -115,6 +117,7 @@ export async function createWarehouseReceipt(data: {
         data.items.map(item => ({
           receipt_id: wr.id,
           product_id: item.product_id,
+          po_item_id: item.po_item_id,
           quantity_received: item.quantity_received,
           unit_cost: item.unit_cost,
           lot_number: item.lot_number,
@@ -123,13 +126,13 @@ export async function createWarehouseReceipt(data: {
         })),
       )
 
-    if (itemsError) return { success: false, error: itemsError.message }
+    if (itemsError) return { error: itemsError.message }
 
     revalidatePath("/admin/warehouse-receipts")
-    return { success: true, id: wr.id }
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : "Unknown error" }
+    return { error: err instanceof Error ? err.message : "Unknown error" }
   }
+  redirect("/admin/warehouse-receipts")
 }
 
 export async function updateWarehouseReceipt(
@@ -140,6 +143,7 @@ export async function updateWarehouseReceipt(
     notes: string | null
     items: {
       product_id: string
+      po_item_id: string | null
       quantity_received: number
       unit_cost: number
       lot_number: string | null
@@ -147,11 +151,11 @@ export async function updateWarehouseReceipt(
       notes: string | null
     }[]
   },
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ error: string } | undefined> {
   try {
     const currentUser = await getCurrentUser()
     if (currentUser.role !== "admin") {
-      return { success: false, error: "Unauthorized: Admin access required" }
+      return { error: "Unauthorized: Admin access required" }
     }
 
     const supabase = await createClient()
@@ -162,9 +166,9 @@ export async function updateWarehouseReceipt(
       .eq("id", id)
       .single()
 
-    if (fetchError) return { success: false, error: fetchError.message }
+    if (fetchError) return { error: fetchError.message }
     if (existing.status !== "draft") {
-      return { success: false, error: "Only draft receipts can be edited" }
+      return { error: "Only draft receipts can be edited" }
     }
 
     const { error: wrError } = await supabase
@@ -177,14 +181,14 @@ export async function updateWarehouseReceipt(
       })
       .eq("id", id)
 
-    if (wrError) return { success: false, error: wrError.message }
+    if (wrError) return { error: wrError.message }
 
     const { error: deleteError } = await supabase
       .from("warehouse_receipt_items")
       .delete()
       .eq("receipt_id", id)
 
-    if (deleteError) return { success: false, error: deleteError.message }
+    if (deleteError) return { error: deleteError.message }
 
     const { error: itemsError } = await supabase
       .from("warehouse_receipt_items")
@@ -192,6 +196,7 @@ export async function updateWarehouseReceipt(
         data.items.map(item => ({
           receipt_id: id,
           product_id: item.product_id,
+          po_item_id: item.po_item_id,
           quantity_received: item.quantity_received,
           unit_cost: item.unit_cost,
           lot_number: item.lot_number,
@@ -200,13 +205,13 @@ export async function updateWarehouseReceipt(
         })),
       )
 
-    if (itemsError) return { success: false, error: itemsError.message }
+    if (itemsError) return { error: itemsError.message }
 
     revalidatePath("/admin/warehouse-receipts")
-    return { success: true }
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : "Unknown error" }
+    return { error: err instanceof Error ? err.message : "Unknown error" }
   }
+  redirect("/admin/warehouse-receipts")
 }
 
 export async function completeWarehouseReceipt(

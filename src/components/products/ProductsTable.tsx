@@ -1,6 +1,5 @@
 "use client"
 
-import dynamic from "next/dynamic"
 import { useState, useMemo, useTransition, useCallback } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { useDebouncedCallback } from "use-debounce"
@@ -63,9 +62,6 @@ import {
 import { deleteProduct, updateProductStatus } from "@/app/admin/products/actions"
 import type { UserRole } from "@/types/user"
 
-const AddProductModal = dynamic(() => import("./AddProductModal"), { ssr: false })
-const EditProductModal = dynamic(() => import("./EditProductModal"), { ssr: false })
-
 function formatCurrency(value: number): string {
   return `₱${value.toLocaleString("en-US", {
     minimumFractionDigits: 2,
@@ -107,13 +103,6 @@ export function ProductsTable({
   const [isPending, startTransition] = useTransition()
 
   const [searchValue, setSearchValue] = useState(search)
-
-  // modal state
-  const [addOpen, setAddOpen] = useState(false)
-  const [addModalKey, setAddModalKey] = useState(0)
-  const [editOpen, setEditOpen] = useState(false)
-  const [editModalKey, setEditModalKey] = useState(0)
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
 
   // discontinue dialog state
   const [discontinueOpen, setDiscontinueOpen] = useState(false)
@@ -171,10 +160,8 @@ export function ProductsTable({
   }, [])
 
   const openEdit = useCallback((product: Product) => {
-    setSelectedProduct(product)
-    setEditModalKey(k => k + 1)
-    setEditOpen(true)
-  }, [])
+    router.push(`/admin/products/${product.id}/edit`)
+  }, [router])
 
   const openDiscontinue = useCallback((product: Product) => {
     setDiscontinueTarget(product)
@@ -446,10 +433,7 @@ export function ProductsTable({
         </div>
         <Button
           size="sm"
-          onClick={() => {
-            setAddModalKey(k => k + 1)
-            setAddOpen(true)
-          }}
+          onClick={() => router.push("/admin/products/new")}
         >
           <PlusIcon />
           Add Product
@@ -539,15 +523,6 @@ export function ProductsTable({
           </div>
         </div>
       )}
-
-      {/* Modals */}
-      <AddProductModal key={`add-${addModalKey}`} open={addOpen} onOpenChange={setAddOpen} />
-      <EditProductModal
-        key={`edit-${editModalKey}`}
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        product={selectedProduct}
-      />
 
       {/* Discontinue AlertDialog */}
       <AlertDialog open={discontinueOpen} onOpenChange={setDiscontinueOpen}>

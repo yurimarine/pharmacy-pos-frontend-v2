@@ -8,12 +8,18 @@ const WAREHOUSE_INVENTORY_SELECT = `
   product:products!warehouse_inventory_product_id_fkey(
     id, product_name, generic_name, sku,
     packaging_type, unit_count, requires_prescription, unit_cost
+  ),
+  receipt_item:warehouse_receipt_items!warehouse_inventory_receipt_item_id_fkey(
+    receipt:warehouse_receipts!warehouse_receipt_items_receipt_id_fkey(
+      id, receipt_number, received_at
+    )
   )
 `
 
 export async function getWarehouseInventory(params: {
   search?: string
   product_id?: string
+  receipt_id?: string
   has_stock?: boolean
   expiring_within_days?: number
   page?: number
@@ -29,6 +35,18 @@ export async function getWarehouseInventory(params: {
     .from("warehouse_inventory")
     .select(WAREHOUSE_INVENTORY_SELECT, { count: "exact" })
     .order("expiry_date", { ascending: true, nullsFirst: false })
+
+  // Receipt filter: pre-resolve receipt_item IDs (cannot filter on joined cols)
+  if (params.receipt_id) {
+    const { data: receiptItems } = await supabase
+      .from("warehouse_receipt_items")
+      .select("id")
+      .eq("receipt_id", params.receipt_id)
+
+    const itemIds = (receiptItems ?? []).map(i => i.id)
+    if (itemIds.length === 0) return { data: [], count: 0 }
+    query = query.in("receipt_item_id", itemIds)
+  }
 
   // Search: resolve product IDs first (cannot ilike on joined cols)
   if (params.search?.trim()) {
@@ -141,6 +159,81 @@ export async function getAvailableBatchesForProduct(
 
   if (error) throw new Error(error.message)
   return (data ?? []) as unknown as WarehouseInventoryWithProduct[]
+}
+
+export async function getReceiptsWithAvailableStock(): Promise<
+  { id: string; receipt_number: string; received_at: string | null; item_count: number }[]
+> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("warehouse_inventory")
+    .select(WAREHOUSE_INVENTORY_SELECT)
+    .gt("quantity_remaining", 0)
+
+  if (error) throw new Error(error.message)
+
+  const receiptMap = new Map<string, { id: string; receipt_number: string; received_at: string | null; item_count: number }>()
+  for (const row of data ?? []) {
+    const inv = row as unknown as WarehouseInventoryWithProduct
+    const receipt = inv.receipt_item?.receipt
+    if (!receipt) continue
+    if (!receiptMap.has(receipt.id)) {
+      receiptMap.set(receipt.id, {
+        id: receipt.id,
+        receipt_number: receipt.receipt_number,
+        received_at: receipt.received_at,
+        item_count: 0,
+      })
+    }
+    receiptMap.get(receipt.id)!.item_count += 1
+  }
+
+  return Array.from(receiptMap.values()).sort(
+    (a, b) =>
+      new Date(b.received_at ?? 0).getTime() -
+      new Date(a.received_at ?? 0).getTime(),
+  )
+}
+
+export async function getWarehouseInventoryByReceipt(
+  receiptId: string,
+): Promise<WarehouseInventoryWithProduct[]> {
+  const supabase = await createClient()
+
+  const { data: receiptItems } = await supabase
+    .from("warehouse_receipt_items")
+    .select("id")
+    .eq("receipt_id", receiptId)
+
+  const itemIds = (receiptItems ?? []).map(i => i.id)
+  if (itemIds.length === 0) return []
+
+  const { data, error } = await supabase
+    .from("warehouse_inventory")
+    .select(WAREHOUSE_INVENTORY_SELECT)
+    .in("receipt_item_id", itemIds)
+    .gt("quantity_remaining", 0)
+
+  if (error) throw new Error(error.message)
+
+  const rows = (data ?? []) as unknown as WarehouseInventoryWithProduct[]
+  return rows.sort((a, b) =>
+    (a.product?.product_name ?? "").localeCompare(b.product?.product_name ?? ""),
+  )
+}
+
+export async function getCompletedReceiptsForFilter(): Promise<
+  { id: string; receipt_number: string; received_at: string | null }[]
+> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("warehouse_receipts")
+    .select("id, receipt_number, received_at")
+    .eq("status", "completed")
+    .order("received_at", { ascending: false })
+
+  if (error) throw new Error(error.message)
+  return data ?? []
 }
 
 export async function getWarehouseQuantityByProduct(
