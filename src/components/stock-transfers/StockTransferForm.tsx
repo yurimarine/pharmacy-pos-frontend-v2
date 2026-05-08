@@ -14,7 +14,10 @@ import {
   getReceiptsWithAvailableStock,
   getWarehouseInventoryByReceipt,
 } from "@/app/admin/warehouse/actions";
-import type { StockTransferWithItems, WarehouseInventoryWithProduct } from "@/types/inventory";
+import type {
+  StockTransferWithItems,
+  WarehouseInventoryWithProduct,
+} from "@/types/inventory";
 import type { ProductOption } from "@/components/ui/product-combobox";
 import { ProductCombobox } from "@/components/ui/product-combobox";
 import { Separator } from "@/components/ui/separator";
@@ -77,7 +80,9 @@ export function StockTransferForm({ mode, transfer, pharmacies }: Props) {
   const [toPharmacyId, setToPharmacyId] = useState<string>(
     isEdit ? transfer.to_pharmacy_id : "",
   );
-  const [notes, setNotes] = useState<string>(isEdit ? (transfer.notes ?? "") : "");
+  const [notes, setNotes] = useState<string>(
+    isEdit ? (transfer.notes ?? "") : "",
+  );
   const [transferMode, setTransferMode] = useState<TransferMode>("by_product");
 
   // Line items
@@ -102,9 +107,16 @@ export function StockTransferForm({ mode, transfer, pharmacies }: Props) {
 
   // By Receipt mode state
   const [availableReceipts, setAvailableReceipts] = useState<
-    { id: string; receipt_number: string; received_at: string | null; item_count: number }[]
+    {
+      id: string;
+      receipt_number: string;
+      received_at: string | null;
+      item_count: number;
+    }[]
   >([]);
-  const [selectedReceiptId, setSelectedReceiptId] = useState<string | null>(null);
+  const [selectedReceiptId, setSelectedReceiptId] = useState<string | null>(
+    null,
+  );
   const [isLoadingInitial, setIsLoadingInitial] = useState(true);
   const [isLoadingReceiptItems, setIsLoadingReceiptItems] = useState(false);
 
@@ -152,7 +164,9 @@ export function StockTransferForm({ mode, transfer, pharmacies }: Props) {
         setItems(prev =>
           prev.map(row => {
             const batches = batchMap.get(row.product_id) ?? [];
-            const matchedBatch = batches.find(b => b.id === row.warehouse_inventory_id);
+            const matchedBatch = batches.find(
+              b => b.id === row.warehouse_inventory_id,
+            );
             return {
               ...row,
               available_batches: batches,
@@ -164,7 +178,9 @@ export function StockTransferForm({ mode, transfer, pharmacies }: Props) {
         );
       })
       .catch(() => {
-        setItems(prev => prev.map(row => ({ ...row, isLoadingBatches: false })));
+        setItems(prev =>
+          prev.map(row => ({ ...row, isLoadingBatches: false })),
+        );
         toast.error("Failed to load batch data");
       });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -216,7 +232,10 @@ export function StockTransferForm({ mode, transfer, pharmacies }: Props) {
       .finally(() => setIsLoadingReceiptItems(false));
   };
 
-  const handleProductSelect = async (index: number, option: ProductOption | null) => {
+  const handleProductSelect = async (
+    index: number,
+    option: ProductOption | null,
+  ) => {
     if (!option) {
       updateRow(index, {
         product_id: "",
@@ -273,7 +292,9 @@ export function StockTransferForm({ mode, transfer, pharmacies }: Props) {
 
   const hasQuantityError = items.some(row => {
     if (!row.warehouse_inventory_id) return false;
-    const batch = row.available_batches.find(b => b.id === row.warehouse_inventory_id);
+    const batch = row.available_batches.find(
+      b => b.id === row.warehouse_inventory_id,
+    );
     return batch !== undefined && row.quantity > batch.quantity_remaining;
   });
 
@@ -288,7 +309,9 @@ export function StockTransferForm({ mode, transfer, pharmacies }: Props) {
       return;
     }
 
-    const validItems = items.filter(i => i.product_id && i.warehouse_inventory_id);
+    const validItems = items.filter(
+      i => i.product_id && i.warehouse_inventory_id,
+    );
     if (validItems.length === 0) {
       setItemsError("Add at least one item with a batch selected");
       return;
@@ -387,7 +410,7 @@ export function StockTransferForm({ mode, transfer, pharmacies }: Props) {
                         : "Select pharmacy..."}
                     </SelectValue>
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className={"w-full"}>
                     {pharmacies.map(p => (
                       <SelectItem key={p.id} value={p.id}>
                         {p.name}
@@ -414,7 +437,9 @@ export function StockTransferForm({ mode, transfer, pharmacies }: Props) {
                 <Button
                   type="button"
                   size="sm"
-                  variant={transferMode === "by_product" ? "default" : "outline"}
+                  variant={
+                    transferMode === "by_product" ? "default" : "outline"
+                  }
                   onClick={() => handleModeSwitch("by_product")}
                 >
                   By product
@@ -422,7 +447,9 @@ export function StockTransferForm({ mode, transfer, pharmacies }: Props) {
                 <Button
                   type="button"
                   size="sm"
-                  variant={transferMode === "by_receipt" ? "default" : "outline"}
+                  variant={
+                    transferMode === "by_receipt" ? "default" : "outline"
+                  }
                   onClick={() => handleModeSwitch("by_receipt")}
                 >
                   By receipt
@@ -449,12 +476,13 @@ export function StockTransferForm({ mode, transfer, pharmacies }: Props) {
                     <SelectTrigger id="st-receipt">
                       <SelectValue>
                         {selectedReceiptId
-                          ? (availableReceipts.find(r => r.id === selectedReceiptId)
-                              ?.receipt_number ?? "Unknown")
+                          ? (availableReceipts.find(
+                              r => r.id === selectedReceiptId,
+                            )?.receipt_number ?? "Unknown")
                           : "Select a receipt..."}
                       </SelectValue>
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className={"w-full"}>
                       <SelectItem value="">None</SelectItem>
                       {availableReceipts.map(r => (
                         <SelectItem key={r.id} value={r.id}>
@@ -464,7 +492,8 @@ export function StockTransferForm({ mode, transfer, pharmacies }: Props) {
                             </span>
                             <span className="text-xs text-muted-foreground">
                               {r.item_count} product(s)
-                              {r.received_at && ` · ${formatDate(r.received_at)}`}
+                              {r.received_at &&
+                                ` · ${formatDate(r.received_at)}`}
                             </span>
                           </div>
                         </SelectItem>
@@ -630,12 +659,15 @@ export function StockTransferForm({ mode, transfer, pharmacies }: Props) {
                       disabled={!row.product_id || row.isLoadingBatches}
                       onValueChange={val => {
                         if (!val) return;
-                        const batch = row.available_batches.find(b => b.id === val);
+                        const batch = row.available_batches.find(
+                          b => b.id === val,
+                        );
                         updateRow(i, {
                           warehouse_inventory_id: val,
                           expiry_date: batch?.expiry_date ?? null,
                           receipt_number:
-                            batch?.receipt_item?.receipt?.receipt_number ?? null,
+                            batch?.receipt_item?.receipt?.receipt_number ??
+                            null,
                         });
                       }}
                     >
@@ -655,7 +687,8 @@ export function StockTransferForm({ mode, transfer, pharmacies }: Props) {
                           <SelectItem key={batch.id} value={batch.id}>
                             <div className="flex flex-col">
                               <span className="text-sm font-mono">
-                                {batch.receipt_item?.receipt?.receipt_number ?? "—"}
+                                {batch.receipt_item?.receipt?.receipt_number ??
+                                  "—"}
                                 {" | "}
                                 {batch.lot_number ?? "No lot"}
                               </span>
@@ -702,7 +735,9 @@ export function StockTransferForm({ mode, transfer, pharmacies }: Props) {
                     variant="ghost"
                     size="icon-sm"
                     onClick={() => removeRow(i)}
-                    disabled={transferMode === "by_product" && items.length === 1}
+                    disabled={
+                      transferMode === "by_product" && items.length === 1
+                    }
                     aria-label="Remove item"
                   >
                     <XIcon className="size-3.5" />

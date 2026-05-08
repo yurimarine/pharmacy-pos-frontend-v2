@@ -2,7 +2,9 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ChevronLeftIcon } from "lucide-react";
+import { toast } from "sonner";
 import { createProduct, updateProduct } from "@/app/admin/products/actions";
 import {
   PRODUCT_TYPE_LABELS,
@@ -40,6 +42,7 @@ type Props = {
 
 export function ProductForm({ mode, product, suggestions }: Props) {
   const isEdit = mode === "edit" && !!product;
+  const router = useRouter();
 
   const [genericName, setGenericName] = useState(
     isEdit ? product.generic_name : "",
@@ -142,7 +145,34 @@ export function ProductForm({ mode, product, suggestions }: Props) {
     if (result?.error) {
       setFormError(result.error);
       setIsSubmitting(false);
+      return;
     }
+
+    if (isEdit) {
+      // updateProduct redirects server-side — nothing to do here
+      return;
+    }
+
+    // Create success: reset form and refresh suggestions
+    toast.success("Product created successfully.");
+    setGenericName("");
+    setBrandName("");
+    setType("generic");
+    setCategory("");
+    setManufacturer("");
+    setDosageForm("");
+    setDosageStrength("");
+    setVolume("");
+    setPackagingType("");
+    setUnitCount(1);
+    setBarcode("");
+    setUnitCost(0);
+    setRequiresPrescription(false);
+    setStatus("active");
+    setFieldErrors({});
+    setFormError(null);
+    setIsSubmitting(false);
+    router.refresh();
   };
 
   return (
