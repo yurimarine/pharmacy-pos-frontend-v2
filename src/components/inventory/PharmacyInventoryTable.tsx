@@ -423,7 +423,7 @@ export default function PharmacyInventoryTable({
                 }
               }}
             >
-              <SelectTrigger className="w-50">
+              <SelectTrigger className="w-full">
                 <SelectValue>
                   {pharmacies.find(p => p.id === pharmacy_id)?.name ??
                     "Select pharmacy"}

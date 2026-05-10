@@ -3,6 +3,7 @@ import { getPharmacyInventory, getInventoryStats } from "./actions"
 import { getPharmacies } from "@/app/admin/pharmacies/actions"
 import { getCurrentUser } from "@/lib/get-current-user"
 import PharmacyInventoryTable from "@/components/inventory/PharmacyInventoryTable"
+import InitializeInventoryButton from "@/components/inventory/InitializeInventoryButton"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { StockStatus } from "@/types/inventory"
 
@@ -89,11 +90,14 @@ export default async function InventoryPage({
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Pharmacy Inventory</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Stock levels and pricing per pharmacy
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold">Pharmacy Inventory</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Stock levels and pricing per pharmacy
+          </p>
+        </div>
+        {isAdmin && <InitializeInventoryButton pharmacyId={pharmacyId} />}
       </div>
 
       {/* Stat cards */}
