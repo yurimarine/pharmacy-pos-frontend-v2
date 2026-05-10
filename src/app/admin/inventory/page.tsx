@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation"
-import { getPharmacyInventory } from "./actions"
+import { getPharmacyInventory, getInventoryStats } from "./actions"
 import { getPharmacies } from "@/app/admin/pharmacies/actions"
 import { getCurrentUser } from "@/lib/get-current-user"
 import PharmacyInventoryTable from "@/components/inventory/PharmacyInventoryTable"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { StockStatus } from "@/types/inventory"
 
 export default async function InventoryPage({
@@ -74,14 +75,17 @@ export default async function InventoryPage({
         ? false
         : undefined
 
-  const { data, count } = await getPharmacyInventory({
-    pharmacy_id: pharmacyId,
-    search: params.search,
-    status: params.status as StockStatus | undefined,
-    requires_prescription: requiresPrescription,
-    page,
-    pageSize,
-  })
+  const [{ data, count }, stats] = await Promise.all([
+    getPharmacyInventory({
+      pharmacy_id: pharmacyId,
+      search: params.search,
+      status: params.status as StockStatus | undefined,
+      requires_prescription: requiresPrescription,
+      page,
+      pageSize,
+    }),
+    getInventoryStats(pharmacyId),
+  ])
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -90,6 +94,50 @@ export default async function InventoryPage({
         <p className="text-sm text-muted-foreground mt-1">
           Stock levels and pricing per pharmacy
         </p>
+      </div>
+
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        <Card>
+          <CardHeader className="pb-1">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total SKUs</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{stats.total}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-1">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Out of Stock</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-destructive">{stats.outOfStock}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-1">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Low Stock</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats.lowStock}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-1">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Near Expiry</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats.nearExpiry}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-1">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Expired</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-destructive">{stats.expired}</p>
+          </CardContent>
+        </Card>
       </div>
 
       <PharmacyInventoryTable

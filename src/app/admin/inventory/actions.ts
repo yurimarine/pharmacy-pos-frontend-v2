@@ -174,9 +174,41 @@ export async function getPOSInventory(
     })
 }
 
+export async function getInventoryStats(pharmacyId: string): Promise<{
+  total: number
+  outOfStock: number
+  lowStock: number
+  nearExpiry: number
+  expired: number
+}> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("pharmacy_inventory")
+    .select("quantity, low_stock_threshold, expiry_date")
+    .eq("pharmacy_id", pharmacyId)
+
+  if (error) throw new Error(error.message)
+
+  const rows = data ?? []
+  let outOfStock = 0
+  let lowStock = 0
+  let nearExpiry = 0
+  let expired = 0
+
+  for (const row of rows) {
+    const status = getStockStatus(row.quantity, row.low_stock_threshold, row.expiry_date)
+    if (status === "out_of_stock") outOfStock++
+    else if (status === "low_stock") lowStock++
+    else if (status === "near_expiry") nearExpiry++
+    else if (status === "expired") expired++
+  }
+
+  return { total: rows.length, outOfStock, lowStock, nearExpiry, expired }
+}
+
 export async function updatePharmacyInventoryPricing(
   id: string,
-  data: { selling_price: number; markup_percentage: number },
+  data: { selling_price: number; markup_percentage: number; expiry_date: string | null },
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const currentUser = await getCurrentUser()
@@ -193,6 +225,7 @@ export async function updatePharmacyInventoryPricing(
       .update({
         selling_price: data.selling_price,
         markup_percentage: data.markup_percentage,
+        expiry_date: data.expiry_date,
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)

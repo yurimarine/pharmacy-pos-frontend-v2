@@ -301,6 +301,8 @@ async function createX(data) {
 }
 ```
 
+**Exception — ProductForm "stay on page" behavior**: `createProduct` does NOT call `redirect()`. After a successful create the action returns `undefined`, `ProductForm.handleSubmit` detects success (no `result?.error`), resets all form state back to empty, shows a success toast, and calls `router.refresh()` to re-fetch suggestions so newly created values (generic names, categories, etc.) appear immediately in the creatable comboboxes. Edit still redirects server-side via `updateProduct`.
+
 ### Component conventions
 
 Each domain has a folder under `src/components/<domain>/` containing:
@@ -349,6 +351,7 @@ Several product fields (dosage form, dosage strength, packaging type, etc.) use 
 
 - Values are stored as plain UPPERCASE text strings on the `products` row — no FK to a lookup table.
 - On save, each non-empty creatable field is upserted via `upsertProductSuggestions()` (fire-and-forget) so it appears in future dropdowns.
+- **Each suggestion table must have a `UNIQUE` constraint on `name`** — `upsertSuggestion` uses `.upsert({ name: value }, { onConflict: 'name' })`. Without the constraint, Postgres rejects the `ON CONFLICT` clause with an error that is silently swallowed, and the new value is never saved. If a new suggestion table stops persisting values, verify the constraint: `ALTER TABLE <table> ADD CONSTRAINT <table>_name_key UNIQUE (name);`
 - **KNOWN ISSUE — focus trap**: Base UI Popover steals focus by default (`initialFocus` defaults to `true`). Always pass `initialFocus={false}` and `finalFocus={false}` on the `PopoverContent` that wraps the combobox list. This is already fixed inside `creatable-combobox.tsx` — do not remove those props.
 
 ### Modal data fetching pattern
