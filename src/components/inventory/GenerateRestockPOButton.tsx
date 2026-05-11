@@ -7,10 +7,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import InitializeInventoryModal from "./InitializeInventoryModal";
-import { PackagePlus } from "lucide-react";
+import GenerateRestockPOModal from "./GenerateRestockPOModal";
+import { ArchiveRestore } from "lucide-react";
 
-export default function InitializeInventoryButton({
+export default function GenerateRestockPOButton({
   pharmacyId,
 }: {
   pharmacyId: string;
@@ -29,13 +29,13 @@ export default function InitializeInventoryButton({
         <TooltipTrigger
           render={<Button variant="outline" size="icon" onClick={handleOpen} />}
         >
-          <PackagePlus />
+          <ArchiveRestore />
         </TooltipTrigger>
         <TooltipContent>
-          <p>Initialize Inventory</p>
+          <p>Generate Restock PO</p>
         </TooltipContent>
       </Tooltip>
-      <InitializeInventoryModal
+      <GenerateRestockPOModal
         key={modalKey}
         open={isOpen}
         onOpenChange={setIsOpen}

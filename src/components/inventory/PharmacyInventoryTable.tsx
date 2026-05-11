@@ -429,7 +429,7 @@ export default function PharmacyInventoryTable({
                     "Select pharmacy"}
                 </SelectValue>
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className={"w-full"}>
                 {pharmacies.map(p => (
                   <SelectItem key={p.id} value={p.id}>
                     {p.name}
