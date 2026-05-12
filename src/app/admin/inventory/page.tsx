@@ -180,7 +180,6 @@ export default async function InventoryPage({
         requires_prescription={requiresPrescription}
         pharmacies={pharmacies.map(p => ({ id: p.id, name: p.name }))}
         userRole={currentUser.role}
-        userPharmacyId={currentUser.pharmacy_id}
       />
     </div>
   );

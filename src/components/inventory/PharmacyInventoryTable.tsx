@@ -141,7 +141,6 @@ export default function PharmacyInventoryTable({
   requires_prescription,
   pharmacies,
   userRole,
-  userPharmacyId,
 }: {
   data: PharmacyInventoryWithProduct[];
   count: number;
@@ -153,7 +152,6 @@ export default function PharmacyInventoryTable({
   requires_prescription?: boolean;
   pharmacies: { id: string; name: string }[];
   userRole: UserRole;
-  userPharmacyId: string | null | undefined;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
