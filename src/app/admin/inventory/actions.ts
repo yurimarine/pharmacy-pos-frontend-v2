@@ -288,6 +288,43 @@ export async function initializePharmacyInventory(
   }
 }
 
+export async function bulkUpdatePharmacyInventory(
+  ids: string[],
+  payload: {
+    markup_percentage?: number | null
+    selling_price?: number | null
+    low_stock_threshold?: number | null
+    expiry_date?: string | null
+  },
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const currentUser = await getCurrentUser()
+    if (currentUser.role !== "admin" && currentUser.role !== "pharmacist") {
+      return { success: false, error: "Unauthorized" }
+    }
+
+    const updateData: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    }
+    if (payload.markup_percentage !== undefined) updateData.markup_percentage = payload.markup_percentage
+    if (payload.selling_price !== undefined) updateData.selling_price = payload.selling_price
+    if (payload.low_stock_threshold !== undefined) updateData.low_stock_threshold = payload.low_stock_threshold
+    if (payload.expiry_date !== undefined) updateData.expiry_date = payload.expiry_date
+
+    const supabase = await createClient()
+    const { error } = await supabase
+      .from("pharmacy_inventory")
+      .update(updateData)
+      .in("id", ids)
+
+    if (error) return { success: false, error: error.message }
+    revalidatePath("/admin/inventory")
+    return { success: true }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : "Unknown error" }
+  }
+}
+
 export async function getInventoryStats(pharmacyId: string): Promise<{
   total: number
   outOfStock: number
