@@ -174,9 +174,192 @@ export async function getPOSInventory(
     })
 }
 
+export async function getMissingProductsCount(pharmacyId: string): Promise<number> {
+  const supabase = await createClient()
+
+  const { data: existing } = await supabase
+    .from("pharmacy_inventory")
+    .select("product_id")
+    .eq("pharmacy_id", pharmacyId)
+
+  const existingIds = (existing ?? []).map((r) => r.product_id)
+
+  let query = supabase.from("products").select("id", { count: "exact", head: true })
+  if (existingIds.length > 0) {
+    query = query.not("id", "in", `(${existingIds.join(",")})`)
+  }
+
+  const { count } = await query
+  return count ?? 0
+}
+
+export async function initializePharmacyInventory(
+  pharmacyId: string,
+  defaults: {
+    quantity: number
+    low_stock_threshold: number
+    markup_percentage: number
+    expiry_date: string | null
+  },
+): Promise<{ added: number; skipped: { id: string; name: string }[] }> {
+  const currentUser = await getCurrentUser()
+  if (currentUser.role !== "admin") {
+    throw new Error("Unauthorized: Admin access required")
+  }
+
+  const supabase = await createClient()
+  const adminSupabase = createAdminClient()
+
+  // Fetch already-stocked product IDs
+  const { data: existing } = await supabase
+    .from("pharmacy_inventory")
+    .select("product_id")
+    .eq("pharmacy_id", pharmacyId)
+
+  const existingIds = (existing ?? []).map((r) => r.product_id)
+
+  // Fetch all products not yet stocked at this pharmacy
+  let productQuery = supabase
+    .from("products")
+    .select("id, product_name, unit_cost")
+  if (existingIds.length > 0) {
+    productQuery = productQuery.not("id", "in", `(${existingIds.join(",")})`)
+  }
+
+  const { data: missingProducts, error: productsErr } = await productQuery
+  if (productsErr) throw new Error(productsErr.message)
+
+  const products = missingProducts ?? []
+
+  // Split into valid (has unit_cost > 0) and skipped
+  const valid = products.filter((p) => p.unit_cost && p.unit_cost > 0)
+  const skipped = products.filter((p) => !p.unit_cost || p.unit_cost === 0)
+
+  if (valid.length === 0) {
+    return {
+      added: 0,
+      skipped: skipped.map((p) => ({ id: p.id, name: p.product_name })),
+    }
+  }
+
+  // Bulk insert pharmacy_inventory rows
+  const rows = valid.map((p) => ({
+    product_id: p.id,
+    pharmacy_id: pharmacyId,
+    quantity: defaults.quantity,
+    selling_price: p.unit_cost! * (1 + defaults.markup_percentage / 100),
+    markup_percentage: defaults.markup_percentage,
+    low_stock_threshold: defaults.low_stock_threshold,
+    expiry_date: defaults.expiry_date,
+  }))
+
+  const { data: inserted, error: insertErr } = await supabase
+    .from("pharmacy_inventory")
+    .insert(rows)
+    .select("id, product_id")
+
+  if (insertErr) throw new Error(insertErr.message)
+
+  // Write inventory logs for each inserted row (non-fatal if it fails)
+  if (inserted && inserted.length > 0) {
+    const logEntries = inserted.map((row) => ({
+      entity_type: "pharmacy" as const,
+      entity_id: row.id,
+      action: "adjusted" as const,
+      quantity_before: 0,
+      quantity_after: defaults.quantity,
+      quantity_change: defaults.quantity,
+      reference_type: "adjustment" as const,
+      performed_by: currentUser.id,
+    }))
+
+    const { error: logErr } = await adminSupabase
+      .from("inventory_logs")
+      .insert(logEntries)
+
+    if (logErr) console.error("inventory_logs write failed:", logErr.message)
+  }
+
+  revalidatePath("/admin/inventory")
+
+  return {
+    added: valid.length,
+    skipped: skipped.map((p) => ({ id: p.id, name: p.product_name })),
+  }
+}
+
+export async function bulkUpdatePharmacyInventory(
+  ids: string[],
+  payload: {
+    markup_percentage?: number | null
+    selling_price?: number | null
+    low_stock_threshold?: number | null
+    expiry_date?: string | null
+  },
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const currentUser = await getCurrentUser()
+    if (currentUser.role !== "admin" && currentUser.role !== "pharmacist") {
+      return { success: false, error: "Unauthorized" }
+    }
+
+    const updateData: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    }
+    if (payload.markup_percentage !== undefined) updateData.markup_percentage = payload.markup_percentage
+    if (payload.selling_price !== undefined) updateData.selling_price = payload.selling_price
+    if (payload.low_stock_threshold !== undefined) updateData.low_stock_threshold = payload.low_stock_threshold
+    if (payload.expiry_date !== undefined) updateData.expiry_date = payload.expiry_date
+
+    const supabase = await createClient()
+    const { error } = await supabase
+      .from("pharmacy_inventory")
+      .update(updateData)
+      .in("id", ids)
+
+    if (error) return { success: false, error: error.message }
+    revalidatePath("/admin/inventory")
+    return { success: true }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : "Unknown error" }
+  }
+}
+
+export async function getInventoryStats(pharmacyId: string): Promise<{
+  total: number
+  outOfStock: number
+  lowStock: number
+  nearExpiry: number
+  expired: number
+}> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("pharmacy_inventory")
+    .select("quantity, low_stock_threshold, expiry_date")
+    .eq("pharmacy_id", pharmacyId)
+
+  if (error) throw new Error(error.message)
+
+  const rows = data ?? []
+  let outOfStock = 0
+  let lowStock = 0
+  let nearExpiry = 0
+  let expired = 0
+
+  for (const row of rows) {
+    const status = getStockStatus(row.quantity, row.low_stock_threshold, row.expiry_date)
+    if (status === "out_of_stock") outOfStock++
+    else if (status === "low_stock") lowStock++
+    else if (status === "near_expiry") nearExpiry++
+    else if (status === "expired") expired++
+  }
+
+  return { total: rows.length, outOfStock, lowStock, nearExpiry, expired }
+}
+
 export async function updatePharmacyInventoryPricing(
   id: string,
-  data: { selling_price: number; markup_percentage: number },
+  data: { selling_price: number; markup_percentage: number; expiry_date: string | null },
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const currentUser = await getCurrentUser()
@@ -193,6 +376,7 @@ export async function updatePharmacyInventoryPricing(
       .update({
         selling_price: data.selling_price,
         markup_percentage: data.markup_percentage,
+        expiry_date: data.expiry_date,
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)

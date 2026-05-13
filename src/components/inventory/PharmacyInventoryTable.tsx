@@ -8,6 +8,7 @@ import {
   getCoreRowModel,
   flexRender,
   type ColumnDef,
+  type RowSelectionState,
 } from "@tanstack/react-table";
 import { SearchIcon, MoreHorizontalIcon } from "lucide-react";
 import { getStockStatus, stockStatusConfig } from "@/lib/inventory-utils";
@@ -18,6 +19,7 @@ import type {
 import type { UserRole } from "@/types/user";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -43,6 +45,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import BulkEditModal from "./BulkEditModal";
 import EditPricingModal from "./EditPricingModal";
 import EditThresholdModal from "./EditThresholdModal";
 import StockAdjustmentModal from "./StockAdjustmentModal";
@@ -138,7 +141,6 @@ export default function PharmacyInventoryTable({
   requires_prescription,
   pharmacies,
   userRole,
-  userPharmacyId,
 }: {
   data: PharmacyInventoryWithProduct[];
   count: number;
@@ -150,12 +152,15 @@ export default function PharmacyInventoryTable({
   requires_prescription?: boolean;
   pharmacies: { id: string; name: string }[];
   userRole: UserRole;
-  userPharmacyId: string | null | undefined;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const [searchValue, setSearchValue] = useState(search ?? "");
+
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [bulkEditKey, setBulkEditKey] = useState(0);
 
   const [editPricingKey, setEditPricingKey] = useState(0);
   const [editThresholdKey, setEditThresholdKey] = useState(0);
@@ -210,7 +215,32 @@ export default function PharmacyInventoryTable({
     setAdjustStockOpen(true);
   }
 
+  function openBulkEdit() {
+    setBulkEditKey(k => k + 1);
+    setBulkEditOpen(true);
+  }
+
+  const selectedIds = Object.keys(rowSelection).filter(k => rowSelection[k]);
+
   const columns: ColumnDef<PharmacyInventoryWithProduct>[] = [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={table.getIsAllPageRowsSelected()}
+          indeterminate={table.getIsSomePageRowsSelected()}
+          onCheckedChange={checked => table.toggleAllPageRowsSelected(!!checked)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={checked => row.toggleSelected(!!checked)}
+          aria-label="Select row"
+        />
+      ),
+    },
     {
       id: "product",
       header: "Product",
@@ -395,6 +425,10 @@ export default function PharmacyInventoryTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
+    getRowId: row => row.id,
+    onRowSelectionChange: setRowSelection,
+    state: { rowSelection },
+    enableRowSelection: true,
   });
 
   const currentStatusLabel = status ? STATUS_LABEL_MAP[status] : undefined;
@@ -423,13 +457,13 @@ export default function PharmacyInventoryTable({
                 }
               }}
             >
-              <SelectTrigger className="w-50">
+              <SelectTrigger className="w-full">
                 <SelectValue>
                   {pharmacies.find(p => p.id === pharmacy_id)?.name ??
                     "Select pharmacy"}
                 </SelectValue>
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className={"w-full"}>
                 {pharmacies.map(p => (
                   <SelectItem key={p.id} value={p.id}>
                     {p.name}
@@ -508,6 +542,26 @@ export default function PharmacyInventoryTable({
         </div>
       </div>
 
+      {/* Selection toolbar */}
+      {selectedIds.length > 0 && (
+        <div className="flex items-center gap-3 px-3 py-2 rounded-md border bg-muted/40">
+          <span className="text-sm font-medium">
+            {selectedIds.length} item{selectedIds.length !== 1 ? "s" : ""}{" "}
+            selected
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setRowSelection({})}
+          >
+            Clear
+          </Button>
+          <Button size="sm" onClick={openBulkEdit}>
+            Bulk Edit
+          </Button>
+        </div>
+      )}
+
       {/* Table */}
       <div
         className={`rounded-md border transition-opacity ${isPending ? "opacity-60 pointer-events-none" : ""}`}
@@ -571,6 +625,13 @@ export default function PharmacyInventoryTable({
       />
 
       {/* Modals */}
+      <BulkEditModal
+        key={`be-${bulkEditKey}`}
+        open={bulkEditOpen}
+        onOpenChange={setBulkEditOpen}
+        selectedIds={selectedIds}
+        onSuccess={() => setRowSelection({})}
+      />
       <EditPricingModal
         key={`ep-${editPricingKey}`}
         open={editPricingOpen}

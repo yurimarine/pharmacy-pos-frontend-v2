@@ -37,7 +37,7 @@ src/app/
   admin/
     layout.tsx                  # Admin shell: SidebarProvider + AppSidebar + SiteHeader
     dashboard/page.tsx
-    inventory/page.tsx + actions.ts      # Pharmacy inventory with pricing + stock adjustments
+    inventory/page.tsx + actions.ts      # Pharmacy inventory: stat cards, pricing, bulk edit, initialize, generate restock PO
     products/page.tsx + actions.ts
     purchase-orders/page.tsx + actions.ts        # PO management (admin + pharmacist)
     purchase-orders/new/page.tsx                 # Create PO (full page)
@@ -172,6 +172,22 @@ validate grouped totals → deduct `warehouse_inventory` → write logs (action:
 **`createStockAdjustment` flow** (inventory/actions.ts):
 fetch current qty → guard negative → update `pharmacy_inventory` → insert `stock_adjustments` row → write log (action: `adjusted`)
 
+**`initializePharmacyInventory` flow** (inventory/actions.ts):
+admin-only → fetch existing product_ids → fetch all missing products → split into valid (unit_cost > 0) vs skipped → bulk insert `pharmacy_inventory` rows (selling_price = unit_cost × markup) → write logs via adminClient (action: `adjusted`) → return `{ added, skipped[] }`.
+
+**`generateRestockPO` flow** (purchase-orders/actions.ts):
+admin-only → fetch all pharmacy_inventory rows with product join → filter to `low_stock` + `out_of_stock` in JS (using `getStockStatus`) → insert draft PO (no `po_number` — DB generates) → bulk insert items → redirect to `/admin/purchase-orders/${id}/edit`.
+
+**`bulkUpdatePharmacyInventory` partial-update pattern** (inventory/actions.ts):
+Build the update object only from fields that are not `undefined` — `undefined` means "skip this field", `null` means "clear it", a value means "set it". This three-way distinction is critical for optional bulk fields like `expiry_date`:
+
+```ts
+const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() }
+if (payload.markup_percentage !== undefined) updateData.markup_percentage = payload.markup_percentage
+if (payload.expiry_date !== undefined) updateData.expiry_date = payload.expiry_date // null clears it
+await supabase.from('pharmacy_inventory').update(updateData).in('id', ids)
+```
+
 **`processTransaction` flow** (pos-terminal/actions.ts):
 validate stock → insert transaction + items → deduct `pharmacy_inventory` → write logs (action: `sold`)
 
@@ -252,7 +268,7 @@ Payment is handled via **`POSPaymentModal`** — a Dialog that opens when "PROCE
 
 ### Role-scoped UI pattern
 
-Pages that have per-role behavior pass `userRole` and `userPharmacyId` (from `getCurrentUser()`) as props to their Client Component tables. The convention:
+Pages that have per-role behavior pass `userRole` (from `getCurrentUser()`) as a prop to their Client Component tables. The convention:
 
 ```ts
 const canEdit = userRole === "admin" || userRole === "pharmacist";
@@ -301,11 +317,15 @@ async function createX(data) {
 }
 ```
 
+**Exception — ProductForm "stay on page" behavior**: `createProduct` does NOT call `redirect()`. After a successful create the action returns `undefined`, `ProductForm.handleSubmit` detects success (no `result?.error`), resets all form state back to empty, shows a success toast, and calls `router.refresh()` to re-fetch suggestions so newly created values (generic names, categories, etc.) appear immediately in the creatable comboboxes. Edit still redirects server-side via `updateProduct`.
+
 ### Component conventions
 
 Each domain has a folder under `src/components/<domain>/` containing:
 
 - `<Domain>Table.tsx` — Client Component using `@tanstack/react-table`; receives already-paginated data as props. Inventory and Products use URL search params for filtering/pagination — TanStack handles display only (`getCoreRowModel` only, no `getFilteredRowModel` or `getPaginationRowModel`).
+
+**TanStack row selection** — When a table needs multi-row selection for bulk operations, add: `useState<RowSelectionState>({})` for selection state; `getRowId: row => row.id`, `onRowSelectionChange: setRowSelection`, `state: { rowSelection }`, `enableRowSelection: true` to `useReactTable`; a checkbox column as the first column using `table.getIsAllPageRowsSelected()` / `table.getIsSomePageRowsSelected()` in the header and `row.getIsSelected()` in cells; `const selectedIds = Object.keys(rowSelection).filter(k => rowSelection[k])` to derive the ID list; a conditional selection toolbar visible when `selectedIds.length > 0`. Use the key-remount pattern for the bulk-action modal (`setBulkEditKey(k => k+1); setBulkEditOpen(true)`). See `PharmacyInventoryTable.tsx` for the canonical implementation.
 - `Add<Domain>Modal.tsx`, `Edit<Domain>Modal.tsx` — Dialog/Sheet wrappers with forms. Modal pattern: `DialogContent className="flex flex-col max-h-[90vh]"`, scrollable middle `<div className="flex-1 overflow-y-auto px-1">`, sticky `DialogHeader`/`DialogFooter` with `flex-shrink-0`. When the submit button is in the footer outside the `<form>`, link them with `id="form-id"` on the form and `form="form-id"` on the button. Use modals for simple single-record forms; use the full-page form pattern for complex multi-item forms.
 - `Delete/Deactivate<Domain>Dialog.tsx` — Confirmation dialogs using `AlertDialog`.
 
@@ -349,6 +369,7 @@ Several product fields (dosage form, dosage strength, packaging type, etc.) use 
 
 - Values are stored as plain UPPERCASE text strings on the `products` row — no FK to a lookup table.
 - On save, each non-empty creatable field is upserted via `upsertProductSuggestions()` (fire-and-forget) so it appears in future dropdowns.
+- **Each suggestion table must have a `UNIQUE` constraint on `name`** — `upsertSuggestion` uses `.upsert({ name: value }, { onConflict: 'name' })`. Without the constraint, Postgres rejects the `ON CONFLICT` clause with an error that is silently swallowed, and the new value is never saved. If a new suggestion table stops persisting values, verify the constraint: `ALTER TABLE <table> ADD CONSTRAINT <table>_name_key UNIQUE (name);`
 - **KNOWN ISSUE — focus trap**: Base UI Popover steals focus by default (`initialFocus` defaults to `true`). Always pass `initialFocus={false}` and `finalFocus={false}` on the `PopoverContent` that wraps the combobox list. This is already fixed inside `creatable-combobox.tsx` — do not remove those props.
 
 ### Modal data fetching pattern

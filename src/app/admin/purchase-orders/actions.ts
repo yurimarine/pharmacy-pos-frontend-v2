@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { getCurrentUser } from "@/lib/get-current-user"
+import { getStockStatus } from "@/lib/inventory-utils"
 import type {
   PurchaseOrderStatus,
   PurchaseOrderWithItems,
@@ -276,4 +277,73 @@ export async function cancelPurchaseOrder(
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Unknown error" }
   }
+}
+
+export async function generateRestockPO(
+  pharmacyId: string,
+  defaultQuantity: number,
+  supplierId?: string | null,
+): Promise<{ id: string; po_number: string; itemCount: number }> {
+  const currentUser = await getCurrentUser()
+  if (currentUser.role !== "admin") {
+    throw new Error("Unauthorized: Admin access required")
+  }
+
+  const supabase = await createClient()
+
+  // Fetch pharmacy inventory with product info
+  const { data: invRows, error: invErr } = await supabase
+    .from("pharmacy_inventory")
+    .select(
+      "quantity, low_stock_threshold, expiry_date, product:products!pharmacy_inventory_product_id_fkey(id, product_name, unit_cost)",
+    )
+    .eq("pharmacy_id", pharmacyId)
+
+  if (invErr) throw new Error(invErr.message)
+
+  // Filter to low_stock and out_of_stock items in JS
+  const qualifying = (invRows ?? []).filter((row) => {
+    const status = getStockStatus(row.quantity, row.low_stock_threshold, row.expiry_date)
+    return status === "low_stock" || status === "out_of_stock"
+  })
+
+  if (qualifying.length === 0) {
+    throw new Error("No low stock items found")
+  }
+
+  // Insert draft PO — po_number is DB-generated
+  const { data: newPO, error: poErr } = await supabase
+    .from("purchase_orders")
+    .insert({
+      supplier_id: supplierId ?? null,
+      status: "draft",
+      created_by: currentUser.id,
+    })
+    .select("id, po_number")
+    .single()
+
+  if (poErr) throw new Error(poErr.message)
+
+  // Insert PO items
+  const items = qualifying.map((row) => {
+    const product = row.product as unknown as {
+      id: string
+      product_name: string
+      unit_cost: number | null
+    }
+    return {
+      po_id: newPO.id,
+      product_id: product.id,
+      quantity_ordered: defaultQuantity,
+      unit_cost: product.unit_cost ?? 0,
+      notes: null,
+    }
+  })
+
+  const { error: itemsErr } = await supabase.from("purchase_order_items").insert(items)
+  if (itemsErr) throw new Error(itemsErr.message)
+
+  revalidatePath("/admin/purchase-orders")
+
+  return { id: newPO.id, po_number: newPO.po_number, itemCount: qualifying.length }
 }

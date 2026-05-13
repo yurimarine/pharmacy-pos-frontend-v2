@@ -41,6 +41,9 @@ export default function EditPricingModal({
   const [sellingPrice, setSellingPrice] = useState<string>(
     String(Math.round((inventory?.selling_price ?? 0) * 100) / 100),
   )
+  const [expiryDate, setExpiryDate] = useState<string>(
+    inventory?.expiry_date ?? "",
+  )
   const [isPending, startTransition] = useTransition()
 
   const handleMarkupChange = (val: string) => {
@@ -72,6 +75,7 @@ export default function EditPricingModal({
       const result = await updatePharmacyInventoryPricing(inventory.id, {
         selling_price: sp,
         markup_percentage: mp,
+        expiry_date: expiryDate.trim() || null,
       })
       if (result.success) {
         toast.success("Pricing updated.")
@@ -135,6 +139,20 @@ export default function EditPricingModal({
               value={sellingPrice}
               onChange={(e) => handleSellingPriceChange(e.target.value)}
             />
+          </div>
+
+          {/* Expiry Date */}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="ep-expiry">Expiry date</Label>
+            <Input
+              id="ep-expiry"
+              type="date"
+              value={expiryDate}
+              onChange={(e) => setExpiryDate(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Leave blank if this product has no expiry
+            </p>
           </div>
         </div>
 
