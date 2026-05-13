@@ -14,6 +14,12 @@ npm run lint     # Run ESLint
 
 No test suite is configured yet.
 
+## Model Selection
+
+- **Haiku** — use `model: "haiku"` when spawning Explore subagents for read-only searches, file lookups, or any pure codebase exploration with no writes.
+- **Sonnet** — use for all regular work: coding, planning, responding, analysis. This is the session default.
+- **Opus** — before spawning any Opus-tier subagent or escalating reasoning complexity to Opus, ask the user first: _"This looks like it may benefit from Opus. Want me to use it?"_ Do not use Opus without explicit confirmation.
+
 ## Stack
 
 - **Next.js 16.2.2** + **React 19.2.4** — App Router. This is a newer version than training data; always check `node_modules/next/dist/docs/` before writing Next.js-specific code.
@@ -56,7 +62,6 @@ src/app/
     manufacturers/page.tsx + actions.ts
     pharmacies/page.tsx + actions.ts
     suppliers/page.tsx + actions.ts
-    orders/page.tsx             # Stub (not yet implemented)
     discounts/page.tsx + actions.ts      # Admin CRUD for discount definitions (admin only)
     till-sessions/page.tsx + actions.ts  # Admin view of all sessions; force-close
     time-logs/page.tsx + actions.ts      # Attendance-focused read-only view (admin only)
@@ -255,6 +260,8 @@ The POS terminal is a separate layout (`/pos-terminal`) with its own shell — n
 
 Payment is handled via **`POSPaymentModal`** — a Dialog that opens when "PROCESS SALE" is clicked. Contains amount tendered input (autofocused on open, reset on each open), change display, and the Confirm & Process button. Receipt logic and `POSReceiptModal` are mounted inside `POSPaymentModal`, not the cart panel.
 
+**POS keyboard navigation** (`src/hooks/usePOSKeyboard.ts`) — `usePOSKeyboard` attaches a `keydown` listener at the document level. Keyboard shortcuts when no modal is open: `F2` focuses the search bar, `F8` opens the payment modal (when cart has items), `ArrowDown/Up` move product card focus (blurs search on ArrowDown, returns to search on ArrowUp past index 0), `Enter` adds the focused product, `Escape` clears product focus back to search. The hook is a no-op while `isPaymentOpen` or `isQuantityModalOpen` is true.
+
 **Shared components** between `/admin/transactions` and `/pos-terminal/transactions`:
 
 - `src/components/transactions/TransactionsTable.tsx` — accepts `basePath` prop for detail page navigation; both routes use `getTransactions` from `src/app/admin/transactions/actions.ts`
@@ -336,7 +343,9 @@ Shared utilities:
 - `src/types/transaction.ts` — `Transaction`, `TransactionItem`, `TransactionWithItems`, `TransactionWithDetails`, `TransactionItemWithDiscount`.
 - `src/types/discount.ts` — `Discount`, `DiscountType`, `DiscountScope`, `computeDiscountAmount(discount, baseAmount)`, `formatDiscountLabel(discount)`.
 - `src/types/inventory.ts` — all inventory/warehouse/transfer/PO types: `StockStatus`, `PharmacyInventory`, `PharmacyInventoryWithProduct`, `StockAdjustment`, `StockAdjustmentType`, `StockAdjustmentReason`, `ADJUSTMENT_REASON_LABELS`, `POSInventoryItem` (snake_case admin version), `POSInventoryTableItem` (camelCase POS table view), `InventoryLog`, `InventoryLogWithDetails`, `WarehouseInventory`, `WarehouseInventoryWithProduct`, `PurchaseOrder`, `PurchaseOrderItem`, `PurchaseOrderWithItems`, `PurchaseOrderStatus`, `PO_STATUS_LABELS`, `WarehouseReceipt`, `WarehouseReceiptItem`, `WarehouseReceiptWithItems`, `WarehouseReceiptStatus`, `WR_STATUS_LABELS`, `StockTransfer`, `StockTransferItem`, `StockTransferWithItems`, `StockTransferStatus`, `ST_STATUS_LABELS`.
+- `src/types/reference-data.ts` — `ProductClass`, `ProductCategory`, `PackagingUnit`, `DispensingUnit` — lookup types for product classification fields.
 - `src/components/ui/product-combobox.tsx` — `ProductCombobox` + `ProductOption` type. Searchable product selector built on `Popover` + plain `<input>`. Use wherever a product dropdown would otherwise render 50+ items. Filters by `product_name` and `generic_name`. Exports `ProductOption` (id, name, generic_name, base_price, optional current_quantity/markup/selling_price).
+- `src/components/skeletons/PageSkeleton.tsx` — reusable loading skeleton components used in every `loading.tsx` file: `PageHeaderSkeleton` (title + optional button/select), `FilterBarSkeleton` (search + N filter chips), `TableSkeleton` (rows×columns grid), `StatCardsSkeleton` (N stat cards in a grid), `PaginationSkeleton`. Every admin list-page `loading.tsx` composes these; every full-page form route (`new/loading.tsx`, `[id]/edit/loading.tsx`) also has a matching skeleton file.
 
 ### Admin layout and sidebar
 
