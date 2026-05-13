@@ -1,9 +1,6 @@
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import type { SalesSummary } from '@/app/admin/reports/actions'
-
-function formatCurrency(value: number) {
-  return `₱${value.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
+import { formatCurrency } from '@/lib/report-utils'
 
 export function SalesSummaryCards({ summary }: { summary: SalesSummary }) {
   return (

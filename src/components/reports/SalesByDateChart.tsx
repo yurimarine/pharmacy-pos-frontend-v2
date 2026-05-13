@@ -9,6 +9,7 @@ import {
   type ChartConfig,
 } from '@/components/ui/chart'
 import type { DailySales } from '@/app/admin/reports/actions'
+import { formatCurrency } from '@/lib/report-utils'
 
 const chartConfig = {
   revenue: {
@@ -16,10 +17,6 @@ const chartConfig = {
     color: 'var(--primary)',
   },
 } satisfies ChartConfig
-
-function formatCurrency(value: number) {
-  return `₱${value.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
 
 function formatDateLabel(dateStr: string) {
   // dateStr is YYYY-MM-DD

@@ -42,6 +42,7 @@ export type TransactionItem = {
   product_sku: string | null
   quantity: number
   unit_price: number
+  unit_cost: number | null
   discount_id: string | null
   discount_amount: number
   total_price: number
