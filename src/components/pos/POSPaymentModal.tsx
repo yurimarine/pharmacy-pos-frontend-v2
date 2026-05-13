@@ -32,6 +32,7 @@ export function POSPaymentModal({
 }: POSPaymentModalProps) {
   const {
     cartItems,
+    inventory,
     itemCount,
     subtotal,
     totalAmount,
@@ -42,6 +43,7 @@ export function POSPaymentModal({
     referenceId,
     referenceName,
     clearCart,
+    setInventory,
   } = usePOS();
   const [amountTendered, setAmountTendered] = useState(0);
   const [isPending, startTransition] = useTransition();
@@ -80,6 +82,13 @@ export function POSPaymentModal({
         setCompletedTransaction(result);
         setReceiptItems(itemSnapshot);
         clearCart();
+        setInventory(
+          inventory.map(item => {
+            const sold = itemSnapshot.find(c => c.inventoryId === item.inventoryId)
+            if (!sold) return item
+            return { ...item, quantity: Math.max(0, item.quantity - sold.quantity) }
+          })
+        );
         onOpenChange(false);
         setReceiptOpen(true);
         toast.success("Sale processed successfully.");

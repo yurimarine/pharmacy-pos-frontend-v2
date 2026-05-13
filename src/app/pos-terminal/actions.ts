@@ -244,7 +244,7 @@ export async function processTransaction(data: {
   for (const { cartItem, currentQuantity } of validatedItems) {
     const newQty = currentQuantity - cartItem.quantity
 
-    const { error: invError } = await supabase
+    const { error: invError } = await adminSupabase
       .from('pharmacy_inventory')
       .update({
         quantity: newQty,
