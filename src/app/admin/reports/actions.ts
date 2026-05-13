@@ -1,0 +1,149 @@
+'use server'
+
+import { createClient } from '@/lib/supabase/server'
+import { getCurrentUser } from '@/lib/get-current-user'
+
+export type SalesSummary = {
+  total_revenue: number
+  transaction_count: number
+  avg_transaction_value: number
+  total_items_sold: number
+}
+
+export type DailySales = {
+  sale_date: string
+  revenue: number
+  transaction_count: number
+}
+
+export type ProductSalesRank = {
+  product_id: string
+  product_name: string
+  category: string | null
+  quantity_sold: number
+  revenue: number
+}
+
+export type CategorySales = {
+  category: string
+  quantity_sold: number
+  revenue: number
+}
+
+export type StaffSales = {
+  staff_id: string
+  staff_name: string
+  transaction_count: number
+  revenue: number
+}
+
+type ReportFilters = {
+  pharmacyId?: string
+  dateFrom: string
+  dateTo: string
+}
+
+// Enforce pharmacy scoping: non-admin users always see only their pharmacy
+async function resolvePharmacyId(requestedPharmacyId?: string): Promise<string | undefined> {
+  const currentUser = await getCurrentUser()
+  if (currentUser.role === 'pharmacist' || currentUser.role === 'pharmacy_assistant') {
+    return currentUser.pharmacy_id ?? undefined
+  }
+  return requestedPharmacyId || undefined
+}
+
+export async function getSalesSummary(filters: ReportFilters): Promise<SalesSummary> {
+  const supabase = await createClient()
+  const pharmacyId = await resolvePharmacyId(filters.pharmacyId)
+
+  const { data, error } = await supabase.rpc('get_sales_summary', {
+    p_pharmacy_id: pharmacyId ?? null,
+    p_date_from: `${filters.dateFrom}T00:00:00`,
+    p_date_to: `${filters.dateTo}T23:59:59`,
+  })
+
+  if (error) throw new Error(error.message)
+  const row = (data as SalesSummary[])[0]
+  return {
+    total_revenue: Number(row?.total_revenue ?? 0),
+    transaction_count: Number(row?.transaction_count ?? 0),
+    avg_transaction_value: Number(row?.avg_transaction_value ?? 0),
+    total_items_sold: Number(row?.total_items_sold ?? 0),
+  }
+}
+
+export async function getSalesByDate(filters: ReportFilters): Promise<DailySales[]> {
+  const supabase = await createClient()
+  const pharmacyId = await resolvePharmacyId(filters.pharmacyId)
+
+  const { data, error } = await supabase.rpc('get_sales_by_date', {
+    p_pharmacy_id: pharmacyId ?? null,
+    p_date_from: `${filters.dateFrom}T00:00:00`,
+    p_date_to: `${filters.dateTo}T23:59:59`,
+  })
+
+  if (error) throw new Error(error.message)
+  return ((data as DailySales[]) ?? []).map(row => ({
+    sale_date: String(row.sale_date),
+    revenue: Number(row.revenue),
+    transaction_count: Number(row.transaction_count),
+  }))
+}
+
+export async function getBestSellingProducts(filters: ReportFilters): Promise<ProductSalesRank[]> {
+  const supabase = await createClient()
+  const pharmacyId = await resolvePharmacyId(filters.pharmacyId)
+
+  const { data, error } = await supabase.rpc('get_best_selling_products', {
+    p_pharmacy_id: pharmacyId ?? null,
+    p_date_from: `${filters.dateFrom}T00:00:00`,
+    p_date_to: `${filters.dateTo}T23:59:59`,
+    p_limit: 20,
+  })
+
+  if (error) throw new Error(error.message)
+  return ((data as ProductSalesRank[]) ?? []).map(row => ({
+    product_id: String(row.product_id),
+    product_name: String(row.product_name),
+    category: row.category ? String(row.category) : null,
+    quantity_sold: Number(row.quantity_sold),
+    revenue: Number(row.revenue),
+  }))
+}
+
+export async function getSalesByCategory(filters: ReportFilters): Promise<CategorySales[]> {
+  const supabase = await createClient()
+  const pharmacyId = await resolvePharmacyId(filters.pharmacyId)
+
+  const { data, error } = await supabase.rpc('get_sales_by_category', {
+    p_pharmacy_id: pharmacyId ?? null,
+    p_date_from: `${filters.dateFrom}T00:00:00`,
+    p_date_to: `${filters.dateTo}T23:59:59`,
+  })
+
+  if (error) throw new Error(error.message)
+  return ((data as CategorySales[]) ?? []).map(row => ({
+    category: String(row.category),
+    quantity_sold: Number(row.quantity_sold),
+    revenue: Number(row.revenue),
+  }))
+}
+
+export async function getSalesByStaff(filters: ReportFilters): Promise<StaffSales[]> {
+  const supabase = await createClient()
+  const pharmacyId = await resolvePharmacyId(filters.pharmacyId)
+
+  const { data, error } = await supabase.rpc('get_sales_by_staff', {
+    p_pharmacy_id: pharmacyId ?? null,
+    p_date_from: `${filters.dateFrom}T00:00:00`,
+    p_date_to: `${filters.dateTo}T23:59:59`,
+  })
+
+  if (error) throw new Error(error.message)
+  return ((data as StaffSales[]) ?? []).map(row => ({
+    staff_id: String(row.staff_id),
+    staff_name: String(row.staff_name),
+    transaction_count: Number(row.transaction_count),
+    revenue: Number(row.revenue),
+  }))
+}
