@@ -26,12 +26,12 @@ export function POSQuantityModal({
   item,
 }: POSQuantityModalProps) {
   const { addToCartWithQuantity, cartItems } = usePOS();
-  const [rawQty, setRawQty] = useState('1');
+  const [rawQty, setRawQty] = useState("1");
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
-      setRawQty('1');
+      setRawQty("1");
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [open]);
@@ -63,13 +63,13 @@ export function POSQuantityModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xs">
+      <DialogContent className="sm:max-w-md md:max-w-lg overflow-hidden">
         <DialogHeader>
           <DialogTitle className="text-base">Add to Cart</DialogTitle>
         </DialogHeader>
 
         <div className="flex flex-col gap-3">
-          <div className="rounded-lg bg-muted/40 px-4 py-3 text-sm">
+          <div className="rounded-lg bg-muted/40 px-4 py-3 text-sm overflow-hidden">
             <p className="font-medium truncate">{item.productName}</p>
             {item.productGenericName && (
               <p className="text-muted-foreground text-xs mt-0.5">
