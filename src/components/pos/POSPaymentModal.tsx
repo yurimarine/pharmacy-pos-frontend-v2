@@ -32,7 +32,6 @@ export function POSPaymentModal({
 }: POSPaymentModalProps) {
   const {
     cartItems,
-    inventory,
     itemCount,
     subtotal,
     totalAmount,
@@ -82,8 +81,8 @@ export function POSPaymentModal({
         setCompletedTransaction(result);
         setReceiptItems(itemSnapshot);
         clearCart();
-        setInventory(
-          inventory.map(item => {
+        setInventory(prev =>
+          prev.map(item => {
             const sold = itemSnapshot.find(c => c.inventoryId === item.inventoryId)
             if (!sold) return item
             return { ...item, quantity: Math.max(0, item.quantity - sold.quantity) }
