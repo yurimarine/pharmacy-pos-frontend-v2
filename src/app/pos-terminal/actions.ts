@@ -105,6 +105,7 @@ export async function processTransaction(data: {
   reference_name: string | null
 }): Promise<Transaction> {
   const supabase = await createClient()
+  const adminSupabase = createAdminClient()
 
   // 1. Get current user and verify role
   const currentUser = await getCurrentUser()
@@ -161,7 +162,7 @@ export async function processTransaction(data: {
   const validatedItems: Array<{ cartItem: CartItem; currentQuantity: number }> = []
 
   for (const cartItem of data.cartItems) {
-    const { data: inv } = await supabase
+    const { data: inv } = await adminSupabase
       .from('pharmacy_inventory')
       .select('quantity')
       .eq('id', cartItem.inventoryId)
@@ -238,13 +239,12 @@ export async function processTransaction(data: {
   }
 
   // 10. Deduct inventory — do not rollback if this fails (transaction already recorded)
-  const adminSupabase = createAdminClient()
   const logEntries: object[] = []
 
   for (const { cartItem, currentQuantity } of validatedItems) {
     const newQty = currentQuantity - cartItem.quantity
 
-    const { error: invError } = await supabase
+    const { error: invError } = await adminSupabase
       .from('pharmacy_inventory')
       .update({
         quantity: newQty,

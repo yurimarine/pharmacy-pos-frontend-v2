@@ -41,7 +41,7 @@ type POSContextType = {
 
   // Inventory
   inventory: POSInventoryItem[]
-  setInventory: (items: POSInventoryItem[]) => void
+  setInventory: (items: POSInventoryItem[] | ((prev: POSInventoryItem[]) => POSInventoryItem[])) => void
 
   // Cart
   cartItems: CartItem[]
