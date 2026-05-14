@@ -148,6 +148,101 @@ export async function getSalesByStaff(filters: ReportFilters): Promise<StaffSale
   }))
 }
 
+export type SalesReportDaily = {
+  date: string
+  transactionCount: number
+  grossSales: number
+  totalDiscounts: number
+  netSales: number
+}
+
+export type SalesReportProduct = {
+  productName: string
+  category: string | null
+  quantitySold: number
+  grossRevenue: number
+  discountAmount: number
+  netRevenue: number
+}
+
+export type SalesReport = {
+  dailyBreakdown: SalesReportDaily[]
+  productBreakdown: SalesReportProduct[]
+  totals: {
+    totalTransactions: number
+    totalGrossSales: number
+    totalDiscounts: number
+    totalNetSales: number
+    totalItemsSold: number
+  }
+  pharmacyName: string
+  startDate: string
+  endDate: string
+}
+
+export async function getSalesReport(filters: ReportFilters): Promise<SalesReport> {
+  const supabase = await createClient()
+  const pharmacyId = await resolvePharmacyId(filters.pharmacyId)
+
+  let pharmacyName = 'All Pharmacies'
+  if (pharmacyId) {
+    const { data: pharmacy } = await supabase
+      .from('pharmacies')
+      .select('name')
+      .eq('id', pharmacyId)
+      .single()
+    if (pharmacy?.name) pharmacyName = String(pharmacy.name)
+  }
+
+  const rpcParams = {
+    p_pharmacy_id: pharmacyId ?? null,
+    p_date_from: `${filters.dateFrom}T00:00:00`,
+    p_date_to: `${filters.dateTo}T23:59:59`,
+  }
+
+  const [dailyResult, productsResult] = await Promise.all([
+    supabase.rpc('get_sales_report_daily', rpcParams),
+    supabase.rpc('get_sales_report_products', rpcParams),
+  ])
+
+  if (dailyResult.error) throw new Error(dailyResult.error.message)
+  if (productsResult.error) throw new Error(productsResult.error.message)
+
+  const daily = ((dailyResult.data as Record<string, unknown>[]) ?? []).map(row => ({
+    date: String(row.sale_date),
+    transactionCount: Number(row.transaction_count),
+    grossSales: Number(row.gross_sales),
+    totalDiscounts: Number(row.total_discounts),
+    netSales: Number(row.net_sales),
+  }))
+
+  const products = ((productsResult.data as Record<string, unknown>[]) ?? []).map(row => ({
+    productName: String(row.product_name),
+    category: row.category ? String(row.category) : null,
+    quantitySold: Number(row.quantity_sold),
+    grossRevenue: Number(row.gross_revenue),
+    discountAmount: Number(row.discount_amount),
+    netRevenue: Number(row.net_revenue),
+  }))
+
+  const totals = {
+    totalTransactions: daily.reduce((s, r) => s + r.transactionCount, 0),
+    totalGrossSales: daily.reduce((s, r) => s + r.grossSales, 0),
+    totalDiscounts: daily.reduce((s, r) => s + r.totalDiscounts, 0),
+    totalNetSales: daily.reduce((s, r) => s + r.netSales, 0),
+    totalItemsSold: products.reduce((s, r) => s + r.quantitySold, 0),
+  }
+
+  return {
+    dailyBreakdown: daily,
+    productBreakdown: products,
+    totals,
+    pharmacyName,
+    startDate: filters.dateFrom,
+    endDate: filters.dateTo,
+  }
+}
+
 export type FinancialSummary = {
   grossRevenue: number
   totalDiscounts: number

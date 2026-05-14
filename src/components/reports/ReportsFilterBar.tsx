@@ -91,7 +91,7 @@ export function ReportsFilterBar({
                   : "All Pharmacies"}
               </SelectValue>
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className={"w-full"}>
               <SelectItem value="all">All Pharmacies</SelectItem>
               {pharmacies.map(p => (
                 <SelectItem key={p.id} value={p.id}>

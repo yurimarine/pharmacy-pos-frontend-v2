@@ -10,6 +10,7 @@ interface ReportsTabsProps {
 const TABS = [
   { id: 'analytics', label: 'Analytics' },
   { id: 'financial', label: 'Financial Summary' },
+  { id: 'sales', label: 'Sales Report' },
 ]
 
 export function ReportsTabs({ activeTab }: ReportsTabsProps) {
