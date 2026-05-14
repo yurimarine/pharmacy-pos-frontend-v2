@@ -11,6 +11,8 @@ const TABS = [
   { id: 'analytics', label: 'Analytics' },
   { id: 'financial', label: 'Financial Summary' },
   { id: 'sales', label: 'Sales Report' },
+  { id: 'discount', label: 'Discount Report' },
+  { id: 'till', label: 'Till Report' },
 ]
 
 export function ReportsTabs({ activeTab }: ReportsTabsProps) {

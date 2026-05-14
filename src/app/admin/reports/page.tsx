@@ -8,6 +8,8 @@ import {
   getSalesByStaff,
   getFinancialSummary,
   getSalesReport,
+  getDiscountReport,
+  getTillReport,
 } from './actions'
 import { ReportsFilterBar } from '@/components/reports/ReportsFilterBar'
 import { ReportsTabs } from '@/components/reports/ReportsTabs'
@@ -18,6 +20,8 @@ import { SalesByCategory } from '@/components/reports/SalesByCategory'
 import { SalesByStaff } from '@/components/reports/SalesByStaff'
 import { FinancialSummaryReport } from '@/components/reports/FinancialSummaryReport'
 import { SalesReportDocument } from '@/components/reports/SalesReportDocument'
+import { DiscountReportDocument } from '@/components/reports/DiscountReportDocument'
+import { TillReconciliationReport } from '@/components/reports/TillReconciliationReport'
 
 function defaultDateRange() {
   const to = new Date()
@@ -52,16 +56,27 @@ export default async function ReportsPage({
 
   const pharmacies = isAdmin ? await getPharmaciesForTransactionFilter() : []
 
-  const [summary, byDate, topProducts, byCategory, byStaff, financialSummary, salesReport] =
-    await Promise.all([
-      activeTab === 'analytics' ? getSalesSummary(filters) : Promise.resolve(null),
-      activeTab === 'analytics' ? getSalesByDate(filters) : Promise.resolve(null),
-      activeTab === 'analytics' ? getBestSellingProducts(filters) : Promise.resolve(null),
-      activeTab === 'analytics' ? getSalesByCategory(filters) : Promise.resolve(null),
-      activeTab === 'analytics' ? getSalesByStaff(filters) : Promise.resolve(null),
-      activeTab === 'financial' ? getFinancialSummary(filters) : Promise.resolve(null),
-      activeTab === 'sales' ? getSalesReport(filters) : Promise.resolve(null),
-    ])
+  const [
+    summary,
+    byDate,
+    topProducts,
+    byCategory,
+    byStaff,
+    financialSummary,
+    salesReport,
+    discountReport,
+    tillReport,
+  ] = await Promise.all([
+    activeTab === 'analytics' ? getSalesSummary(filters) : Promise.resolve(null),
+    activeTab === 'analytics' ? getSalesByDate(filters) : Promise.resolve(null),
+    activeTab === 'analytics' ? getBestSellingProducts(filters) : Promise.resolve(null),
+    activeTab === 'analytics' ? getSalesByCategory(filters) : Promise.resolve(null),
+    activeTab === 'analytics' ? getSalesByStaff(filters) : Promise.resolve(null),
+    activeTab === 'financial' ? getFinancialSummary(filters) : Promise.resolve(null),
+    activeTab === 'sales' ? getSalesReport(filters) : Promise.resolve(null),
+    activeTab === 'discount' ? getDiscountReport(filters) : Promise.resolve(null),
+    activeTab === 'till' ? getTillReport(filters) : Promise.resolve(null),
+  ])
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 pt-0 @container/main">
@@ -100,6 +115,14 @@ export default async function ReportsPage({
 
       {activeTab === 'sales' && salesReport && (
         <SalesReportDocument data={salesReport} />
+      )}
+
+      {activeTab === 'discount' && discountReport && (
+        <DiscountReportDocument data={discountReport} />
+      )}
+
+      {activeTab === 'till' && tillReport && (
+        <TillReconciliationReport data={tillReport} />
       )}
     </div>
   )

@@ -310,3 +310,174 @@ export async function getFinancialSummary(filters: ReportFilters): Promise<Finan
     endDate: filters.dateTo,
   }
 }
+
+export type DiscountReportItem = {
+  discountName: string
+  type: 'percentage' | 'fixed'
+  scope: 'per_item' | 'whole_cart'
+  value: number
+  timesUsed: number
+  totalDeducted: number
+}
+
+export type DiscountReport = {
+  cartDiscounts: DiscountReportItem[]
+  itemDiscounts: DiscountReportItem[]
+  totals: {
+    totalDiscountAmount: number
+    transactionsWithDiscount: number
+    transactionsWithoutDiscount: number
+    totalTransactions: number
+  }
+  pharmacyName: string
+  startDate: string
+  endDate: string
+}
+
+export async function getDiscountReport(filters: ReportFilters): Promise<DiscountReport> {
+  const supabase = await createClient()
+  const pharmacyId = await resolvePharmacyId(filters.pharmacyId)
+
+  let pharmacyName = 'All Pharmacies'
+  if (pharmacyId) {
+    const { data: pharmacy } = await supabase
+      .from('pharmacies')
+      .select('name')
+      .eq('id', pharmacyId)
+      .single()
+    if (pharmacy?.name) pharmacyName = String(pharmacy.name)
+  }
+
+  const rpcParams = {
+    p_pharmacy_id: pharmacyId ?? null,
+    p_date_from: `${filters.dateFrom}T00:00:00`,
+    p_date_to: `${filters.dateTo}T23:59:59`,
+  }
+
+  const [cartResult, itemsResult, summaryResult] = await Promise.all([
+    supabase.rpc('get_discount_report_cart', rpcParams),
+    supabase.rpc('get_discount_report_items', rpcParams),
+    supabase.rpc('get_discount_report_summary', rpcParams),
+  ])
+
+  if (cartResult.error) throw new Error(cartResult.error.message)
+  if (itemsResult.error) throw new Error(itemsResult.error.message)
+  if (summaryResult.error) throw new Error(summaryResult.error.message)
+
+  const mapItem = (row: Record<string, unknown>): DiscountReportItem => ({
+    discountName: String(row.discount_name),
+    type: String(row.type) as 'percentage' | 'fixed',
+    scope: String(row.scope) as 'per_item' | 'whole_cart',
+    value: Number(row.value),
+    timesUsed: Number(row.times_used),
+    totalDeducted: Number(row.total_deducted),
+  })
+
+  const cartDiscounts = ((cartResult.data as Record<string, unknown>[]) ?? []).map(mapItem)
+  const itemDiscounts = ((itemsResult.data as Record<string, unknown>[]) ?? []).map(mapItem)
+
+  const summaryRow = ((summaryResult.data as Record<string, unknown>[])[0]) ?? {}
+  const totalTransactions = Number(summaryRow.total_transactions ?? 0)
+  const transactionsWithDiscount = Number(summaryRow.transactions_with_discount ?? 0)
+  const totalDiscountAmount =
+    cartDiscounts.reduce((s, r) => s + r.totalDeducted, 0) +
+    itemDiscounts.reduce((s, r) => s + r.totalDeducted, 0)
+
+  return {
+    cartDiscounts,
+    itemDiscounts,
+    totals: {
+      totalDiscountAmount,
+      transactionsWithDiscount,
+      transactionsWithoutDiscount: totalTransactions - transactionsWithDiscount,
+      totalTransactions,
+    },
+    pharmacyName,
+    startDate: filters.dateFrom,
+    endDate: filters.dateTo,
+  }
+}
+
+export type TillReportSession = {
+  id: string
+  staffName: string
+  pharmacyName: string
+  openedAt: string
+  closedAt: string | null
+  status: 'closed' | 'force_closed'
+  openingCash: number
+  closingCash: number | null
+  expectedCash: number | null
+  discrepancy: number | null
+  transactionCount: number
+}
+
+export type TillReport = {
+  sessions: TillReportSession[]
+  totals: {
+    totalSessions: number
+    totalOpeningCash: number
+    totalExpectedCash: number
+    totalActualCash: number
+    totalDiscrepancy: number
+    sessionsWithDiscrepancy: number
+  }
+  pharmacyName: string
+  startDate: string
+  endDate: string
+}
+
+export async function getTillReport(filters: ReportFilters): Promise<TillReport> {
+  const supabase = await createClient()
+  const pharmacyId = await resolvePharmacyId(filters.pharmacyId)
+
+  let pharmacyName = 'All Pharmacies'
+  if (pharmacyId) {
+    const { data: pharmacy } = await supabase
+      .from('pharmacies')
+      .select('name')
+      .eq('id', pharmacyId)
+      .single()
+    if (pharmacy?.name) pharmacyName = String(pharmacy.name)
+  }
+
+  const { data, error } = await supabase.rpc('get_till_report', {
+    p_pharmacy_id: pharmacyId ?? null,
+    p_date_from: `${filters.dateFrom}T00:00:00`,
+    p_date_to: `${filters.dateTo}T23:59:59`,
+  })
+  if (error) throw new Error(error.message)
+
+  const sessions: TillReportSession[] = ((data as Record<string, unknown>[]) ?? []).map(row => ({
+    id: String(row.id),
+    staffName: String(row.staff_name),
+    pharmacyName: String(row.pharmacy_name),
+    openedAt: String(row.opened_at),
+    closedAt: row.closed_at != null ? String(row.closed_at) : null,
+    status: String(row.status) as 'closed' | 'force_closed',
+    openingCash: Number(row.opening_cash ?? 0),
+    closingCash: row.closing_cash != null ? Number(row.closing_cash) : null,
+    expectedCash: row.expected_cash != null ? Number(row.expected_cash) : null,
+    discrepancy: row.discrepancy != null ? Number(row.discrepancy) : null,
+    transactionCount: Number(row.transaction_count ?? 0),
+  }))
+
+  const totals = {
+    totalSessions: sessions.length,
+    totalOpeningCash: sessions.reduce((s, r) => s + r.openingCash, 0),
+    totalExpectedCash: sessions.reduce((s, r) => s + (r.expectedCash ?? 0), 0),
+    totalActualCash: sessions.reduce((s, r) => s + (r.closingCash ?? 0), 0),
+    totalDiscrepancy: sessions.reduce((s, r) => s + (r.discrepancy ?? 0), 0),
+    sessionsWithDiscrepancy: sessions.filter(
+      r => r.discrepancy != null && r.discrepancy !== 0,
+    ).length,
+  }
+
+  return {
+    sessions,
+    totals,
+    pharmacyName,
+    startDate: filters.dateFrom,
+    endDate: filters.dateTo,
+  }
+}
