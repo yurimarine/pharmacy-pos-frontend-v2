@@ -155,6 +155,27 @@
     background: white;
   }
 
+  /* Show financial summary report when printing */
+  #report-print-section,
+  #report-print-section * {
+    visibility: visible;
+  }
+
+  #report-print-section {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 2rem;
+    font-family: monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    color: black;
+    background: white;
+    border: none;
+    border-radius: 0;
+  }
+
   /* Hide dialog overlay and backdrop when printing */
   [data-radix-dialog-overlay],
   [data-radix-dialog-backdrop] {

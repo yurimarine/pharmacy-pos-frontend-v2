@@ -147,3 +147,71 @@ export async function getSalesByStaff(filters: ReportFilters): Promise<StaffSale
     revenue: Number(row.revenue),
   }))
 }
+
+export type FinancialSummary = {
+  grossRevenue: number
+  totalDiscounts: number
+  netRevenue: number
+  cogs: number
+  grossProfit: number
+  grossProfitMargin: number
+  totalTransactions: number
+  voidedTransactions: number
+  averageTransactionValue: number
+  hasCogs: boolean
+  pharmacyName: string
+  startDate: string
+  endDate: string
+}
+
+export async function getFinancialSummary(filters: ReportFilters): Promise<FinancialSummary> {
+  const supabase = await createClient()
+  const pharmacyId = await resolvePharmacyId(filters.pharmacyId)
+
+  let pharmacyName = 'All Pharmacies'
+  if (pharmacyId) {
+    const { data: pharmacy } = await supabase
+      .from('pharmacies')
+      .select('name')
+      .eq('id', pharmacyId)
+      .single()
+    if (pharmacy?.name) pharmacyName = String(pharmacy.name)
+  }
+
+  const { data, error } = await supabase.rpc('get_financial_summary', {
+    p_pharmacy_id: pharmacyId ?? null,
+    p_date_from: `${filters.dateFrom}T00:00:00`,
+    p_date_to: `${filters.dateTo}T23:59:59`,
+  })
+  if (error) throw new Error(error.message)
+
+  const row = ((data as Record<string, unknown>[])[0]) ?? {}
+  const grossRevenue           = Number(row.gross_revenue ?? 0)
+  const totalDiscounts         = Number(row.total_discounts ?? 0)
+  const cogs                   = Number(row.cogs ?? 0)
+  const netRevenue             = grossRevenue - totalDiscounts
+  const grossProfit            = netRevenue - cogs
+  const grossProfitMargin      = netRevenue > 0
+    ? Math.round((grossProfit / netRevenue) * 10000) / 100
+    : 0
+  const totalTransactions      = Number(row.total_transactions ?? 0)
+  const voidedTransactions     = Number(row.voided_transactions ?? 0)
+  const totalAmountSum         = Number(row.total_amount_sum ?? 0)
+  const averageTransactionValue = totalTransactions > 0 ? totalAmountSum / totalTransactions : 0
+
+  return {
+    grossRevenue,
+    totalDiscounts,
+    netRevenue,
+    cogs,
+    grossProfit,
+    grossProfitMargin,
+    totalTransactions,
+    voidedTransactions,
+    averageTransactionValue,
+    hasCogs: cogs > 0,
+    pharmacyName,
+    startDate: filters.dateFrom,
+    endDate: filters.dateTo,
+  }
+}

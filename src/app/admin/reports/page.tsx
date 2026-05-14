@@ -6,13 +6,16 @@ import {
   getBestSellingProducts,
   getSalesByCategory,
   getSalesByStaff,
+  getFinancialSummary,
 } from './actions'
 import { ReportsFilterBar } from '@/components/reports/ReportsFilterBar'
+import { ReportsTabs } from '@/components/reports/ReportsTabs'
 import { SalesSummaryCards } from '@/components/reports/SalesSummaryCards'
 import { SalesByDateChart } from '@/components/reports/SalesByDateChart'
 import { BestSellingProducts } from '@/components/reports/BestSellingProducts'
 import { SalesByCategory } from '@/components/reports/SalesByCategory'
 import { SalesByStaff } from '@/components/reports/SalesByStaff'
+import { FinancialSummaryReport } from '@/components/reports/FinancialSummaryReport'
 
 function defaultDateRange() {
   const to = new Date()
@@ -25,7 +28,12 @@ function defaultDateRange() {
 export default async function ReportsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ dateFrom?: string; dateTo?: string; pharmacyId?: string }>
+  searchParams: Promise<{
+    dateFrom?: string
+    dateTo?: string
+    pharmacyId?: string
+    tab?: string
+  }>
 }) {
   const params = await searchParams
   const defaults = defaultDateRange()
@@ -33,28 +41,28 @@ export default async function ReportsPage({
   const dateFrom = params.dateFrom ?? defaults.dateFrom
   const dateTo = params.dateTo ?? defaults.dateTo
   const pharmacyId = params.pharmacyId
+  const activeTab = params.tab ?? 'analytics'
 
   const currentUser = await getCurrentUser()
   const isAdmin = currentUser.role === 'admin'
 
   const filters = { dateFrom, dateTo, pharmacyId }
 
-  const [pharmacies, summary, byDate, topProducts, byCategory, byStaff] = await Promise.all([
-    isAdmin ? getPharmaciesForTransactionFilter() : Promise.resolve([]),
-    getSalesSummary(filters),
-    getSalesByDate(filters),
-    getBestSellingProducts(filters),
-    getSalesByCategory(filters),
-    getSalesByStaff(filters),
+  const pharmacies = isAdmin ? await getPharmaciesForTransactionFilter() : []
+
+  const [summary, byDate, topProducts, byCategory, byStaff, financialSummary] = await Promise.all([
+    activeTab === 'analytics' ? getSalesSummary(filters) : Promise.resolve(null),
+    activeTab === 'analytics' ? getSalesByDate(filters) : Promise.resolve(null),
+    activeTab === 'analytics' ? getBestSellingProducts(filters) : Promise.resolve(null),
+    activeTab === 'analytics' ? getSalesByCategory(filters) : Promise.resolve(null),
+    activeTab === 'analytics' ? getSalesByStaff(filters) : Promise.resolve(null),
+    activeTab === 'financial' ? getFinancialSummary(filters) : Promise.resolve(null),
   ])
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 pt-0 @container/main">
       <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-bold tracking-tight">Sales Reports</h1>
-        <p className="text-muted-foreground text-sm">
-          Completed transactions only. Revenue figures exclude voided transactions.
-        </p>
+        <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
       </div>
 
       <ReportsFilterBar
@@ -65,16 +73,26 @@ export default async function ReportsPage({
         currentDateTo={dateTo}
       />
 
-      <SalesSummaryCards summary={summary} />
+      <ReportsTabs activeTab={activeTab} />
 
-      <SalesByDateChart data={byDate} />
+      {activeTab === 'analytics' && summary && byDate && topProducts && byCategory && byStaff && (
+        <>
+          <p className="text-muted-foreground text-sm -mt-2">
+            Completed transactions only. Revenue figures exclude voided transactions.
+          </p>
+          <SalesSummaryCards summary={summary} />
+          <SalesByDateChart data={byDate} />
+          <div className="grid grid-cols-1 gap-6 @4xl/main:grid-cols-2">
+            <BestSellingProducts data={topProducts} />
+            <SalesByCategory data={byCategory} />
+          </div>
+          <SalesByStaff data={byStaff} />
+        </>
+      )}
 
-      <div className="grid grid-cols-1 gap-6 @4xl/main:grid-cols-2">
-        <BestSellingProducts data={topProducts} />
-        <SalesByCategory data={byCategory} />
-      </div>
-
-      <SalesByStaff data={byStaff} />
+      {activeTab === 'financial' && financialSummary && (
+        <FinancialSummaryReport data={financialSummary} />
+      )}
     </div>
   )
 }
