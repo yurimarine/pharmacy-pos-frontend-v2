@@ -19,6 +19,7 @@ type ReportsFilterBarProps = {
   currentPharmacyId: string | null;
   currentDateFrom: string;
   currentDateTo: string;
+  showDateRange?: boolean;
 };
 
 export function ReportsFilterBar({
@@ -27,6 +28,7 @@ export function ReportsFilterBar({
   currentPharmacyId,
   currentDateFrom,
   currentDateTo,
+  showDateRange = true,
 }: ReportsFilterBarProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -48,32 +50,36 @@ export function ReportsFilterBar({
 
   return (
     <div className="flex flex-wrap items-end gap-4">
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="dateFrom" className="text-xs text-muted-foreground">
-          From
-        </Label>
-        <input
-          id="dateFrom"
-          type="date"
-          value={currentDateFrom}
-          max={currentDateTo}
-          onChange={e => pushParams({ dateFrom: e.target.value })}
-          className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-        />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="dateTo" className="text-xs text-muted-foreground">
-          To
-        </Label>
-        <input
-          id="dateTo"
-          type="date"
-          value={currentDateTo}
-          min={currentDateFrom}
-          onChange={e => pushParams({ dateTo: e.target.value })}
-          className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-        />
-      </div>
+      {showDateRange && (
+        <>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="dateFrom" className="text-xs text-muted-foreground">
+              From
+            </Label>
+            <input
+              id="dateFrom"
+              type="date"
+              value={currentDateFrom}
+              max={currentDateTo}
+              onChange={e => pushParams({ dateFrom: e.target.value })}
+              className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="dateTo" className="text-xs text-muted-foreground">
+              To
+            </Label>
+            <input
+              id="dateTo"
+              type="date"
+              value={currentDateTo}
+              min={currentDateFrom}
+              onChange={e => pushParams({ dateTo: e.target.value })}
+              className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+        </>
+      )}
       {isAdmin && (
         <div className="flex flex-col gap-1.5">
           <Label className="text-xs text-muted-foreground">Pharmacy</Label>

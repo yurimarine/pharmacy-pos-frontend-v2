@@ -10,6 +10,8 @@ import {
   getSalesReport,
   getDiscountReport,
   getTillReport,
+  getInventoryValueReport,
+  getDeadStockReport,
 } from './actions'
 import { ReportsFilterBar } from '@/components/reports/ReportsFilterBar'
 import { ReportsTabs } from '@/components/reports/ReportsTabs'
@@ -22,6 +24,8 @@ import { FinancialSummaryReport } from '@/components/reports/FinancialSummaryRep
 import { SalesReportDocument } from '@/components/reports/SalesReportDocument'
 import { DiscountReportDocument } from '@/components/reports/DiscountReportDocument'
 import { TillReconciliationReport } from '@/components/reports/TillReconciliationReport'
+import { InventoryValueDocument } from '@/components/reports/InventoryValueDocument'
+import { DeadStockDocument } from '@/components/reports/DeadStockDocument'
 
 function defaultDateRange() {
   const to = new Date()
@@ -39,6 +43,7 @@ export default async function ReportsPage({
     dateTo?: string
     pharmacyId?: string
     tab?: string
+    lookback?: string
   }>
 }) {
   const params = await searchParams
@@ -48,6 +53,7 @@ export default async function ReportsPage({
   const dateTo = params.dateTo ?? defaults.dateTo
   const pharmacyId = params.pharmacyId
   const activeTab = params.tab ?? 'analytics'
+  const lookbackDays = Math.max(1, Number(params.lookback ?? '30'))
 
   const currentUser = await getCurrentUser()
   const isAdmin = currentUser.role === 'admin'
@@ -66,6 +72,8 @@ export default async function ReportsPage({
     salesReport,
     discountReport,
     tillReport,
+    inventoryReport,
+    deadStockReport,
   ] = await Promise.all([
     activeTab === 'analytics' ? getSalesSummary(filters) : Promise.resolve(null),
     activeTab === 'analytics' ? getSalesByDate(filters) : Promise.resolve(null),
@@ -76,6 +84,8 @@ export default async function ReportsPage({
     activeTab === 'sales' ? getSalesReport(filters) : Promise.resolve(null),
     activeTab === 'discount' ? getDiscountReport(filters) : Promise.resolve(null),
     activeTab === 'till' ? getTillReport(filters) : Promise.resolve(null),
+    activeTab === 'inventory' ? getInventoryValueReport(pharmacyId) : Promise.resolve(null),
+    activeTab === 'deadstock' ? getDeadStockReport(pharmacyId, lookbackDays) : Promise.resolve(null),
   ])
 
   return (
@@ -90,6 +100,7 @@ export default async function ReportsPage({
         currentPharmacyId={pharmacyId ?? null}
         currentDateFrom={dateFrom}
         currentDateTo={dateTo}
+        showDateRange={activeTab !== 'inventory' && activeTab !== 'deadstock'}
       />
 
       <ReportsTabs activeTab={activeTab} />
@@ -123,6 +134,14 @@ export default async function ReportsPage({
 
       {activeTab === 'till' && tillReport && (
         <TillReconciliationReport data={tillReport} />
+      )}
+
+      {activeTab === 'inventory' && inventoryReport && (
+        <InventoryValueDocument data={inventoryReport} />
+      )}
+
+      {activeTab === 'deadstock' && deadStockReport && (
+        <DeadStockDocument data={deadStockReport} />
       )}
     </div>
   )

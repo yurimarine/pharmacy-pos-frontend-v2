@@ -481,3 +481,179 @@ export async function getTillReport(filters: ReportFilters): Promise<TillReport>
     endDate: filters.dateTo,
   }
 }
+
+export type InventoryValueItem = {
+  productName: string
+  category: string | null
+  pharmacyName: string
+  quantity: number
+  unitCost: number
+  sellingPrice: number
+  stockValue: number
+  retailValue: number
+  potentialProfit: number
+}
+
+export type InventoryValueReport = {
+  items: InventoryValueItem[]
+  totals: {
+    totalQuantity: number
+    totalStockValue: number
+    totalRetailValue: number
+    totalPotentialProfit: number
+  }
+  byPharmacy: {
+    pharmacyName: string
+    totalStockValue: number
+    totalRetailValue: number
+    totalPotentialProfit: number
+  }[]
+  showByPharmacy: boolean
+  generatedAt: string
+  pharmacyName: string
+}
+
+export async function getInventoryValueReport(pharmacyId?: string): Promise<InventoryValueReport> {
+  const supabase = await createClient()
+  const resolvedPharmacyId = await resolvePharmacyId(pharmacyId)
+
+  let pharmacyName = 'All Pharmacies'
+  if (resolvedPharmacyId) {
+    const { data: pharmacy } = await supabase
+      .from('pharmacies')
+      .select('name')
+      .eq('id', resolvedPharmacyId)
+      .single()
+    if (pharmacy?.name) pharmacyName = String(pharmacy.name)
+  }
+
+  const { data, error } = await supabase.rpc('get_inventory_value_report', {
+    p_pharmacy_id: resolvedPharmacyId ?? null,
+  })
+  if (error) throw new Error(error.message)
+
+  const items: InventoryValueItem[] = ((data as Record<string, unknown>[]) ?? []).map(row => {
+    const quantity = Number(row.quantity)
+    const unitCost = Number(row.unit_cost)
+    const sellingPrice = Number(row.selling_price)
+    const stockValue = quantity * unitCost
+    const retailValue = quantity * sellingPrice
+    return {
+      productName: String(row.product_name),
+      category: row.category ? String(row.category) : null,
+      pharmacyName: String(row.pharmacy_name),
+      quantity,
+      unitCost,
+      sellingPrice,
+      stockValue,
+      retailValue,
+      potentialProfit: retailValue - stockValue,
+    }
+  })
+
+  const pharmacyMap = new Map<
+    string,
+    { totalStockValue: number; totalRetailValue: number; totalPotentialProfit: number }
+  >()
+  for (const item of items) {
+    const prev = pharmacyMap.get(item.pharmacyName) ?? {
+      totalStockValue: 0,
+      totalRetailValue: 0,
+      totalPotentialProfit: 0,
+    }
+    pharmacyMap.set(item.pharmacyName, {
+      totalStockValue: prev.totalStockValue + item.stockValue,
+      totalRetailValue: prev.totalRetailValue + item.retailValue,
+      totalPotentialProfit: prev.totalPotentialProfit + item.potentialProfit,
+    })
+  }
+
+  return {
+    items,
+    totals: {
+      totalQuantity: items.reduce((s, r) => s + r.quantity, 0),
+      totalStockValue: items.reduce((s, r) => s + r.stockValue, 0),
+      totalRetailValue: items.reduce((s, r) => s + r.retailValue, 0),
+      totalPotentialProfit: items.reduce((s, r) => s + r.potentialProfit, 0),
+    },
+    byPharmacy: Array.from(pharmacyMap.entries()).map(([name, t]) => ({
+      pharmacyName: name,
+      ...t,
+    })),
+    showByPharmacy: !resolvedPharmacyId,
+    generatedAt: new Date().toISOString(),
+    pharmacyName,
+  }
+}
+
+export type DeadStockItem = {
+  productName: string
+  category: string | null
+  pharmacyName: string
+  quantity: number
+  unitCost: number
+  stockValue: number
+  lastSoldAt: string | null
+}
+
+export type DeadStockReport = {
+  items: DeadStockItem[]
+  totals: {
+    totalDeadStockItems: number
+    totalQuantity: number
+    totalStockValue: number
+  }
+  lookbackDays: number
+  generatedAt: string
+  pharmacyName: string
+}
+
+export async function getDeadStockReport(
+  pharmacyId?: string,
+  lookbackDays: number = 30,
+): Promise<DeadStockReport> {
+  const supabase = await createClient()
+  const resolvedPharmacyId = await resolvePharmacyId(pharmacyId)
+
+  let pharmacyName = 'All Pharmacies'
+  if (resolvedPharmacyId) {
+    const { data: pharmacy } = await supabase
+      .from('pharmacies')
+      .select('name')
+      .eq('id', resolvedPharmacyId)
+      .single()
+    if (pharmacy?.name) pharmacyName = String(pharmacy.name)
+  }
+
+  const { data, error } = await supabase.rpc('get_dead_stock_report', {
+    p_pharmacy_id: resolvedPharmacyId ?? null,
+    p_lookback_days: lookbackDays,
+  })
+  if (error) throw new Error(error.message)
+
+  const items: DeadStockItem[] = ((data as Record<string, unknown>[]) ?? []).map(row => {
+    const quantity = Number(row.quantity)
+    const unitCost = Number(row.unit_cost)
+    return {
+      productName: String(row.product_name),
+      category: row.category ? String(row.category) : null,
+      pharmacyName: String(row.pharmacy_name),
+      quantity,
+      unitCost,
+      stockValue: quantity * unitCost,
+      lastSoldAt: row.last_sold_at ? String(row.last_sold_at) : null,
+    }
+  })
+
+  return {
+    items,
+    totals: {
+      totalDeadStockItems: items.length,
+      totalQuantity: items.reduce((s, r) => s + r.quantity, 0),
+      totalStockValue: items.reduce((s, r) => s + r.stockValue, 0),
+    },
+    lookbackDays,
+    generatedAt: new Date().toISOString(),
+    pharmacyName,
+  }
+}
