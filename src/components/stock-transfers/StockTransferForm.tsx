@@ -23,6 +23,7 @@ import { ProductCombobox } from "@/components/ui/product-combobox";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { QuantityInput } from "@/components/ui/QuantityInput";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -545,7 +546,7 @@ export function StockTransferForm({ mode, transfer, pharmacies }: Props) {
 
           {/* Column headers */}
           {(transferMode === "by_product" || items.length > 0) && (
-            <div className="grid grid-cols-[2fr_2fr_90px_120px_36px] gap-2 px-1 mb-2">
+            <div className="grid grid-cols-[2fr_2fr_140px_120px_36px] gap-2 px-1 mb-2">
               <span className="text-xs text-muted-foreground">Product</span>
               <span className="text-xs text-muted-foreground">Batch</span>
               <span className="text-xs text-muted-foreground">Qty</span>
@@ -571,7 +572,7 @@ export function StockTransferForm({ mode, transfer, pharmacies }: Props) {
                 return (
                   <div
                     key={i}
-                    className="grid grid-cols-[2fr_2fr_90px_120px_36px] gap-2 items-start"
+                    className="grid grid-cols-[2fr_2fr_140px_120px_36px] gap-2 items-start"
                   >
                     {/* Product — read-only */}
                     <div className="h-9 rounded-md border bg-muted/50 px-3 flex items-center text-sm">
@@ -588,17 +589,11 @@ export function StockTransferForm({ mode, transfer, pharmacies }: Props) {
 
                     {/* Qty with validation */}
                     <div className="flex flex-col gap-1">
-                      <Input
-                        type="number"
+                      <QuantityInput
+                        value={row.quantity}
+                        onChange={v => updateRow(i, { quantity: Math.max(1, v) })}
                         min={1}
                         max={lockedBatch?.quantity_remaining}
-                        value={row.quantity}
-                        className={isOver ? "border-destructive" : ""}
-                        onChange={e =>
-                          updateRow(i, {
-                            quantity: Math.max(1, Number(e.target.value)),
-                          })
-                        }
                       />
                       {isOver && (
                         <p className="text-xs text-destructive">
@@ -634,7 +629,7 @@ export function StockTransferForm({ mode, transfer, pharmacies }: Props) {
               return (
                 <div
                   key={i}
-                  className="grid grid-cols-[2fr_2fr_90px_120px_36px] gap-2 items-start"
+                  className="grid grid-cols-[2fr_2fr_140px_120px_36px] gap-2 items-start"
                 >
                   {/* Product combobox */}
                   <ProductCombobox
@@ -708,17 +703,12 @@ export function StockTransferForm({ mode, transfer, pharmacies }: Props) {
 
                   {/* Qty with validation */}
                   <div className="flex flex-col gap-1">
-                    <Input
-                      type="number"
-                      min={1}
+                    <QuantityInput
                       value={row.quantity}
-                      className={isOver ? "border-destructive" : ""}
+                      onChange={v => updateRow(i, { quantity: Math.max(1, v) })}
+                      min={1}
+                      max={maxQty === Infinity ? undefined : maxQty}
                       disabled={!row.warehouse_inventory_id}
-                      onChange={e =>
-                        updateRow(i, {
-                          quantity: Math.max(1, Number(e.target.value)),
-                        })
-                      }
                     />
                     {isOver && (
                       <p className="text-xs text-destructive">Max: {maxQty}</p>
