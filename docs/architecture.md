@@ -34,6 +34,8 @@ src/app/
     discounts/page.tsx + actions.ts      # Admin CRUD for discount definitions (admin only)
     till-sessions/page.tsx + actions.ts  # Admin view of all sessions; force-close
     time-logs/page.tsx + actions.ts      # Attendance-focused read-only view (admin only)
+    reports/page.tsx + actions.ts        # Multi-tab report viewer (admin + pharmacist); tabs: analytics, financial, sales, discount, till, inventory, deadstock
+    notifications/actions.ts            # getNotificationAlerts — server action; feeds NotificationBell via admin layout
   pos-terminal/
     layout.tsx                  # POS shell: POSHeader + POSProvider (no admin sidebar)
     page.tsx                    # Client component; renders gate or POSLayout based on tillSession
@@ -258,6 +260,14 @@ Actions columns use conditional spread to hide entirely when no actions are avai
 ```
 
 Pharmacy selectors: admin sees a `<Select>` to switch pharmacies; pharmacists see a locked read-only label. Inventory page redirects pharmacists back to `?pharmacy=<their id>` if they manually change the URL param.
+
+### Notification bell
+
+`src/components/notification-bell.tsx` is a Client Component rendered inside `SiteHeader`. The admin layout RSC calls `getNotificationAlerts(pharmacyId?)` (server action at `admin/notifications/actions.ts`) and passes the result as `initialAlerts` to `SiteHeader` → `NotificationBell`.
+
+On the client, `NotificationBell` opens a Supabase Realtime channel (`pharmacy_inventory_changes`) that listens for `UPDATE` events on `pharmacy_inventory`. Each incoming row is re-evaluated via `getStockStatus()` — if it crosses a threshold (expired, near-expiry, out-of-stock, low-stock) and the `id` hasn't already been alerted (tracked via a `useRef<Set<string>>`), the alerts state is updated, the bell animation fires, and `new Audio('/notification.mp3').play()` is called. The popover lists items grouped by severity, each linking to `/admin/inventory?pharmacy=<id>&status=<status>`.
+
+Admins see alerts across all pharmacies; non-admins see only their own pharmacy.
 
 ### Admin layout and sidebar
 
