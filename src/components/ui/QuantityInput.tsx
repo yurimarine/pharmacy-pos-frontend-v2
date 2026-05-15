@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { MinusIcon, PlusIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -28,6 +28,18 @@ export function QuantityInput({
 }: QuantityInputProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [draft, setDraft] = useState<string | null>(null)
+  const wrapperRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!isOpen) return
+    const handleOutside = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleOutside)
+    return () => document.removeEventListener("mousedown", handleOutside)
+  }, [isOpen])
 
   const clamp = (v: number) => {
     const lo = Math.max(min, v)
@@ -51,12 +63,11 @@ export function QuantityInput({
   const step = (delta: number) => {
     const next = clamp(effective() + delta)
     setDraft(null)
-    setIsOpen(false)
     onChange(next)
   }
 
   return (
-    <div className={cn("relative flex items-center gap-1", className)}>
+    <div ref={wrapperRef} className={cn("relative flex items-center gap-1", className)}>
       {/* Decrement */}
       <Button
         type="button"
