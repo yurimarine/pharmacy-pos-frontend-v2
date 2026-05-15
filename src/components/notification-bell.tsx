@@ -19,48 +19,51 @@ export function NotificationBell({ initialAlerts }: { initialAlerts: Notificatio
     ])
   )
 
-  async function triggerNotification(
-    rowId: string,
-    status: "low_stock" | "out_of_stock"
-  ) {
-    const supabase = createClient()
-    const { data } = await supabase
-      .from("pharmacy_inventory")
-      .select(
-        "id, quantity, low_stock_threshold, pharmacy_id, products(product_name), pharmacies(name)"
-      )
-      .eq("id", rowId)
-      .single()
-
-    if (!data) return
-
-    const newItem: AlertItem = {
-      id: data.id,
-      productName: (data.products as unknown as { product_name: string } | null)?.product_name ?? "Unknown",
-      pharmacyName: (data.pharmacies as unknown as { name: string } | null)?.name ?? "Unknown",
-      pharmacyId: data.pharmacy_id,
-      quantity: data.quantity,
-      threshold: data.low_stock_threshold,
-    }
-
-    setAlerts((prev) => {
-      const next = { ...prev }
-      if (status === "low_stock") {
-        next.lowStock = [...prev.lowStock, newItem]
-      } else {
-        next.outOfStock = [...prev.outOfStock, newItem]
-      }
-      next.total = prev.total + 1
-      return next
-    })
-
-    setIsRinging(true)
-    setTimeout(() => setIsRinging(false), 1000)
-    new Audio("/notification.mp3").play().catch(() => {})
-  }
+  const ringTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     const supabase = createClient()
+
+    async function triggerNotification(
+      rowId: string,
+      status: "low_stock" | "out_of_stock"
+    ) {
+      const { data } = await supabase
+        .from("pharmacy_inventory")
+        .select(
+          "id, quantity, low_stock_threshold, pharmacy_id, products(product_name), pharmacies(name)"
+        )
+        .eq("id", rowId)
+        .single()
+
+      if (!data) return
+
+      const newItem: AlertItem = {
+        id: data.id,
+        productName: (data.products as unknown as { product_name: string } | null)?.product_name ?? "Unknown",
+        pharmacyName: (data.pharmacies as unknown as { name: string } | null)?.name ?? "Unknown",
+        pharmacyId: data.pharmacy_id,
+        quantity: data.quantity,
+        threshold: data.low_stock_threshold,
+      }
+
+      setAlerts((prev) => {
+        const next = { ...prev }
+        if (status === "low_stock") {
+          next.lowStock = [...prev.lowStock, newItem]
+        } else {
+          next.outOfStock = [...prev.outOfStock, newItem]
+        }
+        next.total = prev.total + 1
+        return next
+      })
+
+      if (ringTimeoutRef.current) clearTimeout(ringTimeoutRef.current)
+      setIsRinging(true)
+      ringTimeoutRef.current = setTimeout(() => setIsRinging(false), 1000)
+      new Audio("/notification.mp3").play().catch(() => {})
+    }
+
     const channel = supabase
       .channel("pharmacy_inventory_changes")
       .on(
@@ -87,6 +90,7 @@ export function NotificationBell({ initialAlerts }: { initialAlerts: Notificatio
 
     return () => {
       supabase.removeChannel(channel)
+      if (ringTimeoutRef.current) clearTimeout(ringTimeoutRef.current)
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
