@@ -11,6 +11,7 @@ interface QuantityInputProps {
   min?: number
   max?: number
   disabled?: boolean
+  id?: string
   className?: string
 }
 
@@ -22,6 +23,7 @@ export function QuantityInput({
   min = 0,
   max,
   disabled = false,
+  id,
   className,
 }: QuantityInputProps) {
   const [isOpen, setIsOpen] = useState(false)
@@ -70,6 +72,7 @@ export function QuantityInput({
 
       {/* Number input */}
       <input
+        id={id}
         type="number"
         min={min}
         max={max}

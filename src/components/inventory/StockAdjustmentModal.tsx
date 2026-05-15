@@ -127,9 +127,10 @@ export default function StockAdjustmentModal({
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="sa-qty">Quantity</Label>
             <QuantityInput
+              id="sa-qty"
               value={qty}
               onChange={(v) => setQuantity(String(v))}
-              min={0}
+              min={1}
             />
             {qty > 0 && (
               <p
