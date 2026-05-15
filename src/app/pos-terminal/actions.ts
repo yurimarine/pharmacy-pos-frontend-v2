@@ -213,7 +213,17 @@ export async function processTransaction(data: {
 
   if (txnError) throw new Error(txnError.message)
 
-  // 9. Insert transaction items
+  // 9. Fetch unit_cost snapshot from products (for sales report margin calculations)
+  const productIds = [...new Set(data.cartItems.map(i => i.productId))]
+  const { data: productCosts } = await adminSupabase
+    .from('products')
+    .select('id, unit_cost')
+    .in('id', productIds)
+  const costByProductId = new Map(
+    (productCosts ?? []).map(p => [p.id, p.unit_cost as number | null])
+  )
+
+  // 10. Insert transaction items
   const itemsToInsert = data.cartItems.map(item => ({
     transaction_id: transaction.id,
     product_id: item.productId,
@@ -223,6 +233,7 @@ export async function processTransaction(data: {
     product_sku: item.productSku,
     quantity: item.quantity,
     unit_price: item.unitPrice,
+    unit_cost: costByProductId.get(item.productId) ?? null,
     discount_id: item.discount?.id ?? null,
     discount_amount: item.discountAmount ?? 0,
     total_price: item.totalPrice,
@@ -238,7 +249,7 @@ export async function processTransaction(data: {
     throw new Error(itemsError.message)
   }
 
-  // 10. Deduct inventory — do not rollback if this fails (transaction already recorded)
+  // 11. Deduct inventory — do not rollback if this fails (transaction already recorded)
   const logEntries: object[] = []
 
   for (const { cartItem, currentQuantity } of validatedItems) {
@@ -282,11 +293,11 @@ export async function processTransaction(data: {
     }
   }
 
-  // 11. Revalidate
+  // 12. Revalidate
   revalidatePath('/pos-terminal')
   revalidatePath('/admin/transactions')
   revalidatePath('/admin/inventory')
 
-  // 12. Return completed transaction
+  // 13. Return completed transaction
   return transaction as unknown as Transaction
 }
