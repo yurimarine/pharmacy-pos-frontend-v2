@@ -53,13 +53,6 @@ export function QuantityInput({
     onChange(next)
   }
 
-  const applyPreset = (delta: number) => {
-    const next = clamp(effective() + delta)
-    setDraft(null)
-    setIsOpen(false)
-    onChange(next)
-  }
-
   return (
     <div className={cn("relative flex items-center gap-1", className)}>
       {/* Decrement */}
@@ -68,6 +61,7 @@ export function QuantityInput({
         variant="outline"
         size="icon-sm"
         disabled={disabled}
+        aria-label="Decrease quantity"
         onMouseDown={e => e.preventDefault()}
         onClick={() => step(-1)}
       >
@@ -77,6 +71,8 @@ export function QuantityInput({
       {/* Number input */}
       <input
         type="number"
+        min={min}
+        max={max}
         className={cn(
           "w-full min-w-0 h-8 rounded-md border border-input bg-transparent px-2 py-1 text-center text-sm shadow-xs transition-[color,box-shadow] outline-none",
           "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
@@ -86,12 +82,13 @@ export function QuantityInput({
         disabled={disabled}
         onClick={() => {
           if (!disabled) {
-            setDraft(String(value))
+            if (draft === null) setDraft(String(value))
             setIsOpen(true)
           }
         }}
-        onFocus={() => {
+        onFocus={e => {
           if (draft === null) setDraft(String(value))
+          ;(e.target as HTMLInputElement).select()
         }}
         onChange={e => setDraft(e.target.value)}
         onBlur={() => {
@@ -118,6 +115,7 @@ export function QuantityInput({
         variant="outline"
         size="icon-sm"
         disabled={disabled}
+        aria-label="Increase quantity"
         onMouseDown={e => e.preventDefault()}
         onClick={() => step(1)}
       >
@@ -133,9 +131,10 @@ export function QuantityInput({
               <button
                 key={p}
                 type="button"
+                aria-label={`Add ${p}`}
                 className="h-7 min-w-[2.5rem] px-2 text-xs rounded-md border border-border bg-background hover:bg-muted font-medium transition-colors"
                 onMouseDown={e => e.preventDefault()}
-                onClick={() => applyPreset(p)}
+                onClick={() => step(p)}
               >
                 +{p}
               </button>
@@ -147,9 +146,10 @@ export function QuantityInput({
               <button
                 key={p}
                 type="button"
+                aria-label={`Subtract ${p}`}
                 className="h-7 min-w-[2.5rem] px-2 text-xs rounded-md border border-destructive/30 bg-destructive/5 hover:bg-destructive/10 text-destructive font-medium transition-colors"
                 onMouseDown={e => e.preventDefault()}
-                onClick={() => applyPreset(-p)}
+                onClick={() => step(-p)}
               >
                 −{p}
               </button>
