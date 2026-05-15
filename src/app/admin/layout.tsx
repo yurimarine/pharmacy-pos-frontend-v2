@@ -3,6 +3,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { getCurrentUser } from "@/lib/get-current-user"
+import { getNotificationAlerts } from "@/app/admin/notifications/actions"
 
 export default async function AdminLayout({
   children,
@@ -15,6 +16,9 @@ export default async function AdminLayout({
   } catch {
     redirect("/auth/login")
   }
+
+  const pharmacyId = currentUser.role === "admin" ? undefined : currentUser.pharmacy_id
+  const initialAlerts = await getNotificationAlerts(pharmacyId)
 
   const sidebarUser = {
     name: currentUser.name,
@@ -35,7 +39,7 @@ export default async function AdminLayout({
     >
       <AppSidebar variant="inset" user={sidebarUser} />
       <SidebarInset>
-        <SiteHeader />
+        <SiteHeader initialAlerts={initialAlerts} />
         <div className="flex flex-1 flex-col">
           <div className="@container/main flex flex-1 flex-col gap-2">
             <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
