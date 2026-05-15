@@ -120,7 +120,7 @@ export function NotificationBell({
           <button className="relative flex h-9 w-9 items-center justify-center rounded-md hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             <Bell className={`h-5 w-5 ${isRinging ? "bell-ringing" : ""}`} />
             {alerts.total > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-destructive" />
+              <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-destructive" />
             )}
           </button>
         }
