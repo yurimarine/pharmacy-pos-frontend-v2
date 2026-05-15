@@ -1,10 +1,16 @@
-import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import type { SalesSummary } from '@/app/admin/reports/actions'
-import { formatCurrency } from '@/lib/report-utils'
+import {
+  Card,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import type { SalesSummary } from "@/app/admin/reports/actions";
+import { formatCurrency } from "@/lib/report-utils";
 
 export function SalesSummaryCards({ summary }: { summary: SalesSummary }) {
   return (
-    <div className="*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
+    <div className="*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card grid grid-cols-1 gap-4  @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
       <Card className="@container/card">
         <CardHeader>
           <CardDescription>Total Revenue</CardDescription>
@@ -13,7 +19,9 @@ export function SalesSummaryCards({ summary }: { summary: SalesSummary }) {
           </CardTitle>
         </CardHeader>
         <CardFooter>
-          <div className="text-muted-foreground text-sm">Completed transactions only</div>
+          <div className="text-muted-foreground text-sm">
+            Completed transactions only
+          </div>
         </CardFooter>
       </Card>
 
@@ -25,7 +33,9 @@ export function SalesSummaryCards({ summary }: { summary: SalesSummary }) {
           </CardTitle>
         </CardHeader>
         <CardFooter>
-          <div className="text-muted-foreground text-sm">Voided transactions excluded</div>
+          <div className="text-muted-foreground text-sm">
+            Voided transactions excluded
+          </div>
         </CardFooter>
       </Card>
 
@@ -37,7 +47,9 @@ export function SalesSummaryCards({ summary }: { summary: SalesSummary }) {
           </CardTitle>
         </CardHeader>
         <CardFooter>
-          <div className="text-muted-foreground text-sm">Per completed transaction</div>
+          <div className="text-muted-foreground text-sm">
+            Per completed transaction
+          </div>
         </CardFooter>
       </Card>
 
@@ -49,9 +61,11 @@ export function SalesSummaryCards({ summary }: { summary: SalesSummary }) {
           </CardTitle>
         </CardHeader>
         <CardFooter>
-          <div className="text-muted-foreground text-sm">Units across all products</div>
+          <div className="text-muted-foreground text-sm">
+            Units across all products
+          </div>
         </CardFooter>
       </Card>
     </div>
-  )
+  );
 }

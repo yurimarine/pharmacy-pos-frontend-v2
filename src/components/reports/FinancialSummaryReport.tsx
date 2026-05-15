@@ -1,25 +1,25 @@
-'use client'
+"use client";
 
-import { Printer } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { formatCurrency } from '@/lib/report-utils'
-import type { FinancialSummary } from '@/app/admin/reports/actions'
+import { Printer } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { formatCurrency } from "@/lib/report-utils";
+import type { FinancialSummary } from "@/app/admin/reports/actions";
 
 function formatReportDate(dateStr: string) {
-  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-PH', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
+  return new Date(dateStr + "T00:00:00").toLocaleDateString("en-PH", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
 }
 
 function formatAccounting(value: number): string {
-  const formatted = formatCurrency(Math.abs(value))
-  return value < 0 ? `(${formatted})` : formatted
+  const formatted = formatCurrency(Math.abs(value));
+  return value < 0 ? `(${formatted})` : formatted;
 }
 
 interface FinancialSummaryReportProps {
-  data: FinancialSummary
+  data: FinancialSummary;
 }
 
 export function FinancialSummaryReport({ data }: FinancialSummaryReportProps) {
@@ -30,17 +30,17 @@ export function FinancialSummaryReport({ data }: FinancialSummaryReportProps) {
    * the #report-print-section media query defined in globals.css.
    */
   function handlePrint() {
-    window.print()
+    window.print();
   }
 
-  const generatedDate = new Date().toLocaleDateString('en-PH', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
+  const generatedDate = new Date().toLocaleDateString("en-PH", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
 
   return (
-    <div className="flex flex-col gap-4 max-w-2xl">
+    <div className="flex flex-col gap-4">
       <div className="flex justify-end print:hidden">
         <Button variant="outline" size="sm" onClick={handlePrint}>
           <Printer className="size-4 mr-2" />
@@ -54,12 +54,19 @@ export function FinancialSummaryReport({ data }: FinancialSummaryReportProps) {
       >
         {/* Header */}
         <div className="mb-6">
-          <p className="text-base font-bold uppercase tracking-wide">{data.pharmacyName}</p>
-          <p className="text-base font-semibold mt-0.5">Financial Summary Report</p>
-          <p className="text-muted-foreground mt-2 text-xs">
-            Period: {formatReportDate(data.startDate)} – {formatReportDate(data.endDate)}
+          <p className="text-base font-bold uppercase tracking-wide">
+            {data.pharmacyName}
           </p>
-          <p className="text-muted-foreground text-xs">Generated: {generatedDate}</p>
+          <p className="text-base font-semibold mt-0.5">
+            Financial Summary Report
+          </p>
+          <p className="text-muted-foreground mt-2 text-xs">
+            Period: {formatReportDate(data.startDate)} –{" "}
+            {formatReportDate(data.endDate)}
+          </p>
+          <p className="text-muted-foreground text-xs">
+            Generated: {generatedDate}
+          </p>
         </div>
 
         <Divider />
@@ -73,7 +80,11 @@ export function FinancialSummaryReport({ data }: FinancialSummaryReportProps) {
             muted
           />
           <div className="border-t my-2" />
-          <Row label="Net Revenue" value={formatCurrency(data.netRevenue)} bold />
+          <Row
+            label="Net Revenue"
+            value={formatCurrency(data.netRevenue)}
+            bold
+          />
         </Section>
 
         {/* COGS */}
@@ -86,7 +97,8 @@ export function FinancialSummaryReport({ data }: FinancialSummaryReportProps) {
             />
           ) : (
             <p className="text-muted-foreground text-xs italic py-0.5">
-              COGS data unavailable — unit cost not captured on these transactions.
+              COGS data unavailable — unit cost not captured on these
+              transactions.
             </p>
           )}
         </Section>
@@ -95,12 +107,12 @@ export function FinancialSummaryReport({ data }: FinancialSummaryReportProps) {
         <Section label="Gross Profit">
           <Row
             label="Gross Profit"
-            value={data.hasCogs ? formatAccounting(data.grossProfit) : '—'}
+            value={data.hasCogs ? formatAccounting(data.grossProfit) : "—"}
             bold
           />
           <Row
             label="Gross Profit Margin"
-            value={data.hasCogs ? `${data.grossProfitMargin.toFixed(2)}%` : '—'}
+            value={data.hasCogs ? `${data.grossProfitMargin.toFixed(2)}%` : "—"}
           />
         </Section>
 
@@ -110,11 +122,11 @@ export function FinancialSummaryReport({ data }: FinancialSummaryReportProps) {
         <Section label="Transaction Summary">
           <Row
             label="Completed Transactions"
-            value={data.totalTransactions.toLocaleString('en-PH')}
+            value={data.totalTransactions.toLocaleString("en-PH")}
           />
           <Row
             label="Voided Transactions"
-            value={data.voidedTransactions.toLocaleString('en-PH')}
+            value={data.voidedTransactions.toLocaleString("en-PH")}
             muted
           />
           <Row
@@ -126,26 +138,34 @@ export function FinancialSummaryReport({ data }: FinancialSummaryReportProps) {
         <Divider />
 
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Note: COGS figures are based on the unit cost snapshot captured at time of sale.
-          Transactions processed before the unit cost feature was enabled are excluded from
-          COGS and gross profit calculations.
+          Note: COGS figures are based on the unit cost snapshot captured at
+          time of sale. Transactions processed before the unit cost feature was
+          enabled are excluded from COGS and gross profit calculations.
         </p>
       </div>
     </div>
-  )
+  );
 }
 
 function Divider() {
-  return <div className="border-t border-dashed my-5" />
+  return <div className="border-t border-dashed my-5" />;
 }
 
-function Section({ label, children }: { label: string; children: React.ReactNode }) {
+function Section({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <section className="mb-5">
-      <p className="text-xs uppercase tracking-widest text-muted-foreground mb-3">{label}</p>
+      <p className="text-xs uppercase tracking-widest text-muted-foreground mb-3">
+        {label}
+      </p>
       {children}
     </section>
-  )
+  );
 }
 
 function Row({
@@ -154,17 +174,17 @@ function Row({
   bold,
   muted,
 }: {
-  label: string
-  value: string
-  bold?: boolean
-  muted?: boolean
+  label: string;
+  value: string;
+  bold?: boolean;
+  muted?: boolean;
 }) {
   return (
     <div
-      className={`flex justify-between py-0.5 tabular-nums ${bold ? 'font-semibold' : ''} ${muted ? 'text-muted-foreground' : ''}`}
+      className={`flex justify-between py-0.5 tabular-nums ${bold ? "font-semibold" : ""} ${muted ? "text-muted-foreground" : ""}`}
     >
       <span>{label}</span>
       <span>{value}</span>
     </div>
-  )
+  );
 }
