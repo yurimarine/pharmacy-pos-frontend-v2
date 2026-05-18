@@ -36,7 +36,7 @@ export function ReportsTabs({ activeTab }: ReportsTabsProps) {
         <button
           key={tab.id}
           onClick={() => switchTab(tab.id)}
-          className={`px-4 py-2.5 font-medium border-b-2 -mb-px transition-all duration-500 ${
+          className={`px-4 py-2.5 font-medium border-b-2 -mb-px transition-all duration-200 ${
             activeTab === tab.id
               ? "border-foreground font-bold text-lg"
               : "font-bold text-sm hover:text-lg hover:border-foreground"

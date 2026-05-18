@@ -1,6 +1,11 @@
 "use client";
 
-import { useState, useTransition, type Dispatch, type SetStateAction } from "react";
+import {
+  useState,
+  useTransition,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useDebouncedCallback } from "use-debounce";
 import {
@@ -10,7 +15,12 @@ import {
   type ColumnDef,
   type RowSelectionState,
 } from "@tanstack/react-table";
-import { SearchIcon, MoreHorizontalIcon } from "lucide-react";
+import {
+  SearchIcon,
+  MoreHorizontalIcon,
+  Pencil,
+  PackageOpen,
+} from "lucide-react";
 import { getStockStatus, stockStatusConfig } from "@/lib/inventory-utils";
 import type {
   PharmacyInventoryWithProduct,
@@ -45,6 +55,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import BulkEditModal from "./BulkEditModal";
 import EditInventoryModal from "./EditInventoryModal";
 import StockAdjustmentModal from "./StockAdjustmentModal";
@@ -401,21 +416,41 @@ export default function PharmacyInventoryTable({
                     </Button>
                   }
                 />
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end" className="w-fit min-w-0 p-1">
                   <DropdownMenuGroup>
-                    <DropdownMenuItem
-                      onClick={() => openEditInventory(row.original)}
-                    >
-                      Edit
-                    </DropdownMenuItem>
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <DropdownMenuItem
+                            className={"h-8 w-8 p-0 justify-center"}
+                            onClick={() => openEditInventory(row.original)}
+                          >
+                            <Pencil className="size-4 text-blue-600" />
+                          </DropdownMenuItem>
+                        }
+                      ></TooltipTrigger>
+                      <TooltipContent>
+                        <p>Edit</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </DropdownMenuGroup>
                   <DropdownMenuSeparator />
                   <DropdownMenuGroup>
-                    <DropdownMenuItem
-                      onClick={() => openAdjustStock(row.original)}
-                    >
-                      Adjust Stock
-                    </DropdownMenuItem>
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <DropdownMenuItem
+                            className={"h-8 w-8 p-0 justify-center"}
+                            onClick={() => openAdjustStock(row.original)}
+                          >
+                            <PackageOpen className="size-4" />
+                          </DropdownMenuItem>
+                        }
+                      ></TooltipTrigger>
+                      <TooltipContent>
+                        <p>Adjust Stock</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -544,7 +579,6 @@ export default function PharmacyInventoryTable({
             </SelectContent>
           </Select>
         </div>
-
       </div>
 
       {/* Selection toolbar — visible in bulk mode when rows are selected */}
