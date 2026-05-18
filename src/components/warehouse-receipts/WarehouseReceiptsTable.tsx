@@ -62,7 +62,10 @@ import type { UserRole } from "@/types/user"
 import {
   completeWarehouseReceipt,
   cancelWarehouseReceipt,
+  getWarehouseReceiptForPDF,
 } from "@/app/admin/warehouse-receipts/actions"
+import { WarehouseReceiptPDF, getWRFilename } from "@/components/pdf/WarehouseReceiptPDF"
+import { downloadPDF } from "@/lib/pdf-utils"
 
 const ViewWarehouseReceiptModal = dynamic(
   () => import("./ViewWarehouseReceiptModal"),
@@ -132,6 +135,7 @@ export function WarehouseReceiptsTable({
   const [completeOpen, setCompleteOpen] = useState(false)
   const [completeTarget, setCompleteTarget] = useState<WarehouseReceiptWithItems | null>(null)
   const [isCompleting, setIsCompleting] = useState(false)
+  const [downloadingId, setDownloadingId] = useState<string | null>(null)
 
   const updateParams = useCallback(
     (updates: Record<string, string | null>) => {
@@ -165,6 +169,19 @@ export function WarehouseReceiptsTable({
     setViewTarget(r)
     setViewModalKey(k => k + 1)
     setViewOpen(true)
+  }, [])
+
+  const handleDownloadWR = useCallback(async (receipt: WarehouseReceiptWithItems) => {
+    setDownloadingId(receipt.id)
+    try {
+      const full = await getWarehouseReceiptForPDF(receipt.id)
+      if (!full) { toast.error("Receipt not found"); return }
+      await downloadPDF(<WarehouseReceiptPDF receipt={full} />, getWRFilename(full))
+    } catch {
+      toast.error("Failed to generate PDF")
+    } finally {
+      setDownloadingId(null)
+    }
   }, [])
 
   const handleComplete = async () => {
@@ -284,6 +301,19 @@ export function WarehouseReceiptsTable({
                           View Details
                         </DropdownMenuItem>
                       </DropdownMenuGroup>
+                      {receipt.status === "completed" && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuGroup>
+                            <DropdownMenuItem
+                              disabled={downloadingId === receipt.id}
+                              onClick={() => handleDownloadWR(receipt)}
+                            >
+                              {downloadingId === receipt.id ? "Generating…" : "Download PDF"}
+                            </DropdownMenuItem>
+                          </DropdownMenuGroup>
+                        </>
+                      )}
                       {isDraft && (
                         <>
                           <DropdownMenuSeparator />
@@ -322,7 +352,7 @@ export function WarehouseReceiptsTable({
           ]
         : []),
     ],
-    [isAdmin, openEdit, openView],
+    [isAdmin, openEdit, openView, handleDownloadWR, downloadingId],
   )
 
   const table = useReactTable({

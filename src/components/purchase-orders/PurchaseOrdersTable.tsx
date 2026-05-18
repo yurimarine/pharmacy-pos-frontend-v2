@@ -59,7 +59,9 @@ import {
   PO_STATUS_LABELS,
 } from "@/types/inventory"
 import type { UserRole } from "@/types/user"
-import { submitPurchaseOrder, cancelPurchaseOrder } from "@/app/admin/purchase-orders/actions"
+import { submitPurchaseOrder, cancelPurchaseOrder, getPurchaseOrderForPDF } from "@/app/admin/purchase-orders/actions"
+import { PurchaseOrderPDF, getPOFilename } from "@/components/pdf/PurchaseOrderPDF"
+import { downloadPDF } from "@/lib/pdf-utils"
 
 const ViewPurchaseOrderModal = dynamic(
   () => import("./ViewPurchaseOrderModal"),
@@ -134,6 +136,7 @@ export function PurchaseOrdersTable({
   const [cancelOpen, setCancelOpen] = useState(false)
   const [cancelTarget, setCancelTarget] = useState<PurchaseOrderWithItems | null>(null)
   const [isCancelling, setIsCancelling] = useState(false)
+  const [downloadingId, setDownloadingId] = useState<string | null>(null)
 
   const updateParams = useCallback(
     (updates: Record<string, string | null>) => {
@@ -180,6 +183,19 @@ export function PurchaseOrdersTable({
       toast.success(`${po.po_number} submitted.`)
     } else {
       toast.error(result.error ?? "Failed to submit purchase order")
+    }
+  }, [])
+
+  const handleDownloadPO = useCallback(async (po: PurchaseOrderWithItems) => {
+    setDownloadingId(po.id)
+    try {
+      const full = await getPurchaseOrderForPDF(po.id)
+      if (!full) { toast.error("Purchase order not found"); return }
+      await downloadPDF(<PurchaseOrderPDF po={full} />, getPOFilename(full))
+    } catch {
+      toast.error("Failed to generate PDF")
+    } finally {
+      setDownloadingId(null)
     }
   }, [])
 
@@ -287,6 +303,19 @@ export function PurchaseOrdersTable({
                           View Details
                         </DropdownMenuItem>
                       </DropdownMenuGroup>
+                      {!isDraft && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuGroup>
+                            <DropdownMenuItem
+                              disabled={downloadingId === po.id}
+                              onClick={() => handleDownloadPO(po)}
+                            >
+                              {downloadingId === po.id ? "Generating…" : "Download PDF"}
+                            </DropdownMenuItem>
+                          </DropdownMenuGroup>
+                        </>
+                      )}
                       {canSubmitOrEdit && (
                         <>
                           <DropdownMenuSeparator />
@@ -321,7 +350,7 @@ export function PurchaseOrdersTable({
           ]
         : []),
     ],
-    [canEdit, canCancel, openEdit, openView, openCancel, handleSubmit],
+    [canEdit, canCancel, openEdit, openView, openCancel, handleSubmit, handleDownloadPO, downloadingId],
   )
 
   const table = useReactTable({

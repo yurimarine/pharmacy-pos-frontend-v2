@@ -347,3 +347,16 @@ export async function generateRestockPO(
 
   return { id: newPO.id, po_number: newPO.po_number, itemCount: qualifying.length }
 }
+
+export async function getPurchaseOrderForPDF(
+  id: string,
+): Promise<PurchaseOrderWithItems | null> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("purchase_orders")
+    .select(PO_SELECT)
+    .eq("id", id)
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  return data as unknown as PurchaseOrderWithItems | null
+}

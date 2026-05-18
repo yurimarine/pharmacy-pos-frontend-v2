@@ -369,3 +369,27 @@ export async function cancelWarehouseReceipt(
     return { success: false, error: err instanceof Error ? err.message : "Unknown error" }
   }
 }
+
+const WR_SELECT_FOR_PDF = `
+  id, receipt_number, po_id, supplier_id, status, notes, received_by, received_at, created_at, updated_at,
+  supplier:suppliers(id, name),
+  po:purchase_orders!warehouse_receipts_po_id_fkey(id, po_number),
+  received_by_user:users!warehouse_receipts_received_by_fkey(name, role),
+  items:warehouse_receipt_items!warehouse_receipt_items_receipt_id_fkey(
+    id, receipt_id, product_id, po_item_id, quantity_received, unit_cost, lot_number, expiry_date, notes,
+    products(product_name, sku)
+  )
+`
+
+export async function getWarehouseReceiptForPDF(
+  id: string,
+): Promise<WarehouseReceiptWithItems | null> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("warehouse_receipts")
+    .select(WR_SELECT_FOR_PDF)
+    .eq("id", id)
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  return data as unknown as WarehouseReceiptWithItems | null
+}

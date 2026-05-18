@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { PurchaseOrderWithItems } from "@/types/inventory";
 import { PO_STATUS_LABELS } from "@/types/inventory";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +13,8 @@ import {
 } from "@/components/ui/dialog";
 import { DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { PurchaseOrderPDF, getPOFilename } from "@/components/pdf/PurchaseOrderPDF";
+import { downloadPDF } from "@/lib/pdf-utils";
 import {
   Table,
   TableBody,
@@ -65,6 +68,18 @@ export default function ViewPurchaseOrderModal({
   onOpenChange: (open: boolean) => void;
   po: PurchaseOrderWithItems | null;
 }) {
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  async function handleDownload() {
+    if (!po) return;
+    setIsDownloading(true);
+    try {
+      await downloadPDF(<PurchaseOrderPDF po={po} />, getPOFilename(po));
+    } finally {
+      setIsDownloading(false);
+    }
+  }
+
   if (!po) return null;
 
   const estimatedTotal = po.items.reduce(
@@ -172,6 +187,9 @@ export default function ViewPurchaseOrderModal({
         </div>
 
         <DialogFooter>
+          <Button variant="outline" disabled={isDownloading} onClick={handleDownload}>
+            {isDownloading ? "Generating…" : "Download PDF"}
+          </Button>
           <DialogClose render={<Button variant="outline" />}>Close</DialogClose>
         </DialogFooter>
       </DialogContent>

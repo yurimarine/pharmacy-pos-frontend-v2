@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { WarehouseReceiptWithItems } from "@/types/inventory";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -11,6 +12,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { WarehouseReceiptPDF, getWRFilename } from "@/components/pdf/WarehouseReceiptPDF";
+import { downloadPDF } from "@/lib/pdf-utils";
 import {
   Table,
   TableBody,
@@ -56,6 +59,18 @@ export default function ViewWarehouseReceiptModal({
   onOpenChange: (open: boolean) => void;
   receipt: WarehouseReceiptWithItems | null;
 }) {
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  async function handleDownload() {
+    if (!receipt) return;
+    setIsDownloading(true);
+    try {
+      await downloadPDF(<WarehouseReceiptPDF receipt={receipt} />, getWRFilename(receipt));
+    } finally {
+      setIsDownloading(false);
+    }
+  }
+
   if (!receipt) return null;
 
   const totalCost = receipt.items.reduce(
@@ -189,6 +204,9 @@ export default function ViewWarehouseReceiptModal({
         </div>
 
         <DialogFooter>
+          <Button variant="outline" disabled={isDownloading} onClick={handleDownload}>
+            {isDownloading ? "Generating…" : "Download PDF"}
+          </Button>
           <DialogClose render={<Button variant="outline" />}>Close</DialogClose>
         </DialogFooter>
       </DialogContent>
