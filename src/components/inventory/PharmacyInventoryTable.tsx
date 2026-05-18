@@ -46,8 +46,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import BulkEditModal from "./BulkEditModal";
-import EditPricingModal from "./EditPricingModal";
-import EditThresholdModal from "./EditThresholdModal";
+import EditInventoryModal from "./EditInventoryModal";
 import StockAdjustmentModal from "./StockAdjustmentModal";
 
 const STATUS_OPTIONS: { value: StockStatus; label: string }[] = [
@@ -162,13 +161,11 @@ export default function PharmacyInventoryTable({
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [bulkEditKey, setBulkEditKey] = useState(0);
 
-  const [editPricingKey, setEditPricingKey] = useState(0);
-  const [editThresholdKey, setEditThresholdKey] = useState(0);
+  const [editInventoryKey, setEditInventoryKey] = useState(0);
   const [adjustStockKey, setAdjustStockKey] = useState(0);
   const [selectedInventory, setSelectedInventory] =
     useState<PharmacyInventoryWithProduct | null>(null);
-  const [editPricingOpen, setEditPricingOpen] = useState(false);
-  const [editThresholdOpen, setEditThresholdOpen] = useState(false);
+  const [editInventoryOpen, setEditInventoryOpen] = useState(false);
   const [adjustStockOpen, setAdjustStockOpen] = useState(false);
 
   const canEdit = userRole === "admin" || userRole === "pharmacist";
@@ -197,16 +194,10 @@ export default function PharmacyInventoryTable({
     startTransition(() => router.push(`?${params.toString()}`));
   }
 
-  function openEditPricing(inv: PharmacyInventoryWithProduct) {
+  function openEditInventory(inv: PharmacyInventoryWithProduct) {
     setSelectedInventory(inv);
-    setEditPricingKey(k => k + 1);
-    setEditPricingOpen(true);
-  }
-
-  function openEditThreshold(inv: PharmacyInventoryWithProduct) {
-    setSelectedInventory(inv);
-    setEditThresholdKey(k => k + 1);
-    setEditThresholdOpen(true);
+    setEditInventoryKey(k => k + 1);
+    setEditInventoryOpen(true);
   }
 
   function openAdjustStock(inv: PharmacyInventoryWithProduct) {
@@ -395,14 +386,9 @@ export default function PharmacyInventoryTable({
                 <DropdownMenuContent align="end">
                   <DropdownMenuGroup>
                     <DropdownMenuItem
-                      onClick={() => openEditPricing(row.original)}
+                      onClick={() => openEditInventory(row.original)}
                     >
-                      Edit Pricing
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => openEditThreshold(row.original)}
-                    >
-                      Edit Threshold
+                      Edit
                     </DropdownMenuItem>
                   </DropdownMenuGroup>
                   <DropdownMenuSeparator />
@@ -632,16 +618,10 @@ export default function PharmacyInventoryTable({
         selectedIds={selectedIds}
         onSuccess={() => setRowSelection({})}
       />
-      <EditPricingModal
-        key={`ep-${editPricingKey}`}
-        open={editPricingOpen}
-        onOpenChange={setEditPricingOpen}
-        inventory={selectedInventory}
-      />
-      <EditThresholdModal
-        key={`et-${editThresholdKey}`}
-        open={editThresholdOpen}
-        onOpenChange={setEditThresholdOpen}
+      <EditInventoryModal
+        key={`ei-${editInventoryKey}`}
+        open={editInventoryOpen}
+        onOpenChange={setEditInventoryOpen}
         inventory={selectedInventory}
       />
       <StockAdjustmentModal

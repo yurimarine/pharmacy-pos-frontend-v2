@@ -2,12 +2,13 @@
 
 import { useState, useTransition } from "react"
 import { toast } from "sonner"
-import { updatePharmacyInventoryPricing } from "@/app/admin/inventory/actions"
+import { updatePharmacyInventory } from "@/app/admin/inventory/actions"
 import type { PharmacyInventoryWithProduct } from "@/types/inventory"
 import { computeSellingPrice, computeMarkupPercentage } from "@/types/product"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Separator } from "@/components/ui/separator"
 import {
   Dialog,
   DialogContent,
@@ -24,7 +25,7 @@ function formatCurrency(value: number): string {
   })}`
 }
 
-export default function EditPricingModal({
+export default function EditInventoryModal({
   open,
   onOpenChange,
   inventory,
@@ -43,6 +44,9 @@ export default function EditPricingModal({
   )
   const [expiryDate, setExpiryDate] = useState<string>(
     inventory?.expiry_date ?? "",
+  )
+  const [threshold, setThreshold] = useState<string>(
+    String(inventory?.low_stock_threshold ?? 10),
   )
   const [isPending, startTransition] = useTransition()
 
@@ -66,22 +70,28 @@ export default function EditPricingModal({
     if (!inventory) return
     const sp = parseFloat(sellingPrice)
     const mp = parseFloat(markup)
+    const t = parseInt(threshold, 10)
     if (isNaN(sp) || sp < 0 || isNaN(mp) || mp < 0) {
-      toast.error("Please enter valid non-negative values.")
+      toast.error("Please enter valid non-negative values for pricing.")
+      return
+    }
+    if (isNaN(t) || t < 0) {
+      toast.error("Threshold must be a non-negative whole number.")
       return
     }
 
     startTransition(async () => {
-      const result = await updatePharmacyInventoryPricing(inventory.id, {
+      const result = await updatePharmacyInventory(inventory.id, {
         selling_price: sp,
         markup_percentage: mp,
         expiry_date: expiryDate.trim() || null,
+        low_stock_threshold: t,
       })
       if (result.success) {
-        toast.success("Pricing updated.")
+        toast.success("Inventory updated.")
         onOpenChange(false)
       } else {
-        toast.error(result.error ?? "Failed to update pricing.")
+        toast.error(result.error ?? "Failed to update inventory.")
       }
     })
   }
@@ -92,7 +102,7 @@ export default function EditPricingModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Edit Pricing</DialogTitle>
+          <DialogTitle>Edit Inventory</DialogTitle>
           <DialogDescription className="truncate">
             {inventory.product?.product_name ?? "Unknown product"}
           </DialogDescription>
@@ -111,9 +121,9 @@ export default function EditPricingModal({
 
           {/* Markup % */}
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="ep-markup">Markup %</Label>
+            <Label htmlFor="ei-markup">Markup %</Label>
             <Input
-              id="ep-markup"
+              id="ei-markup"
               type="number"
               min={0}
               step={0.1}
@@ -130,9 +140,9 @@ export default function EditPricingModal({
 
           {/* Selling Price */}
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="ep-price">Selling Price (₱)</Label>
+            <Label htmlFor="ei-price">Selling Price (₱)</Label>
             <Input
-              id="ep-price"
+              id="ei-price"
               type="number"
               min={0}
               step={0.01}
@@ -143,15 +153,43 @@ export default function EditPricingModal({
 
           {/* Expiry Date */}
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="ep-expiry">Expiry date</Label>
+            <Label htmlFor="ei-expiry">Expiry date</Label>
             <Input
-              id="ep-expiry"
+              id="ei-expiry"
               type="date"
               value={expiryDate}
               onChange={(e) => setExpiryDate(e.target.value)}
             />
             <p className="text-xs text-muted-foreground">
               Leave blank if this product has no expiry
+            </p>
+          </div>
+
+          <Separator />
+
+          {/* Current Quantity (read-only) */}
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">
+              Current Quantity
+            </Label>
+            <div className="bg-muted px-3 py-2 rounded-md text-sm font-mono">
+              {inventory.quantity} units
+            </div>
+          </div>
+
+          {/* Low Stock Threshold */}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="ei-threshold">Low Stock Threshold</Label>
+            <Input
+              id="ei-threshold"
+              type="number"
+              min={0}
+              step={1}
+              value={threshold}
+              onChange={(e) => setThreshold(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Alert shows when quantity falls at or below this number
             </p>
           </div>
         </div>
