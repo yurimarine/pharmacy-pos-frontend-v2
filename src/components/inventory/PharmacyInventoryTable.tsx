@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type Dispatch, type SetStateAction } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useDebouncedCallback } from "use-debounce";
 import {
@@ -140,6 +140,9 @@ export default function PharmacyInventoryTable({
   requires_prescription,
   pharmacies,
   userRole,
+  isBulkMode,
+  rowSelection,
+  setRowSelection,
 }: {
   data: PharmacyInventoryWithProduct[];
   count: number;
@@ -151,13 +154,14 @@ export default function PharmacyInventoryTable({
   requires_prescription?: boolean;
   pharmacies: { id: string; name: string }[];
   userRole: UserRole;
+  isBulkMode: boolean;
+  rowSelection: RowSelectionState;
+  setRowSelection: Dispatch<SetStateAction<RowSelectionState>>;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const [searchValue, setSearchValue] = useState(search ?? "");
-
-  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [bulkEditKey, setBulkEditKey] = useState(0);
 
@@ -214,24 +218,38 @@ export default function PharmacyInventoryTable({
   const selectedIds = Object.keys(rowSelection).filter(k => rowSelection[k]);
 
   const columns: ColumnDef<PharmacyInventoryWithProduct>[] = [
-    {
-      id: "select",
-      header: ({ table }) => (
-        <Checkbox
-          checked={table.getIsAllPageRowsSelected()}
-          indeterminate={table.getIsSomePageRowsSelected()}
-          onCheckedChange={checked => table.toggleAllPageRowsSelected(!!checked)}
-          aria-label="Select all"
-        />
-      ),
-      cell: ({ row }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={checked => row.toggleSelected(!!checked)}
-          aria-label="Select row"
-        />
-      ),
-    },
+    ...(isBulkMode
+      ? [
+          {
+            id: "select",
+            header: ({
+              table,
+            }: {
+              table: import("@tanstack/react-table").Table<PharmacyInventoryWithProduct>;
+            }) => (
+              <Checkbox
+                checked={table.getIsAllPageRowsSelected()}
+                indeterminate={table.getIsSomePageRowsSelected()}
+                onCheckedChange={checked =>
+                  table.toggleAllPageRowsSelected(!!checked)
+                }
+                aria-label="Select all"
+              />
+            ),
+            cell: ({
+              row,
+            }: {
+              row: import("@tanstack/react-table").Row<PharmacyInventoryWithProduct>;
+            }) => (
+              <Checkbox
+                checked={row.getIsSelected()}
+                onCheckedChange={checked => row.toggleSelected(!!checked)}
+                aria-label="Select row"
+              />
+            ),
+          } satisfies ColumnDef<PharmacyInventoryWithProduct>,
+        ]
+      : []),
     {
       id: "product",
       header: "Product",
@@ -526,10 +544,11 @@ export default function PharmacyInventoryTable({
             </SelectContent>
           </Select>
         </div>
+
       </div>
 
-      {/* Selection toolbar */}
-      {selectedIds.length > 0 && (
+      {/* Selection toolbar — visible in bulk mode when rows are selected */}
+      {isBulkMode && selectedIds.length > 0 && (
         <div className="flex items-center gap-3 px-3 py-2 rounded-md border bg-muted/40">
           <span className="text-sm font-medium">
             {selectedIds.length} item{selectedIds.length !== 1 ? "s" : ""}{" "}
