@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import type { PurchaseOrderWithItems } from "@/types/inventory";
 import { PO_STATUS_LABELS } from "@/types/inventory";
 import { Badge } from "@/components/ui/badge";
@@ -13,8 +14,6 @@ import {
 } from "@/components/ui/dialog";
 import { DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { PurchaseOrderPDF, getPOFilename } from "@/components/pdf/PurchaseOrderPDF";
-import { downloadPDF } from "@/lib/pdf-utils";
 import {
   Table,
   TableBody,
@@ -74,7 +73,13 @@ export default function ViewPurchaseOrderModal({
     if (!po) return;
     setIsDownloading(true);
     try {
+      const [{ PurchaseOrderPDF, getPOFilename }, { downloadPDF }] = await Promise.all([
+        import("@/components/pdf/PurchaseOrderPDF"),
+        import("@/lib/pdf-utils"),
+      ]);
       await downloadPDF(<PurchaseOrderPDF po={po} />, getPOFilename(po));
+    } catch {
+      toast.error("Failed to generate PDF");
     } finally {
       setIsDownloading(false);
     }

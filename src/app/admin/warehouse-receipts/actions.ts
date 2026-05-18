@@ -384,6 +384,7 @@ const WR_SELECT_FOR_PDF = `
 export async function getWarehouseReceiptForPDF(
   id: string,
 ): Promise<WarehouseReceiptWithItems | null> {
+  await getCurrentUser()
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("warehouse_receipts")

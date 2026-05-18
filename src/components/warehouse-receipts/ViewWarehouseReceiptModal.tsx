@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import type { WarehouseReceiptWithItems } from "@/types/inventory";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -12,8 +13,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { WarehouseReceiptPDF, getWRFilename } from "@/components/pdf/WarehouseReceiptPDF";
-import { downloadPDF } from "@/lib/pdf-utils";
 import {
   Table,
   TableBody,
@@ -65,7 +64,13 @@ export default function ViewWarehouseReceiptModal({
     if (!receipt) return;
     setIsDownloading(true);
     try {
+      const [{ WarehouseReceiptPDF, getWRFilename }, { downloadPDF }] = await Promise.all([
+        import("@/components/pdf/WarehouseReceiptPDF"),
+        import("@/lib/pdf-utils"),
+      ]);
       await downloadPDF(<WarehouseReceiptPDF receipt={receipt} />, getWRFilename(receipt));
+    } catch {
+      toast.error("Failed to generate PDF");
     } finally {
       setIsDownloading(false);
     }

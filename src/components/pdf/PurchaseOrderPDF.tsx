@@ -138,7 +138,7 @@ export function PurchaseOrderPDF({ po }: { po: PurchaseOrderWithItems }) {
         <View style={styles.metaRow}>
           <Text style={styles.metaLabel}>Status:</Text>
           <Text style={styles.metaValue}>
-            {po.status.toUpperCase().replace("_", " ")}
+            {po.status.toUpperCase().replace(/_/g, " ")}
           </Text>
         </View>
         <View style={styles.metaRow}>

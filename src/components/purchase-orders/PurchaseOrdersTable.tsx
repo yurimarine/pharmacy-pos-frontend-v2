@@ -60,8 +60,6 @@ import {
 } from "@/types/inventory"
 import type { UserRole } from "@/types/user"
 import { submitPurchaseOrder, cancelPurchaseOrder, getPurchaseOrderForPDF } from "@/app/admin/purchase-orders/actions"
-import { PurchaseOrderPDF, getPOFilename } from "@/components/pdf/PurchaseOrderPDF"
-import { downloadPDF } from "@/lib/pdf-utils"
 
 const ViewPurchaseOrderModal = dynamic(
   () => import("./ViewPurchaseOrderModal"),
@@ -189,7 +187,11 @@ export function PurchaseOrdersTable({
   const handleDownloadPO = useCallback(async (po: PurchaseOrderWithItems) => {
     setDownloadingId(po.id)
     try {
-      const full = await getPurchaseOrderForPDF(po.id)
+      const [full, { PurchaseOrderPDF, getPOFilename }, { downloadPDF }] = await Promise.all([
+        getPurchaseOrderForPDF(po.id),
+        import("@/components/pdf/PurchaseOrderPDF"),
+        import("@/lib/pdf-utils"),
+      ])
       if (!full) { toast.error("Purchase order not found"); return }
       await downloadPDF(<PurchaseOrderPDF po={full} />, getPOFilename(full))
     } catch {

@@ -64,8 +64,6 @@ import {
   cancelWarehouseReceipt,
   getWarehouseReceiptForPDF,
 } from "@/app/admin/warehouse-receipts/actions"
-import { WarehouseReceiptPDF, getWRFilename } from "@/components/pdf/WarehouseReceiptPDF"
-import { downloadPDF } from "@/lib/pdf-utils"
 
 const ViewWarehouseReceiptModal = dynamic(
   () => import("./ViewWarehouseReceiptModal"),
@@ -174,7 +172,11 @@ export function WarehouseReceiptsTable({
   const handleDownloadWR = useCallback(async (receipt: WarehouseReceiptWithItems) => {
     setDownloadingId(receipt.id)
     try {
-      const full = await getWarehouseReceiptForPDF(receipt.id)
+      const [full, { WarehouseReceiptPDF, getWRFilename }, { downloadPDF }] = await Promise.all([
+        getWarehouseReceiptForPDF(receipt.id),
+        import("@/components/pdf/WarehouseReceiptPDF"),
+        import("@/lib/pdf-utils"),
+      ])
       if (!full) { toast.error("Receipt not found"); return }
       await downloadPDF(<WarehouseReceiptPDF receipt={full} />, getWRFilename(full))
     } catch {

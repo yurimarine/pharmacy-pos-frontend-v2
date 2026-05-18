@@ -351,6 +351,7 @@ export async function generateRestockPO(
 export async function getPurchaseOrderForPDF(
   id: string,
 ): Promise<PurchaseOrderWithItems | null> {
+  await getCurrentUser()
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("purchase_orders")
