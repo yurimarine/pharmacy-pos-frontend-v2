@@ -297,7 +297,9 @@ export function PurchaseOrderForm({ mode, po, suppliers }: Props) {
                 />
                 <QuantityInput
                   value={item.quantity_ordered}
-                  onChange={v => updateItem(i, { quantity_ordered: Math.max(1, v) })}
+                  onChange={v =>
+                    updateItem(i, { quantity_ordered: Math.max(1, v) })
+                  }
                   min={1}
                 />
                 <Input
@@ -364,10 +366,10 @@ export function PurchaseOrderForm({ mode, po, suppliers }: Props) {
             <Button onClick={handleSubmit} disabled={isSubmitting}>
               {isSubmitting
                 ? mode === "create"
-                  ? "Creating..."
+                  ? "Drafting..."
                   : "Saving..."
                 : mode === "create"
-                  ? "Create purchase order"
+                  ? "Draft PO"
                   : "Save changes"}
             </Button>
           </div>

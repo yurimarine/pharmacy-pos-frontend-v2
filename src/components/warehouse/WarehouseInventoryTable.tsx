@@ -220,15 +220,11 @@ export function WarehouseInventoryTable({
       },
       {
         id: "quantity_remaining",
-        header: "Qty Remaining",
+        header: "Qty",
         cell: ({ row }) => {
           const qty = row.original.quantity_remaining;
           if (qty === 0) {
-            return (
-              <span className="text-sm text-muted-foreground">
-                0 (depleted)
-              </span>
-            );
+            return <span className="text-sm text-destructive">0</span>;
           }
           return (
             <span className="text-sm tabular-nums font-medium">{qty}</span>

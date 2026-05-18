@@ -1,25 +1,31 @@
-"use client"
+"use client";
 
-import dynamic from "next/dynamic"
-import { useState, useMemo, useTransition, useCallback } from "react"
-import { useRouter, usePathname, useSearchParams } from "next/navigation"
-import { useDebouncedCallback } from "use-debounce"
+import dynamic from "next/dynamic";
+import { useState, useMemo, useTransition, useCallback } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useDebouncedCallback } from "use-debounce";
 import {
   flexRender,
   getCoreRowModel,
   useReactTable,
   type ColumnDef,
-} from "@tanstack/react-table"
+} from "@tanstack/react-table";
 import {
   EllipsisVerticalIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   PlusIcon,
-} from "lucide-react"
-import { toast } from "sonner"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
+  Loader2,
+  Download,
+  Eye,
+  Pencil,
+  Send,
+  Ban,
+} from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -27,7 +33,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/table";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,14 +41,14 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,60 +58,69 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
 import {
   type PurchaseOrderWithItems,
   type PurchaseOrderStatus,
   PO_STATUS_LABELS,
-} from "@/types/inventory"
-import type { UserRole } from "@/types/user"
-import { submitPurchaseOrder, cancelPurchaseOrder, getPurchaseOrderForPDF } from "@/app/admin/purchase-orders/actions"
-
+} from "@/types/inventory";
+import type { UserRole } from "@/types/user";
+import {
+  submitPurchaseOrder,
+  cancelPurchaseOrder,
+  getPurchaseOrderForPDF,
+} from "@/app/admin/purchase-orders/actions";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 const ViewPurchaseOrderModal = dynamic(
   () => import("./ViewPurchaseOrderModal"),
   { ssr: false },
-)
+);
 
 function formatDate(dateStr: string | null): string {
-  if (!dateStr) return "—"
+  if (!dateStr) return "—";
   return new Date(dateStr).toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
-  })
+  });
 }
 
 function StatusBadge({ status }: { status: PurchaseOrderStatus }) {
-  if (status === "draft") return <Badge variant="outline">Draft</Badge>
-  if (status === "submitted") return <Badge variant="secondary">Submitted</Badge>
+  if (status === "draft") return <Badge variant="outline">Draft</Badge>;
+  if (status === "submitted")
+    return <Badge variant="secondary">Submitted</Badge>;
   if (status === "partially_received")
     return (
       <Badge variant="default" className="bg-yellow-600 hover:bg-yellow-700">
         Partially Received
       </Badge>
-    )
+    );
   if (status === "received")
     return (
       <Badge variant="default" className="bg-green-600 hover:bg-green-700">
         Received
       </Badge>
-    )
-  return <Badge variant="destructive">Cancelled</Badge>
+    );
+  return <Badge variant="destructive">Cancelled</Badge>;
 }
 
-type Supplier = { id: string; name: string }
+type Supplier = { id: string; name: string };
 
 type Props = {
-  data: PurchaseOrderWithItems[]
-  count: number
-  page: number
-  pageSize: number
-  search?: string
-  status?: PurchaseOrderStatus | ""
-  supplier_id?: string
-  suppliers: Supplier[]
-  userRole: UserRole
-}
+  data: PurchaseOrderWithItems[];
+  count: number;
+  page: number;
+  pageSize: number;
+  search?: string;
+  status?: PurchaseOrderStatus | "";
+  supplier_id?: string;
+  suppliers: Supplier[];
+  userRole: UserRole;
+};
 
 export function PurchaseOrdersTable({
   data,
@@ -118,102 +133,112 @@ export function PurchaseOrdersTable({
   suppliers,
   userRole,
 }: Props) {
-  const canEdit = userRole === "admin" || userRole === "pharmacist"
-  const canCancel = userRole === "admin"
+  const canEdit = userRole === "admin" || userRole === "pharmacist";
+  const canCancel = userRole === "admin";
 
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
-  const [isPending, startTransition] = useTransition()
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
 
-  const [searchValue, setSearchValue] = useState(search)
+  const [searchValue, setSearchValue] = useState(search);
 
-  const [viewOpen, setViewOpen] = useState(false)
-  const [viewModalKey, setViewModalKey] = useState(0)
-  const [viewTarget, setViewTarget] = useState<PurchaseOrderWithItems | null>(null)
-  const [cancelOpen, setCancelOpen] = useState(false)
-  const [cancelTarget, setCancelTarget] = useState<PurchaseOrderWithItems | null>(null)
-  const [isCancelling, setIsCancelling] = useState(false)
-  const [downloadingId, setDownloadingId] = useState<string | null>(null)
+  const [viewOpen, setViewOpen] = useState(false);
+  const [viewModalKey, setViewModalKey] = useState(0);
+  const [viewTarget, setViewTarget] = useState<PurchaseOrderWithItems | null>(
+    null,
+  );
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelTarget, setCancelTarget] =
+    useState<PurchaseOrderWithItems | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const updateParams = useCallback(
     (updates: Record<string, string | null>) => {
-      const params = new URLSearchParams(searchParams.toString())
+      const params = new URLSearchParams(searchParams.toString());
       for (const [key, value] of Object.entries(updates)) {
         if (value === null || value === "") {
-          params.delete(key)
+          params.delete(key);
         } else {
-          params.set(key, value)
+          params.set(key, value);
         }
       }
-      const isFilterChange = Object.keys(updates).some(k => k !== "page")
-      if (isFilterChange) params.set("page", "1")
+      const isFilterChange = Object.keys(updates).some(k => k !== "page");
+      if (isFilterChange) params.set("page", "1");
       startTransition(() => {
-        router.push(`${pathname}?${params.toString()}`)
-      })
+        router.push(`${pathname}?${params.toString()}`);
+      });
     },
     [searchParams, pathname, router],
-  )
+  );
 
   const handleSearch = useDebouncedCallback(
     (value: string) => updateParams({ search: value || null }),
     400,
-  )
+  );
 
-  const openEdit = useCallback((po: PurchaseOrderWithItems) => {
-    router.push(`/admin/purchase-orders/${po.id}/edit`)
-  }, [router])
+  const openEdit = useCallback(
+    (po: PurchaseOrderWithItems) => {
+      router.push(`/admin/purchase-orders/${po.id}/edit`);
+    },
+    [router],
+  );
 
   const openView = useCallback((po: PurchaseOrderWithItems) => {
-    setViewTarget(po)
-    setViewModalKey(k => k + 1)
-    setViewOpen(true)
-  }, [])
+    setViewTarget(po);
+    setViewModalKey(k => k + 1);
+    setViewOpen(true);
+  }, []);
 
   const openCancel = useCallback((po: PurchaseOrderWithItems) => {
-    setCancelTarget(po)
-    setCancelOpen(true)
-  }, [])
+    setCancelTarget(po);
+    setCancelOpen(true);
+  }, []);
 
   const handleSubmit = useCallback(async (po: PurchaseOrderWithItems) => {
-    const result = await submitPurchaseOrder(po.id)
+    const result = await submitPurchaseOrder(po.id);
     if (result.success) {
-      toast.success(`${po.po_number} submitted.`)
+      toast.success(`${po.po_number} submitted.`);
     } else {
-      toast.error(result.error ?? "Failed to submit purchase order")
+      toast.error(result.error ?? "Failed to submit purchase order");
     }
-  }, [])
+  }, []);
 
   const handleDownloadPO = useCallback(async (po: PurchaseOrderWithItems) => {
-    setDownloadingId(po.id)
+    setDownloadingId(po.id);
     try {
-      const [full, { PurchaseOrderPDF, getPOFilename }, { downloadPDF }] = await Promise.all([
-        getPurchaseOrderForPDF(po.id),
-        import("@/components/pdf/PurchaseOrderPDF"),
-        import("@/lib/pdf-utils"),
-      ])
-      if (!full) { toast.error("Purchase order not found"); return }
-      await downloadPDF(<PurchaseOrderPDF po={full} />, getPOFilename(full))
+      const [full, { PurchaseOrderPDF, getPOFilename }, { downloadPDF }] =
+        await Promise.all([
+          getPurchaseOrderForPDF(po.id),
+          import("@/components/pdf/PurchaseOrderPDF"),
+          import("@/lib/pdf-utils"),
+        ]);
+      if (!full) {
+        toast.error("Purchase order not found");
+        return;
+      }
+      await downloadPDF(<PurchaseOrderPDF po={full} />, getPOFilename(full));
     } catch {
-      toast.error("Failed to generate PDF")
+      toast.error("Failed to generate PDF");
     } finally {
-      setDownloadingId(null)
+      setDownloadingId(null);
     }
-  }, [])
+  }, []);
 
   const handleCancel = async () => {
-    if (!cancelTarget) return
-    setIsCancelling(true)
-    const result = await cancelPurchaseOrder(cancelTarget.id)
-    setIsCancelling(false)
+    if (!cancelTarget) return;
+    setIsCancelling(true);
+    const result = await cancelPurchaseOrder(cancelTarget.id);
+    setIsCancelling(false);
     if (result.success) {
-      toast.success(`${cancelTarget.po_number} has been cancelled.`)
-      setCancelOpen(false)
-      setCancelTarget(null)
+      toast.success(`${cancelTarget.po_number} has been cancelled.`);
+      setCancelOpen(false);
+      setCancelTarget(null);
     } else {
-      toast.error(result.error ?? "Failed to cancel purchase order")
+      toast.error(result.error ?? "Failed to cancel purchase order");
     }
-  }
+  };
 
   const columns = useMemo<ColumnDef<PurchaseOrderWithItems>[]>(
     () => [
@@ -243,26 +268,30 @@ export function PurchaseOrdersTable({
         id: "items",
         header: "Items",
         cell: ({ row }) => {
-          const n = row.original.items?.length ?? 0
+          const n = row.original.items?.length ?? 0;
           return (
             <span className="text-sm text-muted-foreground">
               {n} item{n !== 1 ? "s" : ""}
             </span>
-          )
+          );
         },
       },
       {
         id: "expected_delivery",
         header: "Expected Delivery",
         cell: ({ row }) => (
-          <span className="text-sm">{formatDate(row.original.expected_delivery_date)}</span>
+          <span className="text-sm">
+            {formatDate(row.original.expected_delivery_date)}
+          </span>
         ),
       },
       {
         id: "created_by",
         header: "Created By",
         cell: ({ row }) => (
-          <span className="text-sm">{row.original.created_by_user?.name ?? "—"}</span>
+          <span className="text-sm">
+            {row.original.created_by_user?.name ?? "—"}
+          </span>
         ),
       },
       {
@@ -278,13 +307,17 @@ export function PurchaseOrdersTable({
               id: "actions",
               header: "",
               enableHiding: false,
-              cell: ({ row }: { row: { original: PurchaseOrderWithItems } }) => {
-                const po = row.original
-                const isDraft = po.status === "draft"
-                const canSubmitOrEdit = canEdit && isDraft
+              cell: ({
+                row,
+              }: {
+                row: { original: PurchaseOrderWithItems };
+              }) => {
+                const po = row.original;
+                const isDraft = po.status === "draft";
+                const canSubmitOrEdit = canEdit && isDraft;
                 const canCancelRow =
                   canCancel &&
-                  (po.status === "draft" || po.status === "submitted")
+                  (po.status === "draft" || po.status === "submitted");
 
                 return (
                   <DropdownMenu>
@@ -299,71 +332,147 @@ export function PurchaseOrdersTable({
                     >
                       <EllipsisVerticalIcon className="size-4" />
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                    <DropdownMenuContent
+                      align="end"
+                      className="w-fit min-w-0 p-1"
+                    >
                       <DropdownMenuGroup>
-                        <DropdownMenuItem onClick={() => openView(po)}>
-                          View Details
-                        </DropdownMenuItem>
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <DropdownMenuItem
+                                className={"h-8 w-8 p-0 justify-center"}
+                                onClick={() => openView(po)}
+                              >
+                                <Eye className="size-4" />
+                              </DropdownMenuItem>
+                            }
+                          ></TooltipTrigger>
+                          <TooltipContent>
+                            <p>View Details</p>
+                          </TooltipContent>
+                        </Tooltip>
                       </DropdownMenuGroup>
+
                       {!isDraft && (
                         <>
                           <DropdownMenuSeparator />
                           <DropdownMenuGroup>
-                            <DropdownMenuItem
-                              disabled={downloadingId === po.id}
-                              onClick={() => handleDownloadPO(po)}
-                            >
-                              {downloadingId === po.id ? "Generating…" : "Download PDF"}
-                            </DropdownMenuItem>
+                            <Tooltip>
+                              <TooltipTrigger
+                                render={
+                                  <DropdownMenuItem
+                                    className={"h-8 w-8 p-0 justify-center"}
+                                    disabled={downloadingId === po.id}
+                                    onClick={() => handleDownloadPO(po)}
+                                  >
+                                    {downloadingId === po.id ? (
+                                      <Loader2 className="size-4 animate-spin" />
+                                    ) : (
+                                      <Download className="size-4 text-green-600" />
+                                    )}
+                                  </DropdownMenuItem>
+                                }
+                              ></TooltipTrigger>
+                              <TooltipContent>
+                                <p>Download PDF</p>
+                              </TooltipContent>
+                            </Tooltip>
                           </DropdownMenuGroup>
                         </>
                       )}
+
                       {canSubmitOrEdit && (
                         <>
                           <DropdownMenuSeparator />
                           <DropdownMenuGroup>
-                            <DropdownMenuItem onClick={() => openEdit(po)}>
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleSubmit(po)}>
-                              Submit
-                            </DropdownMenuItem>
+                            <Tooltip>
+                              <TooltipTrigger
+                                render={
+                                  <DropdownMenuItem
+                                    className={"h-8 w-8 p-0 justify-center"}
+                                    onClick={() => openEdit(po)}
+                                  >
+                                    <Pencil className="size-4 text-blue-600" />
+                                  </DropdownMenuItem>
+                                }
+                              ></TooltipTrigger>
+                              <TooltipContent>
+                                <p>Edit</p>
+                              </TooltipContent>
+                            </Tooltip>
+
+                            <Tooltip>
+                              <TooltipTrigger
+                                render={
+                                  <DropdownMenuItem
+                                    className={"h-8 w-8 p-0 justify-center"}
+                                    onClick={() => handleSubmit(po)}
+                                  >
+                                    <Send className="size-4 text-green-600" />
+                                  </DropdownMenuItem>
+                                }
+                              ></TooltipTrigger>
+                              <TooltipContent>
+                                <p>Submit</p>
+                              </TooltipContent>
+                            </Tooltip>
                           </DropdownMenuGroup>
                         </>
                       )}
+
                       {canCancelRow && (
                         <>
                           <DropdownMenuSeparator />
                           <DropdownMenuGroup>
-                            <DropdownMenuItem
-                              variant="destructive"
-                              onClick={() => openCancel(po)}
-                            >
-                              Cancel
-                            </DropdownMenuItem>
+                            <Tooltip>
+                              <TooltipTrigger
+                                render={
+                                  <DropdownMenuItem
+                                    className={"h-8 w-8 p-0 justify-center"}
+                                    variant="destructive"
+                                    onClick={() => openCancel(po)}
+                                  >
+                                    <Ban className="size-4" />
+                                  </DropdownMenuItem>
+                                }
+                              ></TooltipTrigger>
+                              <TooltipContent>
+                                <p>Cancel</p>
+                              </TooltipContent>
+                            </Tooltip>
                           </DropdownMenuGroup>
                         </>
                       )}
                     </DropdownMenuContent>
                   </DropdownMenu>
-                )
+                );
               },
             } satisfies ColumnDef<PurchaseOrderWithItems>,
           ]
         : []),
     ],
-    [canEdit, canCancel, openEdit, openView, openCancel, handleSubmit, handleDownloadPO, downloadingId],
-  )
+    [
+      canEdit,
+      canCancel,
+      openEdit,
+      openView,
+      openCancel,
+      handleSubmit,
+      handleDownloadPO,
+      downloadingId,
+    ],
+  );
 
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
-  })
+  });
 
-  const totalPages = Math.ceil(count / pageSize)
-  const fromItem = count === 0 ? 0 : (page - 1) * pageSize + 1
-  const toItem = Math.min(page * pageSize, count)
+  const totalPages = Math.ceil(count / pageSize);
+  const fromItem = count === 0 ? 0 : (page - 1) * pageSize + 1;
+  const toItem = Math.min(page * pageSize, count);
 
   return (
     <div className="flex flex-col gap-4">
@@ -374,39 +483,49 @@ export function PurchaseOrdersTable({
             placeholder="Search PO number…"
             value={searchValue}
             onChange={e => {
-              setSearchValue(e.target.value)
-              handleSearch(e.target.value)
+              setSearchValue(e.target.value);
+              handleSearch(e.target.value);
             }}
             className="w-56"
           />
           <Select
             value={status}
-            onValueChange={v => v !== null && updateParams({ status: v || null })}
+            onValueChange={v =>
+              v !== null && updateParams({ status: v || null })
+            }
           >
             <SelectTrigger className="w-44">
               <SelectValue>
-                {status ? PO_STATUS_LABELS[status as PurchaseOrderStatus] : "All Statuses"}
+                {status
+                  ? PO_STATUS_LABELS[status as PurchaseOrderStatus]
+                  : "All Statuses"}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">All Statuses</SelectItem>
-              {(Object.entries(PO_STATUS_LABELS) as [PurchaseOrderStatus, string][]).map(
-                ([val, label]) => (
-                  <SelectItem key={val} value={val}>
-                    {label}
-                  </SelectItem>
-                ),
-              )}
+              {(
+                Object.entries(PO_STATUS_LABELS) as [
+                  PurchaseOrderStatus,
+                  string,
+                ][]
+              ).map(([val, label]) => (
+                <SelectItem key={val} value={val}>
+                  {label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Select
             value={supplier_id}
-            onValueChange={v => v !== null && updateParams({ supplier_id: v || null })}
+            onValueChange={v =>
+              v !== null && updateParams({ supplier_id: v || null })
+            }
           >
             <SelectTrigger className="w-44">
               <SelectValue>
                 {supplier_id
-                  ? (suppliers.find(s => s.id === supplier_id)?.name ?? "All Suppliers")
+                  ? (suppliers.find(s => s.id === supplier_id)?.name ??
+                    "All Suppliers")
                   : "All Suppliers"}
               </SelectValue>
             </SelectTrigger>
@@ -452,7 +571,10 @@ export function PurchaseOrdersTable({
                   <TableHead key={header.id} className="whitespace-nowrap">
                     {header.isPlaceholder
                       ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext(),
+                        )}
                   </TableHead>
                 ))}
               </TableRow>
@@ -464,7 +586,10 @@ export function PurchaseOrdersTable({
                 <TableRow key={row.id}>
                   {row.getVisibleCells().map(cell => (
                     <TableCell key={cell.id} className="whitespace-nowrap">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext(),
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>
@@ -546,5 +671,5 @@ export function PurchaseOrdersTable({
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  )
+  );
 }

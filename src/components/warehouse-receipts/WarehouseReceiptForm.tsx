@@ -70,7 +70,9 @@ export function WarehouseReceiptForm({
   const [supplierId, setSupplierId] = useState<string>(
     isEdit ? (receipt.supplier_id ?? "") : "",
   );
-  const [notes, setNotes] = useState<string>(isEdit ? (receipt.notes ?? "") : "");
+  const [notes, setNotes] = useState<string>(
+    isEdit ? (receipt.notes ?? "") : "",
+  );
   const [items, setItems] = useState<ReceiptLineItem[]>(
     isEdit && receipt.items?.length
       ? receipt.items.map(item => ({
@@ -250,7 +252,9 @@ export function WarehouseReceiptForm({
 
           {/* Receipt number strip */}
           <div className="flex items-center gap-2 mb-4">
-            <span className="text-xs text-muted-foreground">Receipt number</span>
+            <span className="text-xs text-muted-foreground">
+              Receipt number
+            </span>
             <span className="text-xs font-mono bg-muted px-2 py-0.5 rounded">
               {isEdit ? receipt.receipt_number : "Auto-generated on save"}
             </span>
@@ -285,7 +289,8 @@ export function WarehouseReceiptForm({
                           {po.po_number}
                           {po.supplier && (
                             <span className="text-muted-foreground">
-                              {" "}— {po.supplier.name}
+                              {" "}
+                              — {po.supplier.name}
                             </span>
                           )}
                         </SelectItem>
@@ -354,9 +359,13 @@ export function WarehouseReceiptForm({
               {items.filter(i => i.product_id).length} item(s)
             </span>
             <span className="text-xs text-muted-foreground">·</span>
-            <span className="text-sm font-medium">{totalQty} units received</span>
+            <span className="text-sm font-medium">
+              {totalQty} units received
+            </span>
             <span className="text-xs text-muted-foreground">·</span>
-            <span className="text-sm font-medium">₱{fmt(totalCost)} estimated</span>
+            <span className="text-sm font-medium">
+              ₱{fmt(totalCost)} estimated
+            </span>
           </div>
 
           {/* Column headers */}
@@ -401,7 +410,9 @@ export function WarehouseReceiptForm({
                 {/* Qty received */}
                 <QuantityInput
                   value={item.quantity_received}
-                  onChange={v => updateItem(i, { quantity_received: Math.max(1, v) })}
+                  onChange={v =>
+                    updateItem(i, { quantity_received: Math.max(1, v) })
+                  }
                   min={1}
                 />
 
@@ -486,7 +497,7 @@ export function WarehouseReceiptForm({
               {isSubmitting
                 ? "Saving..."
                 : mode === "create"
-                  ? "Save receipt"
+                  ? "Draft Receipt"
                   : "Save changes"}
             </Button>
           </div>
