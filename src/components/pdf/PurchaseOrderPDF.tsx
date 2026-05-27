@@ -56,6 +56,7 @@ const styles = StyleSheet.create({
   },
   colNum: { width: 24 },
   colProduct: { flex: 1 },
+  colPackaging: { width: 72 },
   colQty: { width: 48, textAlign: "right" },
   colUnitCost: { width: 72, textAlign: "right" },
   colTotal: { width: 80, textAlign: "right" },
@@ -154,6 +155,7 @@ export function PurchaseOrderPDF({ po }: { po: PurchaseOrderWithItems }) {
         <View style={styles.tableHeader}>
           <Text style={styles.colNum}>#</Text>
           <Text style={styles.colProduct}>Product</Text>
+          <Text style={styles.colPackaging}>Packaging</Text>
           <Text style={styles.colQty}>Qty</Text>
           <Text style={styles.colUnitCost}>Unit Cost</Text>
           <Text style={styles.colTotal}>Total</Text>
@@ -167,6 +169,9 @@ export function PurchaseOrderPDF({ po }: { po: PurchaseOrderWithItems }) {
               <Text style={styles.colNum}>{idx + 1}</Text>
               <Text style={styles.colProduct}>
                 {item.products?.product_name ?? item.product_id}
+              </Text>
+              <Text style={styles.colPackaging}>
+                {item.products?.packaging_type ?? "—"}
               </Text>
               <Text style={styles.colQty}>{item.quantity_ordered}</Text>
               <Text style={styles.colUnitCost}>

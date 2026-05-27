@@ -56,8 +56,9 @@ const styles = StyleSheet.create({
   },
   colNum: { width: 24 },
   colProduct: { flex: 1 },
-  colLot: { width: 90 },
-  colExpiry: { width: 64 },
+  colPackaging: { width: 64 },
+  colLot: { width: 80 },
+  colExpiry: { width: 60 },
   colQty: { width: 40, textAlign: "right" },
   totalRow: {
     flexDirection: "row",
@@ -155,6 +156,7 @@ export function WarehouseReceiptPDF({
         <View style={styles.tableHeader}>
           <Text style={styles.colNum}>#</Text>
           <Text style={styles.colProduct}>Product</Text>
+          <Text style={styles.colPackaging}>Packaging</Text>
           <Text style={styles.colLot}>Lot Number</Text>
           <Text style={styles.colExpiry}>Expiry</Text>
           <Text style={styles.colQty}>Qty</Text>
@@ -167,6 +169,9 @@ export function WarehouseReceiptPDF({
               <Text style={styles.colNum}>{idx + 1}</Text>
               <Text style={styles.colProduct}>
                 {item.products?.product_name ?? item.product_id}
+              </Text>
+              <Text style={styles.colPackaging}>
+                {item.products?.packaging_type ?? "—"}
               </Text>
               <Text style={styles.colLot}>{item.lot_number ?? "—"}</Text>
               <Text style={styles.colExpiry}>

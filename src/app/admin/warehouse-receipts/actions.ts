@@ -377,7 +377,7 @@ const WR_SELECT_FOR_PDF = `
   received_by_user:users!warehouse_receipts_received_by_fkey(name, role),
   items:warehouse_receipt_items!warehouse_receipt_items_receipt_id_fkey(
     id, receipt_id, product_id, po_item_id, quantity_received, unit_cost, lot_number, expiry_date, notes,
-    products(product_name, sku)
+    products(product_name, sku, packaging_type)
   )
 `
 

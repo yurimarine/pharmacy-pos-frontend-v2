@@ -193,7 +193,7 @@ export type PurchaseOrderItem = {
   quantity_ordered: number
   unit_cost: number
   notes: string | null
-  products?: { product_name: string } | null
+  products?: { product_name: string; packaging_type: string | null } | null
 }
 
 export type PurchaseOrder = {
@@ -234,7 +234,7 @@ export type WarehouseReceiptItem = {
   lot_number: string | null
   expiry_date: string | null
   notes: string | null
-  products?: { product_name: string; sku: string | null } | null
+  products?: { product_name: string; sku: string | null; packaging_type: string | null } | null
 }
 
 export type WarehouseReceipt = {
