@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { toast } from "sonner";
 import type { PurchaseOrderWithItems } from "@/types/inventory";
 import { PO_STATUS_LABELS } from "@/types/inventory";
 import { Badge } from "@/components/ui/badge";
@@ -65,6 +67,24 @@ export default function ViewPurchaseOrderModal({
   onOpenChange: (open: boolean) => void;
   po: PurchaseOrderWithItems | null;
 }) {
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  async function handleDownload() {
+    if (!po) return;
+    setIsDownloading(true);
+    try {
+      const [{ PurchaseOrderPDF, getPOFilename }, { downloadPDF }] = await Promise.all([
+        import("@/components/pdf/PurchaseOrderPDF"),
+        import("@/lib/pdf-utils"),
+      ]);
+      await downloadPDF(<PurchaseOrderPDF po={po} />, getPOFilename(po));
+    } catch {
+      toast.error("Failed to generate PDF");
+    } finally {
+      setIsDownloading(false);
+    }
+  }
+
   if (!po) return null;
 
   const estimatedTotal = po.items.reduce(
@@ -172,6 +192,9 @@ export default function ViewPurchaseOrderModal({
         </div>
 
         <DialogFooter>
+          <Button variant="outline" disabled={isDownloading} onClick={handleDownload}>
+            {isDownloading ? "Generating…" : "Download PDF"}
+          </Button>
           <DialogClose render={<Button variant="outline" />}>Close</DialogClose>
         </DialogFooter>
       </DialogContent>

@@ -1,6 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import {
+  useState,
+  useTransition,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useDebouncedCallback } from "use-debounce";
 import {
@@ -10,7 +15,12 @@ import {
   type ColumnDef,
   type RowSelectionState,
 } from "@tanstack/react-table";
-import { SearchIcon, MoreHorizontalIcon } from "lucide-react";
+import {
+  SearchIcon,
+  MoreHorizontalIcon,
+  Pencil,
+  PackageOpen,
+} from "lucide-react";
 import { getStockStatus, stockStatusConfig } from "@/lib/inventory-utils";
 import type {
   PharmacyInventoryWithProduct,
@@ -45,9 +55,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import BulkEditModal from "./BulkEditModal";
-import EditPricingModal from "./EditPricingModal";
-import EditThresholdModal from "./EditThresholdModal";
+import EditInventoryModal from "./EditInventoryModal";
 import StockAdjustmentModal from "./StockAdjustmentModal";
 
 const STATUS_OPTIONS: { value: StockStatus; label: string }[] = [
@@ -141,6 +155,9 @@ export default function PharmacyInventoryTable({
   requires_prescription,
   pharmacies,
   userRole,
+  isBulkMode,
+  rowSelection,
+  setRowSelection,
 }: {
   data: PharmacyInventoryWithProduct[];
   count: number;
@@ -152,23 +169,22 @@ export default function PharmacyInventoryTable({
   requires_prescription?: boolean;
   pharmacies: { id: string; name: string }[];
   userRole: UserRole;
+  isBulkMode: boolean;
+  rowSelection: RowSelectionState;
+  setRowSelection: Dispatch<SetStateAction<RowSelectionState>>;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const [searchValue, setSearchValue] = useState(search ?? "");
-
-  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [bulkEditKey, setBulkEditKey] = useState(0);
 
-  const [editPricingKey, setEditPricingKey] = useState(0);
-  const [editThresholdKey, setEditThresholdKey] = useState(0);
+  const [editInventoryKey, setEditInventoryKey] = useState(0);
   const [adjustStockKey, setAdjustStockKey] = useState(0);
   const [selectedInventory, setSelectedInventory] =
     useState<PharmacyInventoryWithProduct | null>(null);
-  const [editPricingOpen, setEditPricingOpen] = useState(false);
-  const [editThresholdOpen, setEditThresholdOpen] = useState(false);
+  const [editInventoryOpen, setEditInventoryOpen] = useState(false);
   const [adjustStockOpen, setAdjustStockOpen] = useState(false);
 
   const canEdit = userRole === "admin" || userRole === "pharmacist";
@@ -197,16 +213,10 @@ export default function PharmacyInventoryTable({
     startTransition(() => router.push(`?${params.toString()}`));
   }
 
-  function openEditPricing(inv: PharmacyInventoryWithProduct) {
+  function openEditInventory(inv: PharmacyInventoryWithProduct) {
     setSelectedInventory(inv);
-    setEditPricingKey(k => k + 1);
-    setEditPricingOpen(true);
-  }
-
-  function openEditThreshold(inv: PharmacyInventoryWithProduct) {
-    setSelectedInventory(inv);
-    setEditThresholdKey(k => k + 1);
-    setEditThresholdOpen(true);
+    setEditInventoryKey(k => k + 1);
+    setEditInventoryOpen(true);
   }
 
   function openAdjustStock(inv: PharmacyInventoryWithProduct) {
@@ -223,24 +233,38 @@ export default function PharmacyInventoryTable({
   const selectedIds = Object.keys(rowSelection).filter(k => rowSelection[k]);
 
   const columns: ColumnDef<PharmacyInventoryWithProduct>[] = [
-    {
-      id: "select",
-      header: ({ table }) => (
-        <Checkbox
-          checked={table.getIsAllPageRowsSelected()}
-          indeterminate={table.getIsSomePageRowsSelected()}
-          onCheckedChange={checked => table.toggleAllPageRowsSelected(!!checked)}
-          aria-label="Select all"
-        />
-      ),
-      cell: ({ row }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={checked => row.toggleSelected(!!checked)}
-          aria-label="Select row"
-        />
-      ),
-    },
+    ...(isBulkMode
+      ? [
+          {
+            id: "select",
+            header: ({
+              table,
+            }: {
+              table: import("@tanstack/react-table").Table<PharmacyInventoryWithProduct>;
+            }) => (
+              <Checkbox
+                checked={table.getIsAllPageRowsSelected()}
+                indeterminate={table.getIsSomePageRowsSelected()}
+                onCheckedChange={checked =>
+                  table.toggleAllPageRowsSelected(!!checked)
+                }
+                aria-label="Select all"
+              />
+            ),
+            cell: ({
+              row,
+            }: {
+              row: import("@tanstack/react-table").Row<PharmacyInventoryWithProduct>;
+            }) => (
+              <Checkbox
+                checked={row.getIsSelected()}
+                onCheckedChange={checked => row.toggleSelected(!!checked)}
+                aria-label="Select row"
+              />
+            ),
+          } satisfies ColumnDef<PharmacyInventoryWithProduct>,
+        ]
+      : []),
     {
       id: "product",
       header: "Product",
@@ -392,26 +416,41 @@ export default function PharmacyInventoryTable({
                     </Button>
                   }
                 />
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end" className="w-fit min-w-0 p-1">
                   <DropdownMenuGroup>
-                    <DropdownMenuItem
-                      onClick={() => openEditPricing(row.original)}
-                    >
-                      Edit Pricing
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => openEditThreshold(row.original)}
-                    >
-                      Edit Threshold
-                    </DropdownMenuItem>
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <DropdownMenuItem
+                            className={"h-8 w-8 p-0 justify-center"}
+                            onClick={() => openEditInventory(row.original)}
+                          >
+                            <Pencil className="size-4 text-blue-600" />
+                          </DropdownMenuItem>
+                        }
+                      ></TooltipTrigger>
+                      <TooltipContent>
+                        <p>Edit</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </DropdownMenuGroup>
                   <DropdownMenuSeparator />
                   <DropdownMenuGroup>
-                    <DropdownMenuItem
-                      onClick={() => openAdjustStock(row.original)}
-                    >
-                      Adjust Stock
-                    </DropdownMenuItem>
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <DropdownMenuItem
+                            className={"h-8 w-8 p-0 justify-center"}
+                            onClick={() => openAdjustStock(row.original)}
+                          >
+                            <PackageOpen className="size-4" />
+                          </DropdownMenuItem>
+                        }
+                      ></TooltipTrigger>
+                      <TooltipContent>
+                        <p>Adjust Stock</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -542,8 +581,8 @@ export default function PharmacyInventoryTable({
         </div>
       </div>
 
-      {/* Selection toolbar */}
-      {selectedIds.length > 0 && (
+      {/* Selection toolbar — visible in bulk mode when rows are selected */}
+      {isBulkMode && selectedIds.length > 0 && (
         <div className="flex items-center gap-3 px-3 py-2 rounded-md border bg-muted/40">
           <span className="text-sm font-medium">
             {selectedIds.length} item{selectedIds.length !== 1 ? "s" : ""}{" "}
@@ -632,16 +671,10 @@ export default function PharmacyInventoryTable({
         selectedIds={selectedIds}
         onSuccess={() => setRowSelection({})}
       />
-      <EditPricingModal
-        key={`ep-${editPricingKey}`}
-        open={editPricingOpen}
-        onOpenChange={setEditPricingOpen}
-        inventory={selectedInventory}
-      />
-      <EditThresholdModal
-        key={`et-${editThresholdKey}`}
-        open={editThresholdOpen}
-        onOpenChange={setEditThresholdOpen}
+      <EditInventoryModal
+        key={`ei-${editInventoryKey}`}
+        open={editInventoryOpen}
+        onOpenChange={setEditInventoryOpen}
         inventory={selectedInventory}
       />
       <StockAdjustmentModal

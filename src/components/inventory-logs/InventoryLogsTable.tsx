@@ -1,19 +1,19 @@
-"use client"
+"use client";
 
-import { useState, useTransition } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
-import { useDebouncedCallback } from "use-debounce"
+import { useState, useTransition } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useDebouncedCallback } from "use-debounce";
 import {
   useReactTable,
   getCoreRowModel,
   flexRender,
   type ColumnDef,
-} from "@tanstack/react-table"
-import { SearchIcon, ScrollTextIcon } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+} from "@tanstack/react-table";
+import { SearchIcon, ScrollTextIcon } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -21,20 +21,20 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/table";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 import type {
   InventoryLogWithDetails,
   InventoryLogEntityType,
   InventoryLogAction,
-} from "@/types/inventory"
-import { ROLE_LABELS } from "@/types/user"
+} from "@/types/inventory";
+import { ROLE_LABELS } from "@/types/user";
 
 const ACTION_LABELS: Record<InventoryLogAction, string> = {
   received: "Received",
@@ -43,22 +43,25 @@ const ACTION_LABELS: Record<InventoryLogAction, string> = {
   adjusted: "Adjusted",
   sold: "Sold",
   voided: "Voided",
-}
+};
 
 const ACTION_BADGE_CLASS: Record<InventoryLogAction, string> = {
-  received: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-0",
-  transferred_out: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300 border-0",
-  transferred_in: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 border-0",
+  received:
+    "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-0",
+  transferred_out:
+    "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300 border-0",
+  transferred_in:
+    "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 border-0",
   adjusted: "border-yellow-500 text-yellow-700 dark:text-yellow-400",
   sold: "bg-primary text-primary-foreground border-0",
   voided: "",
-}
+};
 
 const REFERENCE_TYPE_LABELS: Record<string, string> = {
   receipt: "RECEIPT",
   transfer: "TRANSFER",
   adjustment: "ADJUST",
-}
+};
 
 function formatTimestamp(dateStr: string): string {
   return new Date(dateStr).toLocaleString("en-US", {
@@ -68,7 +71,7 @@ function formatTimestamp(dateStr: string): string {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
-  })
+  });
 }
 
 function PaginationControls({
@@ -77,12 +80,12 @@ function PaginationControls({
   count,
   onPageChange,
 }: {
-  page: number
-  pageSize: number
-  count: number
-  onPageChange: (p: number) => void
+  page: number;
+  pageSize: number;
+  count: number;
+  onPageChange: (p: number) => void;
 }) {
-  const totalPages = Math.max(1, Math.ceil(count / pageSize))
+  const totalPages = Math.max(1, Math.ceil(count / pageSize));
   return (
     <div className="flex items-center justify-between text-sm text-muted-foreground">
       <span>
@@ -99,7 +102,7 @@ function PaginationControls({
         >
           Previous
         </Button>
-        <span className="min-w-[4rem] text-center">
+        <span className="min-w-16 text-center">
           Page {page} of {totalPages}
         </span>
         <Button
@@ -112,7 +115,7 @@ function PaginationControls({
         </Button>
       </div>
     </div>
-  )
+  );
 }
 
 export default function InventoryLogsTable({
@@ -126,50 +129,50 @@ export default function InventoryLogsTable({
   date_from,
   date_to,
 }: {
-  data: InventoryLogWithDetails[]
-  count: number
-  page: number
-  pageSize: number
-  search?: string
-  entity_type?: InventoryLogEntityType
-  action?: InventoryLogAction
-  date_from?: string
-  date_to?: string
+  data: InventoryLogWithDetails[];
+  count: number;
+  page: number;
+  pageSize: number;
+  search?: string;
+  entity_type?: InventoryLogEntityType;
+  action?: InventoryLogAction;
+  date_from?: string;
+  date_to?: string;
 }) {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const [isPending, startTransition] = useTransition()
-  const [searchValue, setSearchValue] = useState(search ?? "")
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
+  const [searchValue, setSearchValue] = useState(search ?? "");
 
   const hasFilters =
-    !!search || !!entity_type || !!action || !!date_from || !!date_to
+    !!search || !!entity_type || !!action || !!date_from || !!date_to;
 
   function pushParams(updates: Record<string, string | undefined>) {
-    const params = new URLSearchParams(searchParams.toString())
+    const params = new URLSearchParams(searchParams.toString());
     for (const [key, val] of Object.entries(updates)) {
       if (val === undefined || val === "") {
-        params.delete(key)
+        params.delete(key);
       } else {
-        params.set(key, val)
+        params.set(key, val);
       }
     }
-    params.delete("page")
-    startTransition(() => router.push(`?${params.toString()}`))
+    params.delete("page");
+    startTransition(() => router.push(`?${params.toString()}`));
   }
 
   const handleSearch = useDebouncedCallback((value: string) => {
-    pushParams({ search: value || undefined })
-  }, 400)
+    pushParams({ search: value || undefined });
+  }, 400);
 
   function handlePageChange(p: number) {
-    const params = new URLSearchParams(searchParams.toString())
-    params.set("page", String(p))
-    startTransition(() => router.push(`?${params.toString()}`))
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("page", String(p));
+    startTransition(() => router.push(`?${params.toString()}`));
   }
 
   function clearFilters() {
-    setSearchValue("")
-    startTransition(() => router.push("?"))
+    setSearchValue("");
+    startTransition(() => router.push("?"));
   }
 
   const columns: ColumnDef<InventoryLogWithDetails>[] = [
@@ -186,8 +189,8 @@ export default function InventoryLogsTable({
       id: "action",
       header: "Action",
       cell: ({ row }) => {
-        const a = row.original.action
-        const isDestructive = a === "voided"
+        const a = row.original.action;
+        const isDestructive = a === "voided";
         return (
           <Badge
             variant={isDestructive ? "destructive" : "outline"}
@@ -195,28 +198,29 @@ export default function InventoryLogsTable({
           >
             {ACTION_LABELS[a] ?? a}
           </Badge>
-        )
+        );
       },
     },
     {
       id: "location",
       header: "Location",
       cell: ({ row }) => {
-        const et = row.original.entity_type
+        const et = row.original.entity_type;
         return (
           <Badge variant={et === "warehouse" ? "outline" : "secondary"}>
             {et === "warehouse" ? "Warehouse" : "Pharmacy"}
           </Badge>
-        )
+        );
       },
     },
     {
       id: "qty_change",
       header: "Qty Change",
       cell: ({ row }) => {
-        const { quantity_change, quantity_before, quantity_after } = row.original
-        const isPositive = quantity_change > 0
-        const isNegative = quantity_change < 0
+        const { quantity_change, quantity_before, quantity_after } =
+          row.original;
+        const isPositive = quantity_change > 0;
+        const isNegative = quantity_change < 0;
         return (
           <div className="flex flex-col gap-0.5">
             <span
@@ -234,33 +238,36 @@ export default function InventoryLogsTable({
               {quantity_before} → {quantity_after}
             </span>
           </div>
-        )
+        );
       },
     },
     {
       id: "reference",
       header: "Reference",
       cell: ({ row }) => {
-        const { reference_type, reference_id } = row.original
+        const { reference_type, reference_id } = row.original;
         if (!reference_type || !reference_id) {
-          return <span className="text-muted-foreground">—</span>
+          return <span className="text-muted-foreground">—</span>;
         }
-        const label = REFERENCE_TYPE_LABELS[reference_type] ?? reference_type.toUpperCase()
-        const short = reference_id.slice(-8)
+        const label =
+          REFERENCE_TYPE_LABELS[reference_type] ?? reference_type.toUpperCase();
+        const short = reference_id.slice(-8);
         return (
           <span className="text-xs font-mono text-muted-foreground">
             {label} ···{short}
           </span>
-        )
+        );
       },
     },
     {
       id: "performed_by",
       header: "Performed By",
       cell: ({ row }) => {
-        const user = row.original.performed_by_user
-        if (!user) return <span className="text-muted-foreground text-sm">—</span>
-        const roleLabel = ROLE_LABELS[user.role as keyof typeof ROLE_LABELS] ?? user.role
+        const user = row.original.performed_by_user;
+        if (!user)
+          return <span className="text-muted-foreground text-sm">—</span>;
+        const roleLabel =
+          ROLE_LABELS[user.role as keyof typeof ROLE_LABELS] ?? user.role;
         return (
           <div className="flex flex-col gap-0.5">
             <span className="text-sm">{user.name}</span>
@@ -268,43 +275,48 @@ export default function InventoryLogsTable({
               {roleLabel}
             </Badge>
           </div>
-        )
+        );
       },
     },
     {
       id: "notes",
       header: "Notes",
       cell: ({ row }) => {
-        const notes = row.original.notes
-        if (!notes) return <span className="text-sm text-muted-foreground">—</span>
-        const truncated = notes.length > 40 ? notes.slice(0, 40) + "…" : notes
-        return <span className="text-sm text-muted-foreground">{truncated}</span>
+        const notes = row.original.notes;
+        if (!notes)
+          return <span className="text-sm text-muted-foreground">—</span>;
+        const truncated = notes.length > 40 ? notes.slice(0, 40) + "…" : notes;
+        return (
+          <span className="text-sm text-muted-foreground">{truncated}</span>
+        );
       },
     },
-  ]
+  ];
 
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
-  })
+  });
 
   return (
     <div className="flex flex-col gap-4">
       {/* Filters */}
       <div className="flex flex-wrap gap-3 items-end">
         {/* Search */}
-        <div className="flex flex-col gap-1.5 flex-1 min-w-[200px] max-w-[280px]">
-          <Label className="text-xs text-muted-foreground">Search by user</Label>
+        <div className="flex flex-col gap-1.5 flex-1 min-w-50 max-w-70">
+          <Label className="text-xs text-muted-foreground">
+            Search by user
+          </Label>
           <div className="relative">
             <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               className="pl-8"
               placeholder="User name…"
               value={searchValue}
-              onChange={(e) => {
-                setSearchValue(e.target.value)
-                handleSearch(e.target.value)
+              onChange={e => {
+                setSearchValue(e.target.value);
+                handleSearch(e.target.value);
               }}
             />
           </div>
@@ -315,11 +327,11 @@ export default function InventoryLogsTable({
           <Label className="text-xs text-muted-foreground">Location</Label>
           <Select
             value={entity_type ?? ""}
-            onValueChange={(v) =>
+            onValueChange={v =>
               v !== null && pushParams({ entity_type: v || undefined })
             }
           >
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="w-40">
               <SelectValue>
                 {entity_type === "warehouse"
                   ? "Warehouse"
@@ -341,18 +353,18 @@ export default function InventoryLogsTable({
           <Label className="text-xs text-muted-foreground">Action</Label>
           <Select
             value={action ?? ""}
-            onValueChange={(v) =>
+            onValueChange={v =>
               v !== null && pushParams({ action: v || undefined })
             }
           >
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-45">
               <SelectValue>
                 {action ? ACTION_LABELS[action] : "All Actions"}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">All Actions</SelectItem>
-              {(Object.keys(ACTION_LABELS) as InventoryLogAction[]).map((a) => (
+              {(Object.keys(ACTION_LABELS) as InventoryLogAction[]).map(a => (
                 <SelectItem key={a} value={a}>
                   {ACTION_LABELS[a]}
                 </SelectItem>
@@ -366,9 +378,11 @@ export default function InventoryLogsTable({
           <Label className="text-xs text-muted-foreground">From</Label>
           <Input
             type="date"
-            className="w-[160px]"
+            className="w-40"
             value={date_from ?? ""}
-            onChange={(e) => pushParams({ date_from: e.target.value || undefined })}
+            onChange={e =>
+              pushParams({ date_from: e.target.value || undefined })
+            }
           />
         </div>
 
@@ -377,9 +391,9 @@ export default function InventoryLogsTable({
           <Label className="text-xs text-muted-foreground">To</Label>
           <Input
             type="date"
-            className="w-[160px]"
+            className="w-40"
             value={date_to ?? ""}
-            onChange={(e) => pushParams({ date_to: e.target.value || undefined })}
+            onChange={e => pushParams({ date_to: e.target.value || undefined })}
           />
         </div>
 
@@ -402,11 +416,14 @@ export default function InventoryLogsTable({
       >
         <Table>
           <TableHeader>
-            {table.getHeaderGroups().map((hg) => (
+            {table.getHeaderGroups().map(hg => (
               <TableRow key={hg.id}>
-                {hg.headers.map((header) => (
+                {hg.headers.map(header => (
                   <TableHead key={header.id}>
-                    {flexRender(header.column.columnDef.header, header.getContext())}
+                    {flexRender(
+                      header.column.columnDef.header,
+                      header.getContext(),
+                    )}
                   </TableHead>
                 ))}
               </TableRow>
@@ -421,22 +438,27 @@ export default function InventoryLogsTable({
                     <div className="text-center">
                       <p className="font-medium">No logs found</p>
                       <p className="text-sm mt-1">
-                        Stock movements will appear here once inventory operations are
-                        performed.
+                        Stock movements will appear here once inventory
+                        operations are performed.
                       </p>
                       {hasFilters && (
-                        <p className="text-sm mt-0.5">Try adjusting your filters.</p>
+                        <p className="text-sm mt-0.5">
+                          Try adjusting your filters.
+                        </p>
                       )}
                     </div>
                   </div>
                 </TableCell>
               </TableRow>
             ) : (
-              table.getRowModel().rows.map((row) => (
+              table.getRowModel().rows.map(row => (
                 <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
+                  {row.getVisibleCells().map(cell => (
                     <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext(),
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>
@@ -453,5 +475,5 @@ export default function InventoryLogsTable({
         onPageChange={handlePageChange}
       />
     </div>
-  )
+  );
 }

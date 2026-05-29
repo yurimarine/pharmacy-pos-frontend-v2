@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { toast } from "sonner";
 import type { WarehouseReceiptWithItems } from "@/types/inventory";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -56,6 +58,24 @@ export default function ViewWarehouseReceiptModal({
   onOpenChange: (open: boolean) => void;
   receipt: WarehouseReceiptWithItems | null;
 }) {
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  async function handleDownload() {
+    if (!receipt) return;
+    setIsDownloading(true);
+    try {
+      const [{ WarehouseReceiptPDF, getWRFilename }, { downloadPDF }] = await Promise.all([
+        import("@/components/pdf/WarehouseReceiptPDF"),
+        import("@/lib/pdf-utils"),
+      ]);
+      await downloadPDF(<WarehouseReceiptPDF receipt={receipt} />, getWRFilename(receipt));
+    } catch {
+      toast.error("Failed to generate PDF");
+    } finally {
+      setIsDownloading(false);
+    }
+  }
+
   if (!receipt) return null;
 
   const totalCost = receipt.items.reduce(
@@ -189,6 +209,9 @@ export default function ViewWarehouseReceiptModal({
         </div>
 
         <DialogFooter>
+          <Button variant="outline" disabled={isDownloading} onClick={handleDownload}>
+            {isDownloading ? "Generating…" : "Download PDF"}
+          </Button>
           <DialogClose render={<Button variant="outline" />}>Close</DialogClose>
         </DialogFooter>
       </DialogContent>

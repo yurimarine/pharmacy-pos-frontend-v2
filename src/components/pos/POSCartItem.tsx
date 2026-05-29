@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Trash2Icon, MinusIcon, PlusIcon, TagIcon } from "lucide-react";
+import { Trash2Icon, TagIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { QuantityInput } from "@/components/ui/QuantityInput";
 import { Popover, PopoverTrigger } from "@/components/ui/popover";
 import type { CartItem } from "@/types/cart";
 import { usePOS } from "@/context/POSContext";
@@ -113,33 +113,12 @@ export function POSCartItem({ item }: POSCartItemProps) {
       <div className="flex items-center justify-between gap-2">
         {/* Qty stepper */}
         <div className="flex items-center gap-1">
-          <Button
-            variant="outline"
-            size="icon"
-            className="size-7"
-            onClick={() => updateQuantity(item.inventoryId, item.quantity - 1)}
-          >
-            <MinusIcon className="size-3" />
-          </Button>
-          <Input
-            className="w-12 h-7 text-center text-sm p-0"
-            type="number"
+          <QuantityInput
+            value={item.quantity}
+            onChange={(v) => updateQuantity(item.inventoryId, v)}
             min={1}
             max={item.maxQuantity}
-            value={item.quantity}
-            onChange={(e) =>
-              updateQuantity(item.inventoryId, parseInt(e.target.value) || 1)
-            }
           />
-          <Button
-            variant="outline"
-            size="icon"
-            className="size-7"
-            disabled={item.quantity >= item.maxQuantity}
-            onClick={() => updateQuantity(item.inventoryId, item.quantity + 1)}
-          >
-            <PlusIcon className="size-3" />
-          </Button>
           <span className="text-xs text-muted-foreground">
             × ₱{item.unitPrice.toFixed(2)}
           </span>

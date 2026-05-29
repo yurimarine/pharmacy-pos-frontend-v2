@@ -6,7 +6,7 @@
 
 **Modal state reset via `key` remount** — Rather than a `useEffect` that resets a modal's state on open/close, increment a `key` integer in the parent each time the modal is opened. React will unmount and remount the component, so all `useState` initializers re-run. This is the preferred pattern for CloseTillModal and similar two-stage modals.
 
-**Print isolation** — To print a specific section of the page, give it `id="section-id"` and add a `@media print` block in `globals.css` that hides everything else (`body > * { display: none }`) and shows only `#section-id`. See the shift summary print block at the bottom of `globals.css`.
+**Print isolation** — To print a specific section of the page, give it a known `id` and add a `@media print` block in `globals.css` that hides `body *` and makes only `#your-id` and its descendants visible. Two print sections are already registered: `#shift-summary-print` (till close summary) and `#report-print-section` (reports). Add new printable sections there rather than creating inline styles.
 
 **Supabase FK alias syntax for joins** — When two FK columns reference the same table (e.g. both `processed_by` and `voided_by` → `users`), Supabase requires a hint. Use the alias + FK constraint name syntax:
 

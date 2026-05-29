@@ -17,6 +17,7 @@ import { ProductCombobox } from "@/components/ui/product-combobox";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { QuantityInput } from "@/components/ui/QuantityInput";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -69,7 +70,9 @@ export function WarehouseReceiptForm({
   const [supplierId, setSupplierId] = useState<string>(
     isEdit ? (receipt.supplier_id ?? "") : "",
   );
-  const [notes, setNotes] = useState<string>(isEdit ? (receipt.notes ?? "") : "");
+  const [notes, setNotes] = useState<string>(
+    isEdit ? (receipt.notes ?? "") : "",
+  );
   const [items, setItems] = useState<ReceiptLineItem[]>(
     isEdit && receipt.items?.length
       ? receipt.items.map(item => ({
@@ -249,7 +252,9 @@ export function WarehouseReceiptForm({
 
           {/* Receipt number strip */}
           <div className="flex items-center gap-2 mb-4">
-            <span className="text-xs text-muted-foreground">Receipt number</span>
+            <span className="text-xs text-muted-foreground">
+              Receipt number
+            </span>
             <span className="text-xs font-mono bg-muted px-2 py-0.5 rounded">
               {isEdit ? receipt.receipt_number : "Auto-generated on save"}
             </span>
@@ -284,7 +289,8 @@ export function WarehouseReceiptForm({
                           {po.po_number}
                           {po.supplier && (
                             <span className="text-muted-foreground">
-                              {" "}— {po.supplier.name}
+                              {" "}
+                              — {po.supplier.name}
                             </span>
                           )}
                         </SelectItem>
@@ -353,13 +359,17 @@ export function WarehouseReceiptForm({
               {items.filter(i => i.product_id).length} item(s)
             </span>
             <span className="text-xs text-muted-foreground">·</span>
-            <span className="text-sm font-medium">{totalQty} units received</span>
+            <span className="text-sm font-medium">
+              {totalQty} units received
+            </span>
             <span className="text-xs text-muted-foreground">·</span>
-            <span className="text-sm font-medium">₱{fmt(totalCost)} estimated</span>
+            <span className="text-sm font-medium">
+              ₱{fmt(totalCost)} estimated
+            </span>
           </div>
 
           {/* Column headers */}
-          <div className="grid grid-cols-[2fr_90px_110px_120px_130px_1fr_36px] gap-2 px-1 mb-2">
+          <div className="grid grid-cols-[2fr_140px_110px_120px_130px_1fr_36px] gap-2 px-1 mb-2">
             <span className="text-xs text-muted-foreground">Product</span>
             <span className="text-xs text-muted-foreground">Qty received</span>
             <span className="text-xs text-muted-foreground">Unit cost (₱)</span>
@@ -374,7 +384,7 @@ export function WarehouseReceiptForm({
             {items.map((item, i) => (
               <div
                 key={i}
-                className="grid grid-cols-[2fr_90px_110px_120px_130px_1fr_36px] gap-2 items-center"
+                className="grid grid-cols-[2fr_140px_110px_120px_130px_1fr_36px] gap-2 items-center"
               >
                 {/* Product — read-only if PO-linked, combobox if ad-hoc */}
                 {item.po_item_id ? (
@@ -398,15 +408,12 @@ export function WarehouseReceiptForm({
                 )}
 
                 {/* Qty received */}
-                <Input
-                  type="number"
-                  min={1}
+                <QuantityInput
                   value={item.quantity_received}
-                  onChange={e =>
-                    updateItem(i, {
-                      quantity_received: Math.max(1, Number(e.target.value)),
-                    })
+                  onChange={v =>
+                    updateItem(i, { quantity_received: Math.max(1, v) })
                   }
+                  min={1}
                 />
 
                 {/* Unit cost */}
@@ -490,7 +497,7 @@ export function WarehouseReceiptForm({
               {isSubmitting
                 ? "Saving..."
                 : mode === "create"
-                  ? "Save receipt"
+                  ? "Draft Receipt"
                   : "Save changes"}
             </Button>
           </div>

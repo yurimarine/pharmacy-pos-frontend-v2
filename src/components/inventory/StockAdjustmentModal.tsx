@@ -6,7 +6,7 @@ import { createStockAdjustment } from "@/app/admin/inventory/actions"
 import type { PharmacyInventoryWithProduct, StockAdjustmentType, StockAdjustmentReason } from "@/types/inventory"
 import { ADJUSTMENT_REASON_LABELS } from "@/types/inventory"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { QuantityInput } from "@/components/ui/QuantityInput"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -126,12 +126,11 @@ export default function StockAdjustmentModal({
           {/* Quantity */}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="sa-qty">Quantity</Label>
-            <Input
+            <QuantityInput
               id="sa-qty"
-              type="number"
+              value={qty}
+              onChange={(v) => setQuantity(String(v))}
               min={1}
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
             />
             {qty > 0 && (
               <p

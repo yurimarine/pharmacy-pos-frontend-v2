@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { QuantityInput } from "@/components/ui/QuantityInput";
 
 type POLineItem = {
   product_id: string;
@@ -265,7 +266,7 @@ export function PurchaseOrderForm({ mode, po, suppliers }: Props) {
           </div>
 
           {/* Column headers */}
-          <div className="grid grid-cols-[2fr_80px_120px_100px_1fr_36px] gap-2 px-1 mb-2">
+          <div className="grid grid-cols-[2fr_140px_120px_100px_1fr_36px] gap-2 px-1 mb-2">
             <span className="text-xs text-muted-foreground">Product</span>
             <span className="text-xs text-muted-foreground">Qty</span>
             <span className="text-xs text-muted-foreground">Unit cost (₱)</span>
@@ -279,7 +280,7 @@ export function PurchaseOrderForm({ mode, po, suppliers }: Props) {
             {items.map((item, i) => (
               <div
                 key={i}
-                className="grid grid-cols-[2fr_80px_120px_100px_1fr_36px] gap-2 items-center"
+                className="grid grid-cols-[2fr_140px_120px_100px_1fr_36px] gap-2 items-center"
               >
                 <ProductCombobox
                   options={products}
@@ -294,15 +295,12 @@ export function PurchaseOrderForm({ mode, po, suppliers }: Props) {
                   }}
                   placeholder="Search product..."
                 />
-                <Input
-                  type="number"
-                  min={1}
+                <QuantityInput
                   value={item.quantity_ordered}
-                  onChange={e =>
-                    updateItem(i, {
-                      quantity_ordered: Math.max(1, Number(e.target.value)),
-                    })
+                  onChange={v =>
+                    updateItem(i, { quantity_ordered: Math.max(1, v) })
                   }
+                  min={1}
                 />
                 <Input
                   type="number"
@@ -368,10 +366,10 @@ export function PurchaseOrderForm({ mode, po, suppliers }: Props) {
             <Button onClick={handleSubmit} disabled={isSubmitting}>
               {isSubmitting
                 ? mode === "create"
-                  ? "Creating..."
+                  ? "Drafting..."
                   : "Saving..."
                 : mode === "create"
-                  ? "Create purchase order"
+                  ? "Draft PO"
                   : "Save changes"}
             </Button>
           </div>

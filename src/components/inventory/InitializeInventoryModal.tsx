@@ -8,6 +8,7 @@ import {
 } from "@/app/admin/inventory/actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { QuantityInput } from "@/components/ui/QuantityInput"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -133,12 +134,10 @@ export default function InitializeInventoryModal({
               {/* Default Quantity */}
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="ii-quantity">Default Quantity</Label>
-                <Input
-                  id="ii-quantity"
-                  type="number"
-                  min={0}
+                <QuantityInput
                   value={quantity}
-                  onChange={(e) => setQuantity(Math.max(0, parseInt(e.target.value) || 0))}
+                  onChange={setQuantity}
+                  min={0}
                   disabled={nothingToInit}
                 />
               </div>

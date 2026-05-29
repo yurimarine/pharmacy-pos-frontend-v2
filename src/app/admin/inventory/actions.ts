@@ -425,6 +425,50 @@ export async function updateLowStockThreshold(
   }
 }
 
+export async function updatePharmacyInventory(
+  id: string,
+  data: {
+    selling_price: number
+    markup_percentage: number
+    expiry_date: string | null
+    low_stock_threshold: number
+  },
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const currentUser = await getCurrentUser()
+    if (currentUser.role !== "admin" && currentUser.role !== "pharmacist") {
+      return { success: false, error: "Unauthorized" }
+    }
+    if (data.selling_price < 0 || data.markup_percentage < 0) {
+      return { success: false, error: "Values must be non-negative" }
+    }
+    if (data.low_stock_threshold < 0) {
+      return { success: false, error: "Threshold must be non-negative" }
+    }
+
+    const supabase = await createClient()
+    const { error } = await supabase
+      .from("pharmacy_inventory")
+      .update({
+        selling_price: data.selling_price,
+        markup_percentage: data.markup_percentage,
+        expiry_date: data.expiry_date,
+        low_stock_threshold: data.low_stock_threshold,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+
+    if (error) return { success: false, error: error.message }
+    revalidatePath("/admin/inventory")
+    return { success: true }
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Unknown error",
+    }
+  }
+}
+
 export async function createStockAdjustment(data: {
   pharmacy_id: string
   product_id: string

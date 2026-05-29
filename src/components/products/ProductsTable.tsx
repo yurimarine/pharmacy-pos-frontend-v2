@@ -1,24 +1,28 @@
-"use client"
+"use client";
 
-import { useState, useMemo, useTransition, useCallback } from "react"
-import { useRouter, usePathname, useSearchParams } from "next/navigation"
-import { useDebouncedCallback } from "use-debounce"
+import { useState, useMemo, useTransition, useCallback } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useDebouncedCallback } from "use-debounce";
 import {
   flexRender,
   getCoreRowModel,
   useReactTable,
   type ColumnDef,
-} from "@tanstack/react-table"
+} from "@tanstack/react-table";
 import {
   EllipsisVerticalIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   PlusIcon,
-} from "lucide-react"
-import { toast } from "sonner"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
+  Pencil,
+  CircleSlash,
+  CircleX,
+  CircleCheck,
+} from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -26,7 +30,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/table";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,14 +38,14 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,36 +55,44 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
 import {
   type Product,
   type ProductType,
   type ProductStatus,
   PRODUCT_TYPE_LABELS,
   PRODUCT_STATUS_LABELS,
-} from "@/types/product"
-import { deleteProduct, updateProductStatus } from "@/app/admin/products/actions"
-import type { UserRole } from "@/types/user"
+} from "@/types/product";
+import {
+  deleteProduct,
+  updateProductStatus,
+} from "@/app/admin/products/actions";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import type { UserRole } from "@/types/user";
 
 function formatCurrency(value: number): string {
   return `₱${value.toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  })}`
+  })}`;
 }
 
 type Props = {
-  data: Product[]
-  count: number
-  page: number
-  pageSize: number
-  search?: string
-  type?: ProductType | ""
-  status?: ProductStatus | ""
-  category?: string
-  requires_prescription?: boolean
-  userRole: UserRole
-}
+  data: Product[];
+  count: number;
+  page: number;
+  pageSize: number;
+  search?: string;
+  type?: ProductType | "";
+  status?: ProductStatus | "";
+  category?: string;
+  requires_prescription?: boolean;
+  userRole: UserRole;
+};
 
 export function ProductsTable({
   data,
@@ -94,100 +106,106 @@ export function ProductsTable({
   requires_prescription,
   userRole,
 }: Props) {
-  const canEdit = userRole === "admin" || userRole === "pharmacist"
-  const canDelete = userRole === "admin"
+  const canEdit = userRole === "admin" || userRole === "pharmacist";
+  const canDelete = userRole === "admin";
 
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
-  const [isPending, startTransition] = useTransition()
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
 
-  const [searchValue, setSearchValue] = useState(search)
+  const [searchValue, setSearchValue] = useState(search);
 
   // discontinue dialog state
-  const [discontinueOpen, setDiscontinueOpen] = useState(false)
-  const [discontinueTarget, setDiscontinueTarget] = useState<Product | null>(null)
-  const [isDiscontinuing, setIsDiscontinuing] = useState(false)
+  const [discontinueOpen, setDiscontinueOpen] = useState(false);
+  const [discontinueTarget, setDiscontinueTarget] = useState<Product | null>(
+    null,
+  );
+  const [isDiscontinuing, setIsDiscontinuing] = useState(false);
 
   const updateParams = useCallback(
     (updates: Record<string, string | null>) => {
-      const params = new URLSearchParams(searchParams.toString())
+      const params = new URLSearchParams(searchParams.toString());
       for (const [key, value] of Object.entries(updates)) {
         if (value === null || value === "") {
-          params.delete(key)
+          params.delete(key);
         } else {
-          params.set(key, value)
+          params.set(key, value);
         }
       }
-      const isFilterChange = Object.keys(updates).some(k => k !== "page")
+      const isFilterChange = Object.keys(updates).some(k => k !== "page");
       if (isFilterChange) {
-        params.set("page", "1")
+        params.set("page", "1");
       }
       startTransition(() => {
-        router.push(`${pathname}?${params.toString()}`)
-      })
+        router.push(`${pathname}?${params.toString()}`);
+      });
     },
     [searchParams, pathname, router],
-  )
+  );
 
   const handleSearch = useDebouncedCallback((value: string) => {
-    updateParams({ search: value || null })
-  }, 400)
+    updateParams({ search: value || null });
+  }, 400);
 
   const handleTypeChange = (value: string | null) => {
-    if (value === null) return
-    updateParams({ type: value || null })
-  }
+    if (value === null) return;
+    updateParams({ type: value || null });
+  };
 
   const handleStatusChange = (value: string | null) => {
-    if (value === null) return
-    updateParams({ status: value || null })
-  }
+    if (value === null) return;
+    updateParams({ status: value || null });
+  };
 
   const handlePrescriptionChange = (value: string | null) => {
-    if (value === null) return
-    updateParams({ requires_prescription: value || null })
-  }
+    if (value === null) return;
+    updateParams({ requires_prescription: value || null });
+  };
 
   const handleStatusToggle = useCallback(async (product: Product) => {
-    const newStatus: ProductStatus = product.status === "active" ? "inactive" : "active"
-    const result = await updateProductStatus(product.id, newStatus)
+    const newStatus: ProductStatus =
+      product.status === "active" ? "inactive" : "active";
+    const result = await updateProductStatus(product.id, newStatus);
     if (result.success) {
-      toast.success(`${product.product_name} marked as ${newStatus}.`)
+      toast.success(`${product.product_name} marked as ${newStatus}.`);
     } else {
-      toast.error(result.error ?? "Failed to update status")
+      toast.error(result.error ?? "Failed to update status");
     }
-  }, [])
+  }, []);
 
-  const openEdit = useCallback((product: Product) => {
-    router.push(`/admin/products/${product.id}/edit`)
-  }, [router])
+  const openEdit = useCallback(
+    (product: Product) => {
+      router.push(`/admin/products/${product.id}/edit`);
+    },
+    [router],
+  );
 
   const openDiscontinue = useCallback((product: Product) => {
-    setDiscontinueTarget(product)
-    setDiscontinueOpen(true)
-  }, [])
+    setDiscontinueTarget(product);
+    setDiscontinueOpen(true);
+  }, []);
 
   const handleDiscontinue = async () => {
-    if (!discontinueTarget) return
-    setIsDiscontinuing(true)
-    const result = await deleteProduct(discontinueTarget.id)
-    setIsDiscontinuing(false)
+    if (!discontinueTarget) return;
+    setIsDiscontinuing(true);
+    const result = await deleteProduct(discontinueTarget.id);
+    setIsDiscontinuing(false);
     if (result.success) {
-      toast.success(`${discontinueTarget.product_name} has been discontinued.`)
-      setDiscontinueOpen(false)
-      setDiscontinueTarget(null)
+      toast.success(`${discontinueTarget.product_name} has been discontinued.`);
+      setDiscontinueOpen(false);
+      setDiscontinueTarget(null);
     } else {
-      toast.error(result.error ?? "Failed to discontinue product")
+      toast.error(result.error ?? "Failed to discontinue product");
     }
-  }
+  };
 
   const prescriptionValue =
     requires_prescription === true
       ? "true"
       : requires_prescription === false
         ? "false"
-        : ""
+        : "";
 
   const columns = useMemo<ColumnDef<Product>[]>(
     () => [
@@ -228,22 +246,25 @@ export function ProductsTable({
         id: "type",
         header: "Type",
         cell: ({ row }) => {
-          const t = row.original.type
-          if (t === "branded") return <Badge variant="default">Branded</Badge>
-          if (t === "generic") return <Badge variant="secondary">Generic</Badge>
-          return <Badge variant="outline">OTC</Badge>
+          const t = row.original.type;
+          if (t === "branded") return <Badge variant="default">Branded</Badge>;
+          if (t === "generic")
+            return <Badge variant="secondary">Generic</Badge>;
+          return <Badge variant="outline">OTC</Badge>;
         },
       },
       {
         id: "packaging",
         header: "Packaging",
         cell: ({ row }) => {
-          const { packaging_type, unit_count } = row.original
+          const { packaging_type, unit_count } = row.original;
           return (
             <span className="text-sm">
-              {unit_count > 1 ? `${packaging_type} × ${unit_count}` : packaging_type}
+              {unit_count > 1
+                ? `${packaging_type} × ${unit_count}`
+                : packaging_type}
             </span>
-          )
+          );
         },
       },
       {
@@ -269,14 +290,18 @@ export function ProductsTable({
         id: "status",
         header: "Status",
         cell: ({ row }) => {
-          const s = row.original.status
+          const s = row.original.status;
           if (s === "active")
             return (
-              <Badge variant="default" className="bg-green-600 hover:bg-green-700">
+              <Badge
+                variant="default"
+                className="bg-green-600 hover:bg-green-700"
+              >
                 Active
               </Badge>
-            )
-          if (s === "inactive") return <Badge variant="secondary">Inactive</Badge>
+            );
+          if (s === "inactive")
+            return <Badge variant="secondary">Inactive</Badge>;
           return (
             <Badge
               variant="outline"
@@ -284,7 +309,7 @@ export function ProductsTable({
             >
               Discontinued
             </Badge>
-          )
+          );
         },
       },
       ...(canEdit || canDelete
@@ -294,7 +319,7 @@ export function ProductsTable({
               header: "",
               enableHiding: false,
               cell: ({ row }: { row: { original: Product } }) => {
-                const product = row.original
+                const product = row.original;
                 return (
                   <DropdownMenu>
                     <DropdownMenuTrigger
@@ -308,25 +333,56 @@ export function ProductsTable({
                     >
                       <EllipsisVerticalIcon className="size-4" />
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                    <DropdownMenuContent
+                      align="end"
+                      className="w-fit min-w-0 p-1"
+                    >
                       {canEdit && (
                         <DropdownMenuGroup>
-                          <DropdownMenuItem onClick={() => openEdit(product)}>
-                            Edit
-                          </DropdownMenuItem>
+                          <Tooltip>
+                            <TooltipTrigger
+                              render={
+                                <DropdownMenuItem
+                                  className={"h-8 w-8 p-0 justify-center"}
+                                  onClick={() => openEdit(product)}
+                                >
+                                  <Pencil className="size-4 text-blue-600" />
+                                </DropdownMenuItem>
+                              }
+                            ></TooltipTrigger>
+                            <TooltipContent>
+                              <p>Edit</p>
+                            </TooltipContent>
+                          </Tooltip>
                         </DropdownMenuGroup>
                       )}
                       {canEdit && (
                         <>
                           <DropdownMenuSeparator />
                           <DropdownMenuGroup>
-                            <DropdownMenuItem
-                              onClick={() => handleStatusToggle(product)}
-                            >
-                              {product.status === "active"
-                                ? "Mark Inactive"
-                                : "Mark Active"}
-                            </DropdownMenuItem>
+                            <Tooltip>
+                              <TooltipTrigger
+                                render={
+                                  <DropdownMenuItem
+                                    className={"h-8 w-8 p-0 justify-center"}
+                                    onClick={() => handleStatusToggle(product)}
+                                  >
+                                    {product.status === "active" ? (
+                                      <CircleSlash className="size-4 text-foreground" />
+                                    ) : (
+                                      <CircleCheck className="size-4 text-green-600" />
+                                    )}
+                                  </DropdownMenuItem>
+                                }
+                              ></TooltipTrigger>
+                              <TooltipContent>
+                                <p>
+                                  {product.status === "active"
+                                    ? "Mark Inactive"
+                                    : "Mark Active"}
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
                           </DropdownMenuGroup>
                         </>
                       )}
@@ -334,35 +390,45 @@ export function ProductsTable({
                         <>
                           <DropdownMenuSeparator />
                           <DropdownMenuGroup>
-                            <DropdownMenuItem
-                              variant="destructive"
-                              onClick={() => openDiscontinue(product)}
-                            >
-                              Discontinue
-                            </DropdownMenuItem>
+                            <Tooltip>
+                              <TooltipTrigger
+                                render={
+                                  <DropdownMenuItem
+                                    className={"h-8 w-8 p-0 justify-center"}
+                                    variant="destructive"
+                                    onClick={() => openDiscontinue(product)}
+                                  >
+                                    <CircleX className="size-4 text-destructive" />
+                                  </DropdownMenuItem>
+                                }
+                              ></TooltipTrigger>
+                              <TooltipContent>
+                                <p>Discontinue</p>
+                              </TooltipContent>
+                            </Tooltip>
                           </DropdownMenuGroup>
                         </>
                       )}
                     </DropdownMenuContent>
                   </DropdownMenu>
-                )
+                );
               },
             } satisfies ColumnDef<Product>,
           ]
         : []),
     ],
     [canEdit, canDelete, openEdit, openDiscontinue, handleStatusToggle],
-  )
+  );
 
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
-  })
+  });
 
-  const totalPages = Math.ceil(count / pageSize)
-  const fromItem = count === 0 ? 0 : (page - 1) * pageSize + 1
-  const toItem = Math.min(page * pageSize, count)
+  const totalPages = Math.ceil(count / pageSize);
+  const fromItem = count === 0 ? 0 : (page - 1) * pageSize + 1;
+  const toItem = Math.min(page * pageSize, count);
 
   return (
     <div className="flex flex-col gap-4">
@@ -373,8 +439,8 @@ export function ProductsTable({
             placeholder="Search products…"
             value={searchValue}
             onChange={e => {
-              setSearchValue(e.target.value)
-              handleSearch(e.target.value)
+              setSearchValue(e.target.value);
+              handleSearch(e.target.value);
             }}
             className="w-60"
           />
@@ -386,13 +452,13 @@ export function ProductsTable({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">All Types</SelectItem>
-              {(Object.entries(PRODUCT_TYPE_LABELS) as [ProductType, string][]).map(
-                ([val, label]) => (
-                  <SelectItem key={val} value={val}>
-                    {label}
-                  </SelectItem>
-                ),
-              )}
+              {(
+                Object.entries(PRODUCT_TYPE_LABELS) as [ProductType, string][]
+              ).map(([val, label]) => (
+                <SelectItem key={val} value={val}>
+                  {label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Select value={status} onValueChange={handleStatusChange}>
@@ -405,16 +471,22 @@ export function ProductsTable({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">All Statuses</SelectItem>
-              {(Object.entries(PRODUCT_STATUS_LABELS) as [ProductStatus, string][]).map(
-                ([val, label]) => (
-                  <SelectItem key={val} value={val}>
-                    {label}
-                  </SelectItem>
-                ),
-              )}
+              {(
+                Object.entries(PRODUCT_STATUS_LABELS) as [
+                  ProductStatus,
+                  string,
+                ][]
+              ).map(([val, label]) => (
+                <SelectItem key={val} value={val}>
+                  {label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
-          <Select value={prescriptionValue} onValueChange={handlePrescriptionChange}>
+          <Select
+            value={prescriptionValue}
+            onValueChange={handlePrescriptionChange}
+          >
             <SelectTrigger className="w-44">
               <SelectValue>
                 {requires_prescription === true
@@ -431,10 +503,7 @@ export function ProductsTable({
             </SelectContent>
           </Select>
         </div>
-        <Button
-          size="sm"
-          onClick={() => router.push("/admin/products/new")}
-        >
+        <Button size="sm" onClick={() => router.push("/admin/products/new")}>
           <PlusIcon />
           Add Product
         </Button>
@@ -476,7 +545,10 @@ export function ProductsTable({
                 <TableRow key={row.id}>
                   {row.getVisibleCells().map(cell => (
                     <TableCell key={cell.id} className="whitespace-nowrap">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext(),
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>
@@ -538,7 +610,9 @@ export function ProductsTable({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDiscontinuing}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDiscontinuing}>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
               onClick={handleDiscontinue}
@@ -550,5 +624,5 @@ export function ProductsTable({
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  )
+  );
 }
