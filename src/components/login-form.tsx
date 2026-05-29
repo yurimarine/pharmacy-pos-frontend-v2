@@ -32,10 +32,16 @@ export function LoginForm({
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
   })
+
+  const fillTestAccount = () => {
+    setValue("email", "godadmin@pharmacy.com")
+    setValue("password", "godadmin1234")
+  }
 
   const onSubmit = async (data: FormValues) => {
     const result = await loginAction(data)
@@ -103,6 +109,13 @@ export function LoginForm({
           </form>
         </CardContent>
       </Card>
+      <button
+        type="button"
+        onClick={fillTestAccount}
+        className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors mx-auto"
+      >
+        Use test account
+      </button>
     </div>
   )
 }
