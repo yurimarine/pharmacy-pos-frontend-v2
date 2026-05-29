@@ -14,9 +14,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm run dev      # Start dev server at localhost:3000
 npm run build    # Production build (also runs TypeScript type checking)
 npm run lint     # Run ESLint
+npx shadcn add <component>   # Add a new shadcn/ui component to src/components/ui/
 ```
 
-No test suite is configured yet.
+No test suite is configured yet. `npm run build` is the primary verification step.
 
 ## Environment Variables
 

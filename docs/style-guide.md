@@ -98,7 +98,7 @@ Example in the codebase:
 
 Note: PurchaseOrder, WarehouseReceipt, and StockTransfer use the full-page form pattern (see above) and receive reference data from the RSC page as props — the modal data-fetching pattern does not apply to them.
 
-**Exception**: a single selected object passed down for editing (e.g. the inventory row being edited in `EditPricingModal`) is reliable to pass as a prop — it is already loaded.
+**Exception**: a single selected object passed down for editing (e.g. the inventory row being edited in `EditInventoryModal`) is reliable to pass as a prop — it is already loaded.
 
 ### SelectValue display fix
 
