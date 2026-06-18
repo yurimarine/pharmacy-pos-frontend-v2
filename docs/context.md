@@ -10,5 +10,6 @@
 - **Tailwind CSS v4** — PostCSS-based, no `tailwind.config.js`. Config lives in `globals.css`.
 - **shadcn/ui** — components live in `src/components/ui/`. Add new ones via `npx shadcn add <component>`.
 - **Supabase** (`@supabase/ssr`) — auth and database. Env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.
-- **@tanstack/react-table**, **recharts**, **@dnd-kit**, **zod**, **sonner**, **vaul**, **use-debounce** — already installed.
+- **@tanstack/react-table**, **recharts**, **@dnd-kit**, **zod**, **sonner**, **vaul**, **use-debounce**, **react-hook-form** + **@hookform/resolvers**, **next-themes**, **date-fns**, **lucide-react** — already installed.
+- **@react-pdf/renderer** — PDF generation for Purchase Orders and Warehouse Receipts (browser-only; requires dynamic import to avoid SSR errors).
 - Path alias: `@/` → `src/`
