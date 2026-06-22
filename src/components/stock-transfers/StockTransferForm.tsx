@@ -522,9 +522,6 @@ export function StockTransferForm({ mode, transfer, pharmacies }: Props) {
 
           {/* Summary strip */}
           <div className="flex items-baseline gap-3 rounded-md bg-muted/50 px-4 py-3 mb-4">
-            <span className="text-xs text-muted-foreground whitespace-nowrap">
-              Summary →
-            </span>
             <span className="text-sm font-medium">
               {items.filter(i => i.product_id).length} item(s)
             </span>
@@ -591,7 +588,9 @@ export function StockTransferForm({ mode, transfer, pharmacies }: Props) {
                     <div className="flex flex-col gap-1">
                       <QuantityInput
                         value={row.quantity}
-                        onChange={v => updateRow(i, { quantity: Math.max(1, v) })}
+                        onChange={v =>
+                          updateRow(i, { quantity: Math.max(1, v) })
+                        }
                         min={1}
                         max={lockedBatch?.quantity_remaining}
                       />
@@ -769,7 +768,7 @@ export function StockTransferForm({ mode, transfer, pharmacies }: Props) {
               {isSubmitting
                 ? "Saving..."
                 : mode === "create"
-                  ? "Save transfer"
+                  ? "Draft"
                   : "Save changes"}
             </Button>
           </div>

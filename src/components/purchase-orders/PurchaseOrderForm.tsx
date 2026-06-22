@@ -253,9 +253,6 @@ export function PurchaseOrderForm({ mode, po, suppliers }: Props) {
 
           {/* Summary strip */}
           <div className="flex items-baseline gap-3 rounded-md bg-muted/50 px-4 py-3 mb-4">
-            <span className="text-xs text-muted-foreground whitespace-nowrap">
-              Summary →
-            </span>
             <span className="text-sm font-medium">
               {items.filter(i => i.product_id).length} item(s)
             </span>
@@ -369,7 +366,7 @@ export function PurchaseOrderForm({ mode, po, suppliers }: Props) {
                   ? "Drafting..."
                   : "Saving..."
                 : mode === "create"
-                  ? "Draft PO"
+                  ? "Draft"
                   : "Save changes"}
             </Button>
           </div>
