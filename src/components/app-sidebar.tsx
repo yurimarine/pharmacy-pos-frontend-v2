@@ -159,7 +159,6 @@ const navReferenceData: NavItem[] = [
 const navSecondary: NavItem[] = [
   { title: "Settings", url: "#", icon: <Settings2Icon /> },
   { title: "Get Help", url: "#", icon: <CircleHelpIcon /> },
-  { title: "Search", url: "#", icon: <SearchIcon /> },
 ];
 
 const logs: LogItem[] = [
@@ -175,10 +174,18 @@ const logs: LogItem[] = [
     icon: <LandmarkIcon />,
     roles: ["admin"],
   },
-  { name: "Time Logs", url: "/admin/time-logs", icon: <ClipboardClock />, roles: ["admin"] },
+  {
+    name: "Time Logs",
+    url: "/admin/time-logs",
+    icon: <ClipboardClock />,
+    roles: ["admin"],
+  },
 ];
 
-function filterByRole<T extends { roles?: Role[] }>(items: T[], role: Role): T[] {
+function filterByRole<T extends { roles?: Role[] }>(
+  items: T[],
+  role: Role,
+): T[] {
   return items.filter(item => !item.roles || item.roles.includes(role));
 }
 
