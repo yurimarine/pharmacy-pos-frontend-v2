@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+Multi-pharmacy point-of-sale system built with Next.js 16 App Router, Supabase, and Tailwind CSS v4. Covers inventory management, purchase orders, warehouse receipts, stock transfers, POS terminal with till sessions, and role-based access (admin / pharmacist / pharmacy_assistant).
+
 @AGENTS.md
 @docs/context.md
 @docs/architecture.md

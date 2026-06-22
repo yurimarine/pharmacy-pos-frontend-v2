@@ -265,7 +265,7 @@ Pharmacy selectors: admin sees a `<Select>` to switch pharmacies; pharmacists se
 
 `src/components/notification-bell.tsx` is a Client Component rendered inside `SiteHeader`. The admin layout RSC calls `getNotificationAlerts(pharmacyId?)` (server action at `admin/notifications/actions.ts`) and passes the result as `initialAlerts` to `SiteHeader` → `NotificationBell`.
 
-On the client, `NotificationBell` opens a Supabase Realtime channel (`pharmacy_inventory_changes`) that listens for `UPDATE` events on `pharmacy_inventory`. Each incoming row is re-evaluated via `getStockStatus()` — if it crosses a threshold (expired, near-expiry, out-of-stock, low-stock) and the `id` hasn't already been alerted (tracked via a `useRef<Set<string>>`), the alerts state is updated, the bell animation fires, and `new Audio('/notification.mp3').play()` is called. The popover lists items grouped by severity, each linking to `/admin/inventory?pharmacy=<id>&status=<status>`.
+On the client, `NotificationBell` opens a Supabase Realtime channel (`pharmacy_inventory_changes`) that listens for `UPDATE` events on `pharmacy_inventory`. Each incoming row is re-evaluated via `getStockStatus()` — the realtime stream only fires alerts when the new status is `low_stock` or `out_of_stock` (expiry alerts are populated from the initial server fetch only, since expiry crossing is time-based, not write-based). If the `id` hasn't already been alerted (tracked via a `useRef<Set<string>>`), the alerts state is updated, the bell animation fires for 1000ms, and `new Audio('/notification.mp3').play()` is called. The popover groups alerts by severity (`expired`, `nearExpiry`, `outOfStock`, `lowStock`), each linking to `/admin/inventory?pharmacy=<id>&status=<status>`.
 
 Admins see alerts across all pharmacies; non-admins see only their own pharmacy.
 
@@ -275,7 +275,50 @@ Admins see alerts across all pharmacies; non-admins see only their own pharmacy.
 
 Nav sections:
 
-- `NavMain` — Dashboard, Inventory, Products, Purchase Orders, Warehouse Receipts (admin), Warehouse (admin), Stock Transfers (admin), Transactions, POS Terminal (pharmacist only, external)
+- `NavMain` — Dashboard, Inventory, Products, Purchase Orders, Warehouse Receipts (admin), Warehouse (admin), Stock Transfers (admin), Transactions, Reports, POS Terminal (pharmacist only, external)
 - References group — Suppliers, Manufacturers, Pharmacies, Discounts, Users (all admin only)
 - `NavLogs` — Inventory Logs (admin only), Till Sessions (admin only), Time Logs (admin only)
 - `NavSecondary` — Settings, Help, Search
+
+### Reports
+
+`/admin/reports` is a tabbed report viewer available to `admin` and `pharmacist`. Tabs:
+
+- **Analytics** — sales summary cards, sales-by-date line chart, best-selling products, sales by category, sales by staff
+- **Financial Summary** — revenue, COGS, gross profit, by period
+- **Sales Report** — full sales transaction list for the period
+- **Discount Report** — usage and totals per discount
+- **Till Report** — till reconciliation across sessions
+- **Inventory Value** — pharmacy-scoped inventory valuation (qty × unit_cost)
+- **Dead Stock** — products with no sales in N days (configurable lookback: 30 / 60 / 90)
+
+Each report has a "Print / Save as PDF" button that uses `window.print()` with CSS isolation via the `#report-print-section` id (see `globals.css`). All controls outside the printable region are hidden via Tailwind `print:hidden`. There is no server-side PDF route for reports — they print directly through the browser.
+
+### PDF export (Purchase Orders & Warehouse Receipts)
+
+Unlike reports (which use browser print), PO and WR exports are real PDF files generated with `@react-pdf/renderer`:
+
+- `src/components/pdf/PurchaseOrderPDF.tsx` — `<Document>` + `<Page>` + `<StyleSheet>` layout for POs (header, supplier/pharmacy blocks, item table with packaging column, totals, notes)
+- `src/components/pdf/WarehouseReceiptPDF.tsx` — same shape for receipts
+- `src/lib/pdf-utils.ts` — `downloadPDF(doc, filename)` helper: calls `pdf(doc).toBlob()`, creates an object URL, appends an anchor element to the DOM, clicks it, then revokes — Firefox-compatible.
+
+**SSR-critical**: `@react-pdf/renderer` is browser-only. **Always import dynamically** at the call site (not statically at the module top), e.g.:
+
+```ts
+async function handleDownload() {
+  const [{ PurchaseOrderPDF }, { downloadPDF }] = await Promise.all([
+    import("@/components/pdf/PurchaseOrderPDF"),
+    import("@/lib/pdf-utils"),
+  ])
+  await downloadPDF(<PurchaseOrderPDF data={data} />, `PO-${data.po_number}.pdf`)
+}
+```
+
+Server actions that fetch PDF data (`getPurchaseOrderForPDF`, `getWarehouseReceiptForPDF`) must call `getCurrentUser()` for auth.
+
+### Product create flow with variants
+
+`ProductForm` (`src/components/products/ProductForm.tsx`) supports two behaviors based on `mode`:
+
+- **create mode** — multi-variant: shared metadata (generic name, brand name, dosage strength, dosage form, manufacturer, classification) is entered once; one or more "variants" can be added with their own `packaging_type`, `unit_count`, `volume`, `barcode`, `unit_cost`, `requires_prescription`, `status`. Submit creates one `products` row per variant; the resolved `product_name` for each row is built via `composeProductName()`. After success, the form resets (no redirect) and `router.refresh()` re-fetches suggestions — see [Style guide → ProductForm "stay on page" exception].
+- **edit mode** — single record: variant array is collapsed to one entry mirroring the existing row. Submit calls `updateProduct` which redirects on success.

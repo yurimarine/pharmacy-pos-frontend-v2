@@ -27,3 +27,22 @@ The alias (left of `:`) becomes the key on the returned object. Without the FK h
 **CreatableCombobox focus trap** — Base UI Popover sets `initialFocus={true}` by default, which steals keyboard focus when the combobox list opens inside a Dialog. This breaks the text input the user was typing into. Always set `initialFocus={false}` and `finalFocus={false}` on the `PopoverContent` surrounding the suggestion list. This is already applied in `creatable-combobox.tsx` — preserve it.
 
 **`redirect()` inside try/catch** — Next.js `redirect()` works by throwing a special error internally. If called inside a `try/catch` block, that throw is caught and the redirect silently fails. Always call `redirect()` after the try/catch block. The pattern for full-page form actions: do all DB work inside try/catch (return `{ error }` on failure), then call `redirect()` unconditionally after the block.
+
+**`@react-pdf/renderer` is browser-only** — Importing it statically (top of a Client Component file) does not crash the build, but it pulls native modules into the SSR bundle and can break the page. Always import PDF components and `pdf-utils` dynamically inside the click handler:
+
+```ts
+const [{ PurchaseOrderPDF }, { downloadPDF }] = await Promise.all([
+  import("@/components/pdf/PurchaseOrderPDF"),
+  import("@/lib/pdf-utils"),
+])
+```
+
+Other libs that are *always* needed (e.g. `toast` from sonner) should still be imported statically so error toasts work even before the PDF chunk loads.
+
+**Anchor download must be appended to the DOM** — In `downloadPDF`, the anchor element must be `document.body.appendChild(anchor)` before `anchor.click()` and removed after. Firefox ignores programmatic clicks on detached anchors. Do not shadow `document` with a local variable (the bundler will rename it but readers get confused).
+
+**`@react-pdf/renderer` server-action auth** — Any server action that returns data for PDF generation (`getPurchaseOrderForPDF`, `getWarehouseReceiptForPDF`) must call `getCurrentUser()`. The function is called from a public-feeling click handler — without an auth check it would leak data to anyone who guesses an ID.
+
+**`processTransaction` non-fatal log failures** — Once `transactions` and `transaction_items` are inserted, inventory deductions proceed even if individual log writes fail. There is no rollback. If an audit log appears missing for a given sale, check Supabase logs around the transaction's `created_at` — the deduction happened but the `inventory_logs` insert did not. This is by design: a successful sale must never be reversed by a logging fault.
+
+**`@base-ui/react` Select returns `string | null`** — `onValueChange` may fire with `null` when the user clears the selection. Either guard at the callback (`if (value === null) return`) or type the field accordingly. Doing `field.onChange(value)` blindly will pass null into a Zod string schema and fail validation with an unfriendly error.
