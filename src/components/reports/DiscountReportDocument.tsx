@@ -2,6 +2,7 @@
 
 import { Printer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { formatCurrency } from '@/lib/report-utils'
 import type { DiscountReport, DiscountReportItem } from '@/app/admin/reports/actions'
 
@@ -46,10 +47,18 @@ export function DiscountReportDocument({ data }: { data: DiscountReport }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-end print:hidden">
-        <Button variant="outline" size="sm" onClick={handlePrint}>
-          <Printer className="size-4 mr-2" />
-          Print / Save as PDF
-        </Button>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button variant="outline" size="icon" onClick={handlePrint}>
+                <Printer className="size-4" />
+              </Button>
+            }
+          />
+          <TooltipContent>
+            <p>Print/Save</p>
+          </TooltipContent>
+        </Tooltip>
       </div>
 
       <div
