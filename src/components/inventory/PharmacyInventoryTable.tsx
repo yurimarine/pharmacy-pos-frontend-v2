@@ -63,6 +63,7 @@ import {
 import BulkEditModal from "./BulkEditModal";
 import EditInventoryModal from "./EditInventoryModal";
 import StockAdjustmentModal from "./StockAdjustmentModal";
+import PageSizeSelect from "@/components/ui/page-size-select";
 
 const STATUS_OPTIONS: { value: StockStatus; label: string }[] = [
   { value: "in_stock", label: stockStatusConfig.in_stock.label },
@@ -98,20 +99,25 @@ function PaginationControls({
   pageSize,
   count,
   onPageChange,
+  onPageSizeChange,
 }: {
   page: number;
   pageSize: number;
   count: number;
   onPageChange: (p: number) => void;
+  onPageSizeChange: (size: number) => void;
 }) {
   const totalPages = Math.max(1, Math.ceil(count / pageSize));
   return (
     <div className="flex items-center justify-between text-sm text-muted-foreground">
-      <span>
-        {count === 0
-          ? "No results"
-          : `Showing ${Math.min((page - 1) * pageSize + 1, count)}–${Math.min(page * pageSize, count)} of ${count}`}
-      </span>
+      <div className="flex items-center gap-3">
+        <span>
+          {count === 0
+            ? "No results"
+            : `Showing ${Math.min((page - 1) * pageSize + 1, count)}–${Math.min(page * pageSize, count)} of ${count}`}
+        </span>
+        <PageSizeSelect value={pageSize} onChange={onPageSizeChange} />
+      </div>
       <div className="flex items-center gap-2">
         <Button
           variant="outline"
@@ -210,6 +216,13 @@ export default function PharmacyInventoryTable({
   function handlePageChange(p: number) {
     const params = new URLSearchParams(searchParams.toString());
     params.set("page", String(p));
+    startTransition(() => router.push(`?${params.toString()}`));
+  }
+
+  function handlePageSizeChange(size: number) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("per_page", String(size));
+    params.delete("page");
     startTransition(() => router.push(`?${params.toString()}`));
   }
 
@@ -661,6 +674,7 @@ export default function PharmacyInventoryTable({
         pageSize={pageSize}
         count={count}
         onPageChange={handlePageChange}
+        onPageSizeChange={handlePageSizeChange}
       />
 
       {/* Modals */}

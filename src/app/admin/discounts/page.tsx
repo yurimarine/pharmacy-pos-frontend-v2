@@ -1,6 +1,7 @@
 import { getCurrentUser } from '@/lib/get-current-user'
 import { getDiscounts } from './actions'
 import { DiscountsPageClient } from '@/components/discounts/DiscountsPageClient'
+import { resolvePageSize } from '@/lib/pagination'
 
 export default async function DiscountsPage({
   searchParams,
@@ -11,13 +12,14 @@ export default async function DiscountsPage({
     type?: string
     isActive?: string
     page?: string
+    per_page?: string
   }>
 }) {
   const params = await searchParams
   await getCurrentUser()
 
   const page = Math.max(1, Number(params.page ?? 1))
-  const pageSize = 20
+  const pageSize = resolvePageSize(params.per_page)
 
   const { data, count } = await getDiscounts({
     search: params.search,

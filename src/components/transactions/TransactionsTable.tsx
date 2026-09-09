@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/select";
 import type { Transaction, TransactionStatus } from "@/types/transaction";
 import { ROLE_LABELS } from "@/types/user";
+import PageSizeSelect from "@/components/ui/page-size-select";
 
 const STATUS_LABELS: Record<string, string> = {
   all: "All Status",
@@ -114,6 +115,10 @@ export function TransactionsTable({
     },
     [searchParams, pathname, router],
   );
+
+  function handlePageSizeChange(size: number) {
+    updateParams({ per_page: String(size) });
+  }
 
   const handleSearch = useDebouncedCallback((value: string) => {
     updateParams({ search: value || null });
@@ -389,11 +394,14 @@ export function TransactionsTable({
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
+      {totalCount > 0 && (
         <div className="flex items-center justify-between mt-4">
-          <span className="text-sm text-muted-foreground">
-            Page {currentPage} of {totalPages}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-muted-foreground">
+              Page {currentPage} of {totalPages}
+            </span>
+            <PageSizeSelect value={pageSize} onChange={handlePageSizeChange} />
+          </div>
           <div className="flex gap-2">
             <Button
               variant="outline"

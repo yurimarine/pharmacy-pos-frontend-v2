@@ -75,6 +75,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import PageSizeSelect from "@/components/ui/page-size-select";
 
 const ViewWarehouseReceiptModal = dynamic(
   () => import("./ViewWarehouseReceiptModal"),
@@ -167,6 +168,10 @@ export function WarehouseReceiptsTable({
     },
     [searchParams, pathname, router],
   );
+
+  function handlePageSizeChange(size: number) {
+    updateParams({ per_page: String(size) });
+  }
 
   const handleSearch = useDebouncedCallback(
     (value: string) => updateParams({ search: value || null }),
@@ -598,11 +603,14 @@ export function WarehouseReceiptsTable({
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
+      {count > 0 && (
         <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            Page {page} of {totalPages}
-          </p>
+          <div className="flex items-center gap-3">
+            <p className="text-sm text-muted-foreground">
+              Page {page} of {totalPages}
+            </p>
+            <PageSizeSelect value={pageSize} onChange={handlePageSizeChange} />
+          </div>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"

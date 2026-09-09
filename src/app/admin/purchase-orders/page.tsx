@@ -3,6 +3,7 @@ import { getPurchaseOrders } from "./actions"
 import { getSuppliers } from "@/app/admin/suppliers/actions"
 import { PurchaseOrdersTable } from "@/components/purchase-orders/PurchaseOrdersTable"
 import type { PurchaseOrderStatus } from "@/types/inventory"
+import { resolvePageSize } from "@/lib/pagination"
 
 const VALID_STATUSES: PurchaseOrderStatus[] = [
   "draft",
@@ -20,12 +21,13 @@ export default async function PurchaseOrdersPage({
     status?: string
     supplier_id?: string
     page?: string
+    per_page?: string
   }>
 }) {
   const params = await searchParams
 
   const page = Math.max(1, Number(params.page ?? 1))
-  const pageSize = 20
+  const pageSize = resolvePageSize(params.per_page)
   const search = params.search
   const status = VALID_STATUSES.includes(params.status as PurchaseOrderStatus)
     ? (params.status as PurchaseOrderStatus)

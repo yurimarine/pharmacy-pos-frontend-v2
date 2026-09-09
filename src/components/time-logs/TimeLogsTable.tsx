@@ -34,6 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import PageSizeSelect from "@/components/ui/page-size-select";
 
 type Props = {
   data: TillSessionWithRelations[];
@@ -115,6 +116,10 @@ export function TimeLogsTable({
     },
     [searchParams, pathname, router],
   );
+
+  function handlePageSizeChange(size: number) {
+    updateParams({ per_page: String(size) });
+  }
 
   const handleSearch = useDebouncedCallback((value: string) => {
     updateParams({ search: value || null });
@@ -365,11 +370,14 @@ export function TimeLogsTable({
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
+      {count > 0 && (
         <div className="flex items-center justify-between mt-4">
-          <span className="text-sm text-muted-foreground">
-            Showing {startRow}–{endRow} of {count} records
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-muted-foreground">
+              Showing {startRow}–{endRow} of {count} records
+            </span>
+            <PageSizeSelect value={pageSize} onChange={handlePageSizeChange} />
+          </div>
           <div className="flex gap-2">
             <Button
               variant="outline"

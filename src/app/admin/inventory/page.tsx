@@ -4,6 +4,7 @@ import { getPharmacies } from "@/app/admin/pharmacies/actions";
 import { getCurrentUser } from "@/lib/get-current-user";
 import PharmacyInventorySection from "@/components/inventory/PharmacyInventorySection";
 import type { StockStatus } from "@/types/inventory";
+import { resolvePageSize } from "@/lib/pagination";
 
 export default async function InventoryPage({
   searchParams,
@@ -14,11 +15,12 @@ export default async function InventoryPage({
     status?: string;
     requires_prescription?: string;
     page?: string;
+    per_page?: string;
   }>;
 }) {
   const params = await searchParams;
   const page = Math.max(1, Number(params.page ?? 1));
-  const pageSize = 20;
+  const pageSize = resolvePageSize(params.per_page);
 
   const [currentUser, pharmacies] = await Promise.all([
     getCurrentUser(),

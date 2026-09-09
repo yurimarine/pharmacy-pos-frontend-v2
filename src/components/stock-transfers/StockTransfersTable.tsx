@@ -71,6 +71,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import ViewStockTransferModal from "./ViewStockTransferModal";
+import PageSizeSelect from "@/components/ui/page-size-select";
 
 const STATUS_COLORS: Record<StockTransferStatus, string> = {
   draft: "bg-muted text-muted-foreground border",
@@ -93,20 +94,25 @@ function PaginationControls({
   pageSize,
   count,
   onPageChange,
+  onPageSizeChange,
 }: {
   page: number;
   pageSize: number;
   count: number;
   onPageChange: (p: number) => void;
+  onPageSizeChange: (size: number) => void;
 }) {
   const totalPages = Math.max(1, Math.ceil(count / pageSize));
   return (
     <div className="flex items-center justify-between text-sm text-muted-foreground">
-      <span>
-        {count === 0
-          ? "No transfers"
-          : `${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, count)} of ${count}`}
-      </span>
+      <div className="flex items-center gap-3">
+        <span>
+          {count === 0
+            ? "No transfers"
+            : `${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, count)} of ${count}`}
+        </span>
+        <PageSizeSelect value={pageSize} onChange={onPageSizeChange} />
+      </div>
       <div className="flex gap-2">
         <Button
           variant="outline"
@@ -180,6 +186,13 @@ export default function StockTransfersTable({
   const handlePageChange = (newPage: number) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("page", String(newPage));
+    startTransition(() => router.push(`?${params.toString()}`));
+  };
+
+  const handlePageSizeChange = (size: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("per_page", String(size));
+    params.delete("page");
     startTransition(() => router.push(`?${params.toString()}`));
   };
 
@@ -513,6 +526,7 @@ export default function StockTransfersTable({
         pageSize={pageSize}
         count={count}
         onPageChange={handlePageChange}
+        onPageSizeChange={handlePageSizeChange}
       />
 
       {/* Modals */}

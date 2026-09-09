@@ -1,6 +1,7 @@
 import { getCurrentUser } from '@/lib/get-current-user'
 import { getTransactions, getPharmaciesForTransactionFilter } from './actions'
 import { TransactionsTable } from '@/components/transactions/TransactionsTable'
+import { resolvePageSize } from '@/lib/pagination'
 
 export default async function AdminTransactionsPage({
   searchParams,
@@ -10,6 +11,7 @@ export default async function AdminTransactionsPage({
     status?: string
     pharmacy?: string
     page?: string
+    per_page?: string
     dateFrom?: string
     dateTo?: string
   }>
@@ -19,7 +21,7 @@ export default async function AdminTransactionsPage({
   const isAdminUser = currentUser.role === 'admin'
 
   const page = Math.max(1, Number(params.page ?? 1))
-  const pageSize = 20
+  const pageSize = resolvePageSize(params.per_page)
 
   const pharmacyId = isAdminUser
     ? params.pharmacy
