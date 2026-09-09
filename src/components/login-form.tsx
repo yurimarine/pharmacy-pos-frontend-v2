@@ -38,9 +38,9 @@ export function LoginForm({
     resolver: zodResolver(schema),
   });
 
-  const fillTestAccount = () => {
-    setValue("email", "godadmin@pharmacy.com");
-    setValue("password", "Admin123!");
+  const fillTestAccount = (email: string, password: string) => {
+    setValue("email", email);
+    setValue("password", password);
   };
 
   const onSubmit = async (data: FormValues) => {
@@ -114,13 +114,29 @@ export function LoginForm({
           </form>
         </CardContent>
       </Card>
-      <button
-        type="button"
-        onClick={fillTestAccount}
-        className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors mx-auto"
-      >
-        Use test account
-      </button>
+      <div className="flex justify-center gap-4">
+        <button
+          type="button"
+          onClick={() => fillTestAccount("godadmin@pharmacy.com", "Admin123!")}
+          className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors"
+        >
+          Admin test account
+        </button>
+        <button
+          type="button"
+          onClick={() => fillTestAccount("phtest@pharmacy.com", "Pharm123!")}
+          className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors"
+        >
+          Pharmacist test account
+        </button>
+        <button
+          type="button"
+          onClick={() => fillTestAccount("patest@pharmacy.com", "Patest123!")}
+          className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors"
+        >
+          Assistant test account
+        </button>
+      </div>
     </div>
   );
 }

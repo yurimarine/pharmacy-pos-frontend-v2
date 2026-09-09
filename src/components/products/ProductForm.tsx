@@ -16,6 +16,7 @@ import {
 } from "@/types/product";
 import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import { QuantityInput } from "@/components/ui/QuantityInput";
+import { DecimalInput } from "@/components/ui/DecimalInput";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -555,15 +556,13 @@ export function ProductForm({ mode, product, suggestions }: Props) {
               <div className="grid grid-cols-3 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="pf-unit_cost">Unit cost (₱)</Label>
-                  <Input
+                  <DecimalInput
                     id="pf-unit_cost"
-                    type="number"
                     min={0}
                     step={0.01}
+                    placeholder="0.00"
                     value={unitCost}
-                    onChange={evt =>
-                      setUnitCost(parseFloat(evt.target.value) || 0)
-                    }
+                    onChange={setUnitCost}
                   />
                   <p className="text-xs text-muted-foreground">
                     Base cost — used for markup computation
@@ -742,17 +741,13 @@ export function ProductForm({ mode, product, suggestions }: Props) {
                     <div className="grid grid-cols-3 gap-3">
                       <div className="flex flex-col gap-1.5">
                         <Label>Unit cost (₱)</Label>
-                        <Input
-                          type="number"
+                        <DecimalInput
                           min={0}
                           step={0.01}
+                          placeholder="0.00"
                           value={variant.unitCost}
-                          onChange={evt =>
-                            updateVariant(
-                              variant.id,
-                              "unitCost",
-                              parseFloat(evt.target.value) || 0,
-                            )
+                          onChange={v =>
+                            updateVariant(variant.id, "unitCost", v)
                           }
                         />
                       </div>
