@@ -1,6 +1,7 @@
 import { getCurrentUser } from "@/lib/get-current-user"
 import { getWarehouseInventory, getWarehouseInventoryStats, getCompletedReceiptsForFilter } from "./actions"
 import { WarehouseInventoryTable } from "@/components/warehouse/WarehouseInventoryTable"
+import { resolvePageSize } from "@/lib/pagination"
 
 export default async function WarehousePage({
   searchParams,
@@ -11,12 +12,13 @@ export default async function WarehousePage({
     expiring_within?: string
     receipt_id?: string
     page?: string
+    per_page?: string
   }>
 }) {
   const params = await searchParams
 
   const page = Math.max(1, Number(params.page ?? 1))
-  const pageSize = 20
+  const pageSize = resolvePageSize(params.per_page)
   const search = params.search
   const receipt_id = params.receipt_id
 

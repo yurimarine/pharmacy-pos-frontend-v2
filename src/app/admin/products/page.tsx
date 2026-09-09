@@ -2,6 +2,7 @@ import { getCurrentUser } from "@/lib/get-current-user"
 import { getProducts } from "./actions"
 import { ProductsTable } from "@/components/products/ProductsTable"
 import type { ProductType, ProductStatus } from "@/types/product"
+import { resolvePageSize } from "@/lib/pagination"
 
 const VALID_TYPES: ProductType[] = ["generic", "branded", "otc"]
 const VALID_STATUSES: ProductStatus[] = ["active", "inactive", "discontinued"]
@@ -16,12 +17,13 @@ export default async function ProductsPage({
     category?: string
     requires_prescription?: string
     page?: string
+    per_page?: string
   }>
 }) {
   const params = await searchParams
 
   const page = Math.max(1, Number(params.page ?? 1))
-  const pageSize = 20
+  const pageSize = resolvePageSize(params.per_page)
   const search = params.search
   const type = VALID_TYPES.includes(params.type as ProductType)
     ? (params.type as ProductType)

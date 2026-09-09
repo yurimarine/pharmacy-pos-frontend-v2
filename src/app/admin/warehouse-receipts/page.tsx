@@ -3,6 +3,7 @@ import { getWarehouseReceipts } from "./actions";
 import { getSuppliers } from "@/app/admin/suppliers/actions";
 import { WarehouseReceiptsTable } from "@/components/warehouse-receipts/WarehouseReceiptsTable";
 import type { WarehouseReceiptStatus } from "@/types/inventory";
+import { resolvePageSize } from "@/lib/pagination";
 
 const VALID_STATUSES: WarehouseReceiptStatus[] = [
   "draft",
@@ -18,12 +19,13 @@ export default async function WarehouseReceiptsPage({
     status?: string;
     supplier_id?: string;
     page?: string;
+    per_page?: string;
   }>;
 }) {
   const params = await searchParams;
 
   const page = Math.max(1, Number(params.page ?? 1));
-  const pageSize = 20;
+  const pageSize = resolvePageSize(params.per_page);
   const search = params.search;
   const status = VALID_STATUSES.includes(
     params.status as WarehouseReceiptStatus,

@@ -2,6 +2,7 @@ import { getCurrentUser } from "@/lib/get-current-user"
 import { getInventoryLogs } from "./actions"
 import type { InventoryLogEntityType, InventoryLogAction } from "@/types/inventory"
 import InventoryLogsTable from "@/components/inventory-logs/InventoryLogsTable"
+import { resolvePageSize } from "@/lib/pagination"
 
 export default async function InventoryLogsPage({
   searchParams,
@@ -13,13 +14,14 @@ export default async function InventoryLogsPage({
     date_from?: string
     date_to?: string
     page?: string
+    per_page?: string
   }>
 }) {
   const params = await searchParams
   await getCurrentUser()
 
   const page = Math.max(1, Number(params.page ?? 1))
-  const pageSize = 50
+  const pageSize = resolvePageSize(params.per_page, 50)
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)

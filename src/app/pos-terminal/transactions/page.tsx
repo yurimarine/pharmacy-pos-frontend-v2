@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/get-current-user";
 import { getTransactions } from "@/app/admin/transactions/actions";
 import { POSTransactionsList } from "@/components/pos/POSTransactionsList";
+import { resolvePageSize } from "@/lib/pagination";
 
 export default async function POSTransactionsPage({
   searchParams,
@@ -10,6 +11,7 @@ export default async function POSTransactionsPage({
     search?: string;
     status?: string;
     page?: string;
+    per_page?: string;
     dateFrom?: string;
     dateTo?: string;
   }>;
@@ -32,7 +34,7 @@ export default async function POSTransactionsPage({
   }
 
   const page = Math.max(1, Number(params.page ?? 1));
-  const pageSize = 20;
+  const pageSize = resolvePageSize(params.per_page);
 
   const { data: transactions, count } = await getTransactions({
     pharmacyId: currentUser.pharmacy_id,

@@ -35,6 +35,7 @@ import type {
   InventoryLogAction,
 } from "@/types/inventory";
 import { ROLE_LABELS } from "@/types/user";
+import PageSizeSelect from "@/components/ui/page-size-select";
 
 const ACTION_LABELS: Record<InventoryLogAction, string> = {
   received: "Received",
@@ -79,20 +80,25 @@ function PaginationControls({
   pageSize,
   count,
   onPageChange,
+  onPageSizeChange,
 }: {
   page: number;
   pageSize: number;
   count: number;
   onPageChange: (p: number) => void;
+  onPageSizeChange: (size: number) => void;
 }) {
   const totalPages = Math.max(1, Math.ceil(count / pageSize));
   return (
     <div className="flex items-center justify-between text-sm text-muted-foreground">
-      <span>
-        {count === 0
-          ? "No results"
-          : `Showing ${Math.min((page - 1) * pageSize + 1, count)}–${Math.min(page * pageSize, count)} of ${count} logs`}
-      </span>
+      <div className="flex items-center gap-3">
+        <span>
+          {count === 0
+            ? "No results"
+            : `Showing ${Math.min((page - 1) * pageSize + 1, count)}–${Math.min(page * pageSize, count)} of ${count} logs`}
+        </span>
+        <PageSizeSelect value={pageSize} onChange={onPageSizeChange} />
+      </div>
       <div className="flex items-center gap-2">
         <Button
           variant="outline"
@@ -167,6 +173,13 @@ export default function InventoryLogsTable({
   function handlePageChange(p: number) {
     const params = new URLSearchParams(searchParams.toString());
     params.set("page", String(p));
+    startTransition(() => router.push(`?${params.toString()}`));
+  }
+
+  function handlePageSizeChange(size: number) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("per_page", String(size));
+    params.delete("page");
     startTransition(() => router.push(`?${params.toString()}`));
   }
 
@@ -473,6 +486,7 @@ export default function InventoryLogsTable({
         pageSize={pageSize}
         count={count}
         onPageChange={handlePageChange}
+        onPageSizeChange={handlePageSizeChange}
       />
     </div>
   );

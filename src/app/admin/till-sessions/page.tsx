@@ -2,6 +2,7 @@ import { getCurrentUser } from '@/lib/get-current-user'
 import { createClient } from '@/lib/supabase/server'
 import { getTillSessions } from './actions'
 import { TillSessionsTable } from '@/components/till-sessions/TillSessionsTable'
+import { resolvePageSize } from '@/lib/pagination'
 
 export default async function TillSessionsPage({
   searchParams,
@@ -13,13 +14,14 @@ export default async function TillSessionsPage({
     dateTo?: string
     search?: string
     page?: string
+    per_page?: string
   }>
 }) {
   const params = await searchParams
   await getCurrentUser()
 
   const page = Math.max(1, Number(params.page ?? 1))
-  const pageSize = 20
+  const pageSize = resolvePageSize(params.per_page)
 
   const supabase = await createClient()
   const { data: pharmaciesData } = await supabase

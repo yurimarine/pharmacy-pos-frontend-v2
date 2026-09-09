@@ -58,6 +58,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { EditDiscountModal } from './EditDiscountModal'
+import PageSizeSelect from "@/components/ui/page-size-select"
 
 type Props = {
   data: Discount[]
@@ -116,6 +117,10 @@ export function DiscountsTable({
     },
     [searchParams, pathname, router],
   )
+
+  function handlePageSizeChange(size: number) {
+    updateParams({ per_page: String(size) })
+  }
 
   const handleSearch = useDebouncedCallback((val: string) => {
     updateParams({ search: val || null })
@@ -420,11 +425,14 @@ export function DiscountsTable({
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
+      {count > 0 && (
         <div className="flex items-center justify-between mt-4">
-          <span className="text-sm text-muted-foreground">
-            Showing {startRow}–{endRow} of {count} discounts
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-muted-foreground">
+              Showing {startRow}–{endRow} of {count} discounts
+            </span>
+            <PageSizeSelect value={pageSize} onChange={handlePageSizeChange} />
+          </div>
           <div className="flex gap-2">
             <Button
               variant="outline"

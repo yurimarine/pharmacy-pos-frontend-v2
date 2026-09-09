@@ -48,6 +48,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { TillSessionDetailDialog } from './TillSessionDetailDialog'
+import PageSizeSelect from "@/components/ui/page-size-select"
 
 type Props = {
   data: TillSessionWithRelations[]
@@ -148,6 +149,10 @@ export function TillSessionsTable({
     },
     [searchParams, pathname, router],
   )
+
+  function handlePageSizeChange(size: number) {
+    updateParams({ per_page: String(size) })
+  }
 
   const handleSearch = useDebouncedCallback((value: string) => {
     updateParams({ search: value || null })
@@ -452,11 +457,14 @@ export function TillSessionsTable({
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
+      {count > 0 && (
         <div className="flex items-center justify-between mt-4">
-          <span className="text-sm text-muted-foreground">
-            Showing {startRow}–{endRow} of {count} sessions
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-muted-foreground">
+              Showing {startRow}–{endRow} of {count} sessions
+            </span>
+            <PageSizeSelect value={pageSize} onChange={handlePageSizeChange} />
+          </div>
           <div className="flex gap-2">
             <Button
               variant="outline"
